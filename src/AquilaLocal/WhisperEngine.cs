@@ -240,7 +240,11 @@ public sealed class WhisperEngine : IDisposable
 				double endAt = Seconds(s?["end"]) ?? Seconds(s?["t1"], 0.01) ?? startAt;
 				if (!IsNoise(text))
 				{
-					list.Add(new TranscriptSegment(startAt, endAt, text.Trim()));
+					list.Add(new TranscriptSegment(startAt, endAt, text.Trim())
+					{
+						NoSpeechProbability = Seconds(s?["no_speech_prob"]),
+						AverageLogProbability = Seconds(s?["avg_logprob"])
+					});
 				}
 			}
 		}

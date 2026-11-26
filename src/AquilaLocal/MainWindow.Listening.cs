@@ -24,6 +24,9 @@ public partial class MainWindow
 
 	private bool listeningStarting;
 
+	/// <summary>What you've said that's waiting a moment in case you go on.</summary>
+	private string waitingSpoken = "";
+
 	private VoiceInput Listener()
 	{
 		if (listener != null)
@@ -48,7 +51,7 @@ public partial class MainWindow
 			{
 				if (!featuresClosing && listener?.Hearing == true && !busy)
 				{
-					Composer.Text = text + " …";
+					Composer.Text = (waitingSpoken.Length > 0 ? waitingSpoken + " " : "") + text + " …";
 					Composer.CaretIndex = Composer.Text.Length;
 				}
 			});
@@ -64,12 +67,46 @@ public partial class MainWindow
 				}
 			});
 		};
+		input.Waiting += delegate(string text)
+		{
+			base.Dispatcher.InvokeAsync(delegate
+			{
+				waitingSpoken = text;
+				if (!featuresClosing && !busy)
+				{
+					Composer.Text = text + " …";
+					Composer.CaretIndex = Composer.Text.Length;
+					ComposerHint.Text = "Waiting a moment in case you go on… (it sends by itself)";
+				}
+			});
+		};
+		input.Ignored += delegate
+		{
+			base.Dispatcher.InvokeAsync(delegate
+			{
+				if (!featuresClosing && !busy && waitingSpoken.Length == 0 && Composer.Text.EndsWith(" …", StringComparison.Ordinal))
+				{
+					Composer.Clear();
+				}
+			});
+		};
 		input.Heard += delegate(SpokenMessage message)
 		{
 			base.Dispatcher.InvokeAsync(async delegate
 			{
+				waitingSpoken = "";
 				if (featuresClosing)
 				{
+					return;
+				}
+				if (!settings.Listening.AutoSend)
+				{
+					// You send it yourself: add it to the message box and leave it there.
+					string before = Composer.Text.EndsWith(" …", StringComparison.Ordinal) ? "" : Composer.Text.TrimEnd();
+					Composer.Text = (before.Length > 0 ? before + " " : "") + message.Text;
+					Composer.CaretIndex = Composer.Text.Length;
+					pendingSpoken = true;
+					ComposerHint.Text = "Press Enter to send what you said, or keep talking.";
 					return;
 				}
 				if (busy || current == null)
@@ -125,6 +162,7 @@ public partial class MainWindow
 		VoiceInput input = Listener();
 		if (input.Listening)
 		{
+			input.Flush();
 			input.Stop();
 			ShowListening(on: false);
 			return;
@@ -166,7 +204,7 @@ public partial class MainWindow
 		MicButton.Foreground = on ? Ui.Brush("Accent") : Ui.Brush("Text.Secondary");
 		MicButton.Background = on ? Ui.Brush("Accent.Subtle") : Brushes.Transparent;
 		MicButton.ToolTip = on ? "Listening (click to stop · right-click for settings)" : "Talk instead of typing (right-click for settings)";
-		ComposerHint.Text = on ? "Listening… talk, then pause and it sends. Click the microphone to stop." : "Enter to send · Shift+Enter for a new line · Drop files to attach";
+		ComposerHint.Text = on ? (settings.Listening.AutoSend ? "Listening… talk, then pause and it sends. Click the microphone to stop." : "Listening… talk, then press Enter to send. Click the microphone to stop.") : "Enter to send · Shift+Enter for a new line · Drop files to attach";
 	}
 
 	/// <summary>Right-click on the microphone: which microphone, how long a pause sends, language, interrupting.</summary>
@@ -201,7 +239,7 @@ public partial class MainWindow
 		}
 		menu.Items.Add(mics);
 		MenuItem pause = new MenuItem { Header = "Send after a pause of" };
-		foreach (double seconds in new[] { 0.7, 1.0, 1.5, 2.0, 3.0 })
+		foreach (double seconds in new[] { 1.0, 1.5, 2.0, 3.0, 4.0 })
 		{
 			MenuItem item = new MenuItem { Header = seconds.ToString("0.0") + " seconds", IsCheckable = true, IsChecked = Math.Abs(settings.Listening.EndSilenceSeconds - seconds) < 0.05 };
 			item.Click += delegate
@@ -212,6 +250,13 @@ public partial class MainWindow
 			pause.Items.Add(item);
 		}
 		menu.Items.Add(pause);
+		MenuItem auto = new MenuItem { Header = "Send automatically when I pause", IsCheckable = true, IsChecked = settings.Listening.AutoSend };
+		auto.Click += delegate
+		{
+			settings.Listening.AutoSend = auto.IsChecked;
+			SaveListening();
+		};
+		menu.Items.Add(auto);
 		MenuItem language = new MenuItem { Header = "Language" };
 		foreach ((string code, string label) in new[] { ("en", "English"), ("ja", "Japanese"), ("auto", "Detect automatically") })
 		{

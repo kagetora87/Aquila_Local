@@ -141,6 +141,14 @@ each chat, and once more whenever you change it. Files: `Data\personas\about-you
   this computer (nothing is sent anywhere). Live words appear while you talk; when you pause (1 second by
   default) what you said is sent. Right-click the microphone for the microphone, pause length, language
   and "talking interrupts her".
+- **Not cutting you off.** After you pause (1.5 seconds by default), a sentence that sounds finished is sent
+  after a short moment, while one that ends in "and", "so", a comma or "..." waits longer. If you go on, the
+  parts are joined with the pause noted. Turn off "Send automatically when I pause" (right-click the
+  microphone) to have what you said wait in the message box until you press Enter.
+- **No phantom words.** Whisper makes up stock phrases ("Thank you.", "Oh.") from noise. Aquila drops them
+  using Whisper's own no-speech and confidence scores plus how faint or brief the sound was, ignores the
+  first half second while it learns the room's noise, and ignores the room's echo for a moment after she
+  stops speaking.
 - **How it was said.** Whisper writes tidy text and drops hesitations, so Aquila measures them from the
   audio itself and adds bracketed notes she can read: `[paused 1.8s]`, `[restarted]`, `[trailed off]`,
   `[spoke quietly]`/`[spoke loudly]` (against your usual level, learned as you talk), and

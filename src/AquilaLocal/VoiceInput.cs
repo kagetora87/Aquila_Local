@@ -15,7 +15,13 @@ public sealed class ListeningOptions
 	public int Device { get; set; }
 
 	/// <summary>How long you stay quiet before what you said is sent.</summary>
-	public double EndSilenceSeconds { get; set; } = 1.0;
+	public double EndSilenceSeconds { get; set; } = 1.5;
+
+	/// <summary>Send by itself when you pause; off means what you said waits in the message box for Enter.</summary>
+	public bool AutoSend { get; set; } = true;
+
+	/// <summary>Settings layout version, so older saved defaults can be moved to better ones once.</summary>
+	public int Version { get; set; }
 
 	/// <summary>"en", "ja" and so on, or "auto".</summary>
 	public string Language { get; set; } = "en";
@@ -63,6 +69,23 @@ public sealed class VoiceInput : IDisposable
 
 	private bool strict;
 
+	private DateTime quietUntil;
+
+	private readonly object holdGate = new object();
+
+	/// <summary>What you said that's waiting a moment in case you go on (sent when the hold runs out).</summary>
+	private SpokenMessage? held;
+
+	private DateTime heldEnded;
+
+	private DateTime lastActivity;
+
+	private DateTime speechStartedAt;
+
+	private int finishing;
+
+	private int holdVersion;
+
 	public bool Listening => mic != null;
 
 	public bool Hearing
@@ -84,6 +107,12 @@ public sealed class VoiceInput : IDisposable
 	public event Action<string>? Partial;
 
 	public event Action<SpokenMessage>? Heard;
+
+	/// <summary>What you've said so far while it waits for you to go on (or empty when that's cleared).</summary>
+	public event Action<string>? Waiting;
+
+	/// <summary>Something was heard but it wasn't speech (noise Whisper turned into "Thank you." and the like).</summary>
+	public event Action? Ignored;
 
 	public event Action? SpeechStarted;
 
@@ -109,6 +138,12 @@ public sealed class VoiceInput : IDisposable
 	{
 		Stop();
 		options = settings;
+		if (settings.Version < 2)
+		{
+			// The first default (1 second) cut people off mid-thought.
+			settings.EndSilenceSeconds = Math.Max(settings.EndSilenceSeconds, 1.5);
+			settings.Version = 2;
+		}
 		if (WaveInEvent.DeviceCount == 0)
 		{
 			throw new ListeningUnavailableException("No microphone found. Plug one in (or turn it on in Windows sound settings), then try again. Listening is off.");
@@ -175,7 +210,28 @@ public sealed class VoiceInput : IDisposable
 		{
 			vad.Reset();
 		}
+		lock (holdGate)
+		{
+			held = null;
+			holdVersion++;
+		}
 		Level = 0;
+	}
+
+	/// <summary>Sends anything waiting right away (when you switch the microphone off after talking).</summary>
+	public void Flush()
+	{
+		SpokenMessage? message;
+		lock (holdGate)
+		{
+			message = held;
+			held = null;
+			holdVersion++;
+		}
+		if (message != null)
+		{
+			Heard?.Invoke(message);
+		}
 	}
 
 	/// <summary>
@@ -186,6 +242,12 @@ public sealed class VoiceInput : IDisposable
 	{
 		lock (gate)
 		{
+			if (!playing && (muted || strict))
+			{
+				// The room still echoes her last words for a moment; don't hear that as you.
+				quietUntil = DateTime.UtcNow.AddMilliseconds(700);
+				vad.Reset();
+			}
 			muted = playing && !options.Interrupt;
 			strict = playing && options.Interrupt;
 			vad.Settings.StartFactor = strict ? 8.0 : 3.0;
@@ -225,7 +287,7 @@ public sealed class VoiceInput : IDisposable
 		Utterance? finished = null;
 		lock (gate)
 		{
-			if (muted)
+			if (muted || DateTime.UtcNow < quietUntil)
 			{
 				return;
 			}
@@ -238,13 +300,17 @@ public sealed class VoiceInput : IDisposable
 		if (events.Contains(VadEvent.SpeechStarted))
 		{
 			lastPartial = DateTime.UtcNow;
+			speechStartedAt = DateTime.UtcNow.AddSeconds(-0.4);
+			lastActivity = DateTime.UtcNow;
 			State?.Invoke("Hearing you…");
 			SpeechStarted?.Invoke();
 		}
 		CancellationToken ct = life?.Token ?? CancellationToken.None;
 		if (finished != null)
 		{
-			_ = FinishAsync(finished, ct);
+			Interlocked.Increment(ref finishing);
+			DateTime started = speechStartedAt;
+			_ = FinishAsync(finished, started, ct);
 		}
 		else if (Hearing && !partialBusy && DateTime.UtcNow - lastPartial > TimeSpan.FromMilliseconds(900))
 		{
@@ -286,7 +352,7 @@ public sealed class VoiceInput : IDisposable
 		}
 	}
 
-	private async Task FinishAsync(Utterance utterance, CancellationToken ct)
+	private async Task FinishAsync(Utterance utterance, DateTime started, CancellationToken ct)
 	{
 		State?.Invoke("Writing down what you said…");
 		try
@@ -296,16 +362,28 @@ public sealed class VoiceInput : IDisposable
 			{
 				return;
 			}
+			segments = PhantomFilter.Keep(segments, utterance, options.TypicalLevel > 0 ? options.TypicalLevel : null);
 			if (segments.Count == 0)
 			{
-				State?.Invoke("Listening… (didn't catch that)");
+				State?.Invoke("Listening…");
+				lastActivity = DateTime.UtcNow;
+				if (held == null)
+				{
+					Ignored?.Invoke();
+				}
 				return;
 			}
 			ProsodyResult prosody = ProsodyAnnotator.Annotate(segments, utterance, options.TypicalLevel > 0 ? options.TypicalLevel : null);
 			options.TypicalLevel = options.TypicalLevel > 0 ? options.TypicalLevel * 0.8 + prosody.Level * 0.2 : prosody.Level;
 			string plain = string.Join(" ", segments.Select((TranscriptSegment s) => s.Text)).Trim();
+			SpokenMessage message = new SpokenMessage(prosody.Text, plain, prosody.Notes, utterance.Seconds);
 			State?.Invoke("Listening…");
-			Heard?.Invoke(new SpokenMessage(prosody.Text, plain, prosody.Notes, utterance.Seconds));
+			if (!options.AutoSend)
+			{
+				Heard?.Invoke(message);
+				return;
+			}
+			Hold(message, started);
 		}
 		catch (Exception) when (ct.IsCancellationRequested)
 		{
@@ -315,6 +393,70 @@ public sealed class VoiceInput : IDisposable
 			Stop();
 			Problem?.Invoke("Couldn't write down what you said: " + ex.Message + " Listening is off.");
 		}
+		finally
+		{
+			Interlocked.Decrement(ref finishing);
+		}
+	}
+
+	/// <summary>
+	/// Waits a moment before sending, longer when the thought sounds unfinished. If you start talking again,
+	/// what you say next is joined on (with the pause noted) and the wait starts over.
+	/// </summary>
+	private void Hold(SpokenMessage message, DateTime started)
+	{
+		SpokenMessage combined;
+		int version;
+		lock (holdGate)
+		{
+			if (held != null)
+			{
+				double gap = Math.Max(0, (started - heldEnded).TotalSeconds);
+				string note = string.Create(System.Globalization.CultureInfo.InvariantCulture, $"[paused {gap:0.0}s]");
+				held = new SpokenMessage(SpeechEnding.Join(held.Text, message.Text, gap), held.Plain + " " + message.Plain, held.Notes.Append(note).Concat(message.Notes).ToList(), held.Seconds + gap + message.Seconds);
+			}
+			else
+			{
+				held = message;
+			}
+			heldEnded = DateTime.UtcNow;
+			lastActivity = DateTime.UtcNow;
+			combined = held;
+			version = ++holdVersion;
+		}
+		Waiting?.Invoke(combined.Text);
+		double hold = SpeechEnding.HoldSeconds(combined.Plain);
+		_ = Task.Run(async delegate
+		{
+			while (true)
+			{
+				await Task.Delay(100);
+				SpokenMessage? send = null;
+				lock (holdGate)
+				{
+					if (version != holdVersion || held == null)
+					{
+						return;
+					}
+					if (Hearing || Volatile.Read(ref finishing) > 0)
+					{
+						lastActivity = DateTime.UtcNow;
+						continue;
+					}
+					if ((DateTime.UtcNow - lastActivity).TotalSeconds >= hold)
+					{
+						send = held;
+						held = null;
+						holdVersion++;
+					}
+				}
+				if (send != null)
+				{
+					Heard?.Invoke(send);
+					return;
+				}
+			}
+		});
 	}
 
 	public void Dispose()

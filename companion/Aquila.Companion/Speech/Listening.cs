@@ -16,7 +16,7 @@ public sealed class ListeningSettings
     public double PauseSeconds { get; set; } = 0.7;
 
     /// <summary>Less voiced audio than this is a cough or a click, not speech.</summary>
-    public double MinSpeechSeconds { get; set; } = 0.25;
+    public double MinSpeechSeconds { get; set; } = 0.4;
 
     /// <summary>One utterance is cut here and sent, so a stuck microphone can't record forever.</summary>
     public double MaxUtteranceSeconds { get; set; } = 60;
@@ -25,7 +25,10 @@ public sealed class ListeningSettings
     public double StartFactor { get; set; } = 3.0;
 
     /// <summary>Absolute minimum level counted as voice, so a silent room doesn't make every breath "speech".</summary>
-    public double MinLevel { get; set; } = 0.008;
+    public double MinLevel { get; set; } = 0.012;
+
+    /// <summary>When listening starts, this long is spent learning the room's background noise before anything counts as speech.</summary>
+    public double CalibrationSeconds { get; set; } = 0.5;
 }
 
 public enum VadEvent { SpeechStarted, SpeechEnded }
@@ -126,6 +129,7 @@ public sealed class VoiceActivityDetector
     private readonly List<float> rms = new();
     private readonly List<bool> voiced = new();
     private int candidate;
+    private int calibrated;
     private int silentRun;
     private Utterance? finished;
 
@@ -170,6 +174,13 @@ public sealed class VoiceActivityDetector
             {
                 floor = level;
             }
+            if (calibrated < settings.CalibrationSeconds / Utterance.FrameSeconds)
+            {
+                // Still learning the room: average the background, count nothing as speech.
+                calibrated++;
+                floor += (level - floor) / calibrated;
+                return;
+            }
             double startAt = Math.Max(floor * settings.StartFactor, settings.MinLevel);
             if (level > startAt)
             {
@@ -188,7 +199,7 @@ public sealed class VoiceActivityDetector
             if (candidate >= ConfirmFrames)
             {
                 InSpeech = true;
-                threshold = startAt * 0.7;
+                threshold = Math.Max(startAt * 0.6, floor * 2.0);   // quieter words mid-sentence still count, room noise does not
                 silentRun = 0;
                 frames.Clear();
                 rms.Clear();
@@ -290,7 +301,64 @@ public sealed class VoiceActivityDetector
 }
 
 /// <summary>A piece of transcript with its time span (seconds from the start of the utterance).</summary>
-public sealed record TranscriptSegment(double Start, double End, string Text);
+public sealed record TranscriptSegment(double Start, double End, string Text)
+{
+    /// <summary>Whisper's own estimate (0..1) that there was no speech here at all, when it reports one.</summary>
+    public double? NoSpeechProbability { get; init; }
+
+    /// <summary>Whisper's average token log-probability: how sure it was of the words, when it reports one.</summary>
+    public double? AverageLogProbability { get; init; }
+}
+
+/// <summary>
+/// Whisper makes up stock phrases ("Thank you.", "Oh.", "Thanks for watching!") when it's given noise, a breath or
+/// a bump. Those are removed so they are never sent as if you'd said them. Real speech, including a real
+/// "thank you" in your normal voice, is kept.
+/// </summary>
+public static class PhantomFilter
+{
+    /// <summary>Above this, Whisper itself thinks nothing was said.</summary>
+    public const double NoSpeech = 0.6;
+
+    /// <summary>Below this average log-probability Whisper was guessing.</summary>
+    public const double Guessing = -1.0;
+
+    private static readonly HashSet<string> Stock = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "thank you", "thank you very much", "thank you so much", "thanks", "thanks for watching", "thank you for watching",
+        "thanks for listening", "thank you for listening", "please subscribe", "subscribe", "like and subscribe",
+        "you", "oh", "uh", "um", "hmm", "mm", "ah", "huh", "bye", "bye bye", "goodbye", "okay", "ok", "so", "yeah", "the end",
+        "i'm sorry", "sorry", "see you next time", "ご視聴ありがとうございました", "ありがとうございました",
+    };
+
+    public static List<TranscriptSegment> Keep(IReadOnlyList<TranscriptSegment> segments, Utterance audio, double? typicalLevel)
+    {
+        bool faint = typicalLevel is double typical && typical > 0 ? audio.Level < typical * 0.4 : audio.Level < 0.015;
+        bool brief = audio.VoicedSeconds < 0.5;
+        var kept = new List<TranscriptSegment>();
+        foreach (TranscriptSegment s in segments)
+        {
+            if (s.NoSpeechProbability > NoSpeech || s.AverageLogProbability < Guessing)
+            {
+                continue;
+            }
+            bool unsure = s.NoSpeechProbability > 0.2 || s.AverageLogProbability < -0.6;
+            if (IsStock(s.Text) && (faint || brief || unsure))
+            {
+                continue;
+            }
+            kept.Add(s);
+        }
+        return kept;
+    }
+
+    public static bool IsStock(string text)
+    {
+        string t = Regex.Replace(text.Trim().ToLowerInvariant(), @"[\p{P}\p{S}]+", " ");
+        t = Regex.Replace(t, @"\s+", " ").Trim();
+        return Stock.Contains(t) || Stock.Contains(t.Replace(" ", ""));
+    }
+}
 
 /// <param name="Text">The transcript with bracketed notes, e.g. "[spoke quietly] I was thinking [paused 1.8s] maybe...".</param>
 /// <param name="Level">How loud they spoke (median RMS), to keep a running sense of their usual level.</param>
@@ -442,4 +510,46 @@ public static class ProsodyAnnotator
         }
         return n > 0 && end / n < audio.Level * 0.45;
     }
+}
+
+/// <summary>
+/// Deciding when you've finished: after a pause, a complete-sounding sentence is sent soon, while one that
+/// trails into "and", "so", a comma or "..." waits longer for you to go on. If you do, the parts are joined.
+/// </summary>
+public static class SpeechEnding
+{
+    public const double FinishedHold = 0.8;
+    public const double UnfinishedHold = 2.5;
+
+    private static readonly HashSet<string> Continuers = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "and", "but", "so", "or", "because", "like", "um", "uh", "if", "then", "the", "a", "an", "to", "of", "that",
+        "with", "for", "maybe", "which", "when", "while", "my", "your", "is", "was", "i", "we", "could", "would", "about",
+    };
+
+    public static bool SoundsUnfinished(string text)
+    {
+        string t = text.Trim();
+        if (t.Length == 0)
+        {
+            return false;
+        }
+        if (t.EndsWith("...", StringComparison.Ordinal) || t.EndsWith('…') || t.EndsWith(',') || t.EndsWith('-') || t.EndsWith('—') || t.EndsWith(';') || t.EndsWith(':'))
+        {
+            return true;
+        }
+        string lastWord = Regex.Match(t, @"([\p{L}']+)\W*$").Groups[1].Value;
+        if (Continuers.Contains(lastWord))
+        {
+            return true;
+        }
+        char end = t[^1];
+        return !(end is '.' or '?' or '!' or '。' or '？' or '！' or '"' or '\'' or ')');
+    }
+
+    /// <summary>How long to wait, after the words are written down, for you to carry on before sending.</summary>
+    public static double HoldSeconds(string text) => SoundsUnfinished(text) ? UnfinishedHold : FinishedHold;
+
+    public static string Join(string first, string second, double gapSeconds) =>
+        string.Create(CultureInfo.InvariantCulture, $"{first.Trim()} [paused {gapSeconds:0.0}s] {second.Trim()}");
 }
