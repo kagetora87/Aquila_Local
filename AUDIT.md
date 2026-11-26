@@ -42,3 +42,29 @@ set it is tight, so stay around 32K or use the q4_0 cache.
 
 Items #2-#4, #6 and #9 need source changes. The C# can be rebuilt from `recovered/AquilaLocal.dll` with ILSpy, or the
 engine-facing layer can be rewritten. That layer is small: Engine.cs, Agent.cs, PromptWindow.cs and InferenceProfiles.cs total about 600 lines.
+
+## Addendum: checked against the decompiled C# (2026-11-26)
+
+`decompiled/` now holds the app decompiled with ILSpy 8.2 (95 files, about 17.9k lines). It is a readable reference, not yet a
+buildable project: the XAML only exists as compiled BAML. Paths below are into `decompiled/AquilaLocal/`.
+
+**Corrections to the table above**
+
+- **#6:** `PromptWindow.FitAsync` uses a doubling then binary search, so it makes O(log n) tokenize calls, not one per pair.
+  The part that matters still holds: it drops the *minimum* number of old turns, so once a chat is over budget the cut point
+  moves every turn and the prompt cache misses every turn.
+- **KV cache precision is already configurable.** Profile A forces `q8_0`, B uses `q8_0`/`q4_0`, and Custom offers
+  f16/q8_0/q4_0 (`InferenceLaunch.Resolve`). Your settings already use `q8_0` at 55,296 context.
+
+**Additional findings**
+
+| # | Problem | Where | Impact |
+|---|---|---|---|
+| 10 | **Auto runs on CPU for most GPUs.** Auto picks A only for ≥ 20 GiB VRAM, and B only for ≤ 10 GiB VRAM *and* ≤ 20 GiB RAM. Everything else (12/16 GB cards, or 8 GB with 32 GB RAM) becomes Custom, whose default `GpuLayers = 0` is CPU-only | `InferenceProfile.Resolve`, `Settings.GpuLayers` | Most desktop GPUs never get used out of the box |
+| 11 | **Profile A caps context at 65,536.** Custom allows 262,144 but with GPU layers manual | `InferenceProfile.Resolve`, `InferencePreferences.Validate` | Large-context users are pushed into Custom, where the GPU is off by default |
+| 12 | **Hard-coded `Vulkan0` fallback** when detection hasn't produced a GPU | `InferenceLaunch.Resolve` | On this laptop Vulkan0 is the Radeon 610M iGPU |
+| 13 | **Memory learning blocks the UI** after every eligible reply (up to 60 s) before you can send again. `Eligible` matches almost any message containing "I", "my" or "use" | `MainWindow.SendAsync`, `MemoryLearner.Eligible` | Adds a full extra request to most turns, on top of #3 |
+| 14 | **tok/s readout is wrong.** It divides generated tokens by wall time that includes model loading and prompt processing | `Agent.RunAsync` (`turn.Metrics`) | Makes generation look slower than it is and hides where time goes |
+| 15 | **Streaming render is O(n²).** `turn.Answer += token` per token, and every 100 ms the whole answer, reasoning and activity log are rebuilt into a new FlowDocument | `Agent.RunAsync`, `MainWindow.RenderLive`, `MessageView.Update` | UI stutter on long replies, worse at high tok/s on GPU |
+| 16 | **Engine log opens, stats and closes the file for every line** | `Engine.Log` | Minor, but llama-server is chatty at load |
+| 17 | **Detection is one-shot**, 6 s timeout, swallowed errors, exact-name match between DXGI and Vulkan | `HardwareInventory.DetectAsync`/`SelectGpu`, called once from `MainWindow` startup | Intermittent "No supported dedicated GPU found" with no log of why |
