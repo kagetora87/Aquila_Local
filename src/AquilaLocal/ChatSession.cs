@@ -48,5 +48,17 @@ public class ChatSession
 
 	public List<Turn> Turns { get; set; } = new List<Turn>();
 
-	public string Subtitle => Updated.LocalDateTime.ToString("MMM d · h:mm tt");
+	/// <summary>Companion persona this chat belongs to ("" = normal Aquila chat). Fixed for the chat's life, so
+	/// one persona's conversation can never be continued by another.</summary>
+	public string PersonaId { get; set; } = "";
+
+	public string PersonaName { get; set; } = "";
+
+	[System.Text.Json.Serialization.JsonIgnore]
+	public bool IsCompanion => !string.IsNullOrEmpty(PersonaId);
+
+	[System.Text.Json.Serialization.JsonIgnore]
+	public string Speaker => IsCompanion ? PersonaName : "Aquila";
+
+	public string Subtitle => (IsCompanion ? PersonaName + " · " : "") + Updated.LocalDateTime.ToString("MMM d · h:mm tt");
 }

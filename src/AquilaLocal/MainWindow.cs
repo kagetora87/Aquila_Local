@@ -95,6 +95,11 @@ public partial class MainWindow : AquilaWindow
 
 	private readonly SemanticMemory semantic;
 
+	private readonly CompanionHost companion;
+
+	/// <summary>A persona's background summary pass; the next send waits for it.</summary>
+	private Task? pendingCompanion;
+
 	private readonly PersonalityStore personalities;
 
 	private readonly ObservableCollection<ChatSession> chats;
@@ -573,7 +578,7 @@ public partial class MainWindow : AquilaWindow
 	{
 		if (CompactButton != null && SummaryButton != null)
 		{
-			CompactButton.IsEnabled = !busy && !attaching && !featuresClosing && current != null && ConversationContext.CanCompact(current);
+			CompactButton.IsEnabled = !busy && !attaching && !featuresClosing && current != null && !current.IsCompanion && ConversationContext.CanCompact(current);
 			SummaryButton.IsEnabled = !busy && !attaching;
 			SummaryButton.Visibility = ((current?.CompactedContext == null) ? Visibility.Collapsed : Visibility.Visible);
 		}
@@ -581,7 +586,7 @@ public partial class MainWindow : AquilaWindow
 
 	private async void Compact_Click(object sender, RoutedEventArgs e)
 	{
-		if (busy || attaching || current == null || !ConversationContext.CanCompact(current) || !ReadSettings() || !AquilaDialog.Confirm(this, "Shorten this conversation?", "Aquila will summarise the earlier part of this chat so it can keep going. The four most recent exchanges and everything you can see stay as they are.\n\nSummaries can leave out or misstate details, including picture content. You can review or undo it with View summary. This uses the loaded model for a moment.", "Summarise"))
+		if (busy || attaching || current == null || current.IsCompanion || !ConversationContext.CanCompact(current) || !ReadSettings() || !AquilaDialog.Confirm(this, "Shorten this conversation?", "Aquila will summarise the earlier part of this chat so it can keep going. The four most recent exchanges and everything you can see stay as they are.\n\nSummaries can leave out or misstate details, including picture content. You can review or undo it with View summary. This uses the loaded model for a moment.", "Summarise"))
 		{
 			return;
 		}
@@ -1634,6 +1639,7 @@ public partial class MainWindow : AquilaWindow
 		memories = new MemoryStore(store.Root);
 		semantic = new SemanticMemory(memories, store.Root);
 		personalities = new PersonalityStore(store.Root);
+		companion = new CompanionHost(store.Root);
 		engine = new Engine(store.Root);
 		speech = new SpeechService(store.Root, speechAssets);
 		avatar = new AvatarHost(store.Root);
@@ -1761,14 +1767,19 @@ public partial class MainWindow : AquilaWindow
 		}
 	}
 
-	private void NewChat()
+	private void NewChat(string personaId = "", string personaName = "")
 	{
 		if (!busy)
 		{
-			ChatSession chatSession = chats.FirstOrDefault((ChatSession c) => c.Turns.Count == 0);
+			ChatSession chatSession = chats.FirstOrDefault((ChatSession c) => c.Turns.Count == 0 && c.PersonaId == personaId);
 			if (chatSession == null)
 			{
-				chatSession = new ChatSession();
+				chatSession = new ChatSession
+				{
+					PersonaId = personaId,
+					PersonaName = personaName,
+					Title = (personaId.Length > 0) ? ("Chat with " + personaName) : "New conversation"
+				};
 				chats.Insert(0, chatSession);
 			}
 			ChatsList.SelectedItem = chatSession;
@@ -1806,7 +1817,7 @@ public partial class MainWindow : AquilaWindow
 			MessageView messageView = new MessageView("You");
 			messageView.Update(Attachments.VisibleText(turn), "", null, "", renderMarkdown: false);
 			Messages.Children.Add(messageView);
-			MessageView messageView2 = new MessageView("Aquila");
+			MessageView messageView2 = new MessageView(current.Speaker);
 			ShowReply(messageView2, turn, generating: false);
 			Messages.Children.Add(messageView2);
 		}
@@ -1852,6 +1863,78 @@ public partial class MainWindow : AquilaWindow
 		}
 	}
 
+	/// <summary>
+	/// After a persona's reply: satisfaction loop, remember the exchange, and start the summary pass when due.
+	/// A failure here is shown loudly; the reply itself is already saved.
+	/// </summary>
+	private async Task CompleteCompanionTurnAsync(ChatSession session, Turn turn, AquilaLocal.Companion.CompanionRuntime runtime, AquilaLocal.Companion.PreparedTurn prepared)
+	{
+		try
+		{
+			string chatId = session.Id;
+			string turnId = turn.Id;
+			string user = Attachments.VisibleText(turn);
+			string reply = turn.Answer;
+			AquilaLocal.Companion.CompletedTurn done = await Task.Run(() => runtime.Complete(prepared, chatId, turnId, user, reply, DateTimeOffset.Now));
+			AquilaLocal.Companion.LoopResult loop = done.Loop;
+			turn.DriveReport = loop.Drive + (loop.Satisfied ? " satisfied" : " not satisfied") + " (" + loop.Reason + ")"
+				+ string.Concat(loop.Changes.Select((AquilaLocal.Companion.DriveChange c) => $" · {c.Drive} {c.Old:0.0}→{c.New:0.0}"))
+				+ (loop.Milestones.Count > 0 ? " · milestone: " + string.Join(", ", loop.Milestones.Select((AquilaLocal.Companion.Milestone m) => m.Kind)) : "");
+			turn.Activity.Add(session.PersonaName + ": " + turn.DriveReport);
+			if (done.SummaryDue)
+			{
+				pendingCompanion = SummarizeCompanionAsync(session, turn, runtime);
+			}
+		}
+		catch (Exception ex)
+		{
+			turn.Activity.Add(session.PersonaName + "'s drives were NOT updated: " + ex.Message);
+			Notice(session.PersonaName + "'s reply is saved, but her drives and memory were NOT updated: " + ex.Message);
+			UiSounds.Play(UiSound.Notice);
+			companion.Forget(session.PersonaId);
+		}
+	}
+
+	private async Task SummarizeCompanionAsync(ChatSession session, Turn turn, AquilaLocal.Companion.CompanionRuntime runtime)
+	{
+		try
+		{
+			AquilaLocal.Companion.SummaryResult result = await CompanionHost.SummarizerFor(runtime, engine, Math.Min(settings.Context, engine.SlotContext ?? settings.Context)).RunAsync(DateTimeOffset.Now, monitorCancellation.Token);
+			if (result != null)
+			{
+				turn.Activity.Add($"{session.PersonaName}: folded {result.FoldedExchanges} older exchange(s) into her long-term memory (about {result.Tokens:N0} tokens).");
+			}
+		}
+		catch (OperationCanceledException)
+		{
+		}
+		catch (Exception ex)
+		{
+			turn.Activity.Add($"{session.PersonaName}'s memory summary failed and will be retried next turn: {ex.Message}");
+		}
+		try
+		{
+			store.SaveChat(session);
+		}
+		catch (Exception ex2) when (ex2 is IOException || ex2 is UnauthorizedAccessException)
+		{
+		}
+	}
+
+	private void Companion_Click(object sender, RoutedEventArgs e)
+	{
+		if (busy)
+		{
+			return;
+		}
+		CompanionWindow window = new CompanionWindow(companion, delegate(string id, string name)
+		{
+			NewChat(id, name);
+		});
+		window.Owner = this;
+		window.ShowDialog();
+	}
+
 	private async Task SendAsync()
 	{
 		await inferenceStartup;
@@ -1860,6 +1943,12 @@ public partial class MainWindow : AquilaWindow
 			Task learning = pendingLearning;
 			pendingLearning = null;
 			await learning;
+		}
+		if (pendingCompanion != null)
+		{
+			Task summarizing = pendingCompanion;
+			pendingCompanion = null;
+			await summarizing;
 		}
 		if (busy || attaching || (string.IsNullOrWhiteSpace(Composer.Text) && pendingAttachments.Count == 0) || current == null || !ReadSettings())
 		{
@@ -1873,6 +1962,21 @@ public partial class MainWindow : AquilaWindow
 		if (Composer.Text.Length > 100000)
 		{
 			Notice("This message is too long. Please use a smaller excerpt.");
+			return;
+		}
+		if (current.IsCompanion && AquilaLocal.Companion.PersonaTuning.IsCommand(Composer.Text))
+		{
+			// /tune is handled here and never sent to the model.
+			try
+			{
+				AquilaLocal.Companion.TuningResult tuned = companion.Tune(current.PersonaId, Composer.Text);
+				Notice(tuned.Message);
+				Composer.Clear();
+			}
+			catch (Exception ex) when (ex is ArgumentException || ex is AquilaLocal.Companion.PersonaConfigException || ex is AquilaLocal.Companion.DriveStateUnavailableException || ex is IOException)
+			{
+				Notice("Tuning: " + ex.Message);
+			}
 			return;
 		}
 		if (speech.Active || !settings.Voice.KeepLoaded)
@@ -1903,7 +2007,7 @@ public partial class MainWindow : AquilaWindow
 		MessageView messageView = new MessageView("You", animate: true);
 		messageView.Update(Attachments.VisibleText(turn), "", null, "", renderMarkdown: false);
 		Messages.Children.Add(messageView);
-		live = new MessageView("Aquila", animate: true);
+		live = new MessageView(session.Speaker, animate: true);
 		ShowReply(live, turn, generating: true);
 		Messages.Children.Add(live);
 		UiSounds.Play(UiSound.Send);
@@ -1916,6 +2020,7 @@ public partial class MainWindow : AquilaWindow
 		SetBusy(value: true);
 		operation = new CancellationTokenSource();
 		Agent agent = new Agent(engine, memories, semantic, personalities);
+		agent.Companion = companion;
 		agent.ApproveWeb = (string action) => Task.FromResult(AquilaDialog.Confirm(this, "Allow web lookup?", action + "\n\nThis search or address will be sent over the internet.", "Allow", "Don't allow"));
 		agent.AnswerStarted += delegate
 		{
@@ -1957,7 +2062,11 @@ public partial class MainWindow : AquilaWindow
 				}
 				SpeakCompletedReply(session, turn);
 			}
-			if (settings.LearnMemories && turn.Status == "complete" && MemoryLearner.Eligible(turn.User))
+			if (session.IsCompanion && turn.Status == "complete" && agent.CompanionRuntime != null && agent.CompanionTurn != null)
+			{
+				await CompleteCompanionTurnAsync(session, turn, agent.CompanionRuntime, agent.CompanionTurn);
+			}
+			if (!session.IsCompanion && settings.LearnMemories && turn.Status == "complete" && MemoryLearner.Eligible(turn.User))
 			{
 				// Learn in the background on the engine's second slot, so the chat stays usable and its
 				// prompt cache is untouched. The next send waits for it only if it is still running.
@@ -2025,6 +2134,7 @@ public partial class MainWindow : AquilaWindow
 		VoiceButton.IsEnabled = !value;
 		VoiceReplayButton.IsEnabled = !value;
 		MemoriesButton.IsEnabled = !value;
+		CompanionButton.IsEnabled = !value;
 		RefreshContextControls();
 		CommandManager.InvalidateRequerySuggested();
 		AttachButton.IsEnabled = !value && !attaching;
@@ -2317,6 +2427,7 @@ public partial class MainWindow : AquilaWindow
 			renderTimer.Stop();
 			engine.Dispose();
 			semantic.Dispose();
+			companion.Dispose();
 			await speech.DisposeAsync();
 			await avatar.DisposeAsync();
 			if (avatarPopout != null)

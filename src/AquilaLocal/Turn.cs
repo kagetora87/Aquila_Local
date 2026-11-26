@@ -9,6 +9,13 @@ public class Turn
 	/// exact same text is replayed in later requests and the engine prompt cache stays valid.</summary>
 	public string Context { get; set; } = "";
 
+	/// <summary>Companion chats: the drive/achievement block shown to the persona with this message. Kept for
+	/// inspection only; it is never replayed in later requests (only the current message carries one).</summary>
+	public string InnerState { get; set; } = "";
+
+	/// <summary>Companion chats: what the satisfaction loop decided after this reply.</summary>
+	public string DriveReport { get; set; } = "";
+
 	public string SpeechMood { get; set; } = "neutral";
 
 	public string SpeechMoodSource { get; set; } = "default";
