@@ -16,9 +16,10 @@ public partial class App : Application
 	{
 		Environment.SetEnvironmentVariable("ORT_DISABLE_TELEMETRY", "1", EnvironmentVariableTarget.Process);
 		base.OnStartup(e);
+		Motion.Initialize(this);
 		base.DispatcherUnhandledException += delegate(object _, DispatcherUnhandledExceptionEventArgs args)
 		{
-			MessageBox.Show(args.Exception.Message, "Aquila Local", MessageBoxButton.OK, MessageBoxImage.Error);
+			AquilaDialog.Alert(Current?.MainWindow, "Something went wrong", args.Exception.Message);
 			args.Handled = true;
 		};
 		if (e.Args.Contains("--verify"))

@@ -18,7 +18,7 @@ namespace AquilaLocal;
 /// speed, drop new pictures on it, add new ones, import a folder, and test which animation a sentence
 /// would trigger.
 /// </summary>
-public sealed class AnimationsWindow : Window
+public sealed class AnimationsWindow : AquilaWindow
 {
 	private static readonly Brush Muted = new SolidColorBrush(Color.FromRgb(151, 168, 187));
 
@@ -248,7 +248,7 @@ public sealed class AnimationsWindow : Window
 		}));
 		stackPanel2.Children.Add(Button("Delete", delegate
 		{
-			if (MessageBox.Show(this, "Delete the animation \"" + animation.Name + "\" and its pictures from the avatar folder?", "Delete animation?", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes)
+			if (AquilaDialog.Confirm(this, "Delete this animation?", "\"" + animation.Name + "\" and its pictures will be removed from the avatar folder.", "Delete", "Cancel", DialogKind.Danger))
 			{
 				Run(delegate
 				{
@@ -574,7 +574,7 @@ public sealed class AnimationsWindow : Window
 
 	private string? Ask(string prompt)
 	{
-		Window window = new Window
+		Window window = new AquilaWindow
 		{
 			Title = "New animation",
 			Width = 460.0,

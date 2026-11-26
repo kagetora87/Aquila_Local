@@ -19,6 +19,10 @@
     <NoWarn>$(NoWarn);CS0168;CS0219;CS8600;CS8601;CS8602;CS8603;CS8604;CS8618;CS8625;CS8619;CS8620</NoWarn>
   </PropertyGroup>
   <ItemGroup>
+    <Resource Include="Fonts\*.ttf" />
+    <Resource Include="Sounds\*.wav" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Emoji.Wpf" Version="0.3.4" />
     <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.31.1" />
     <PackageReference Include="NAudio.Core" Version="2.2.1" />

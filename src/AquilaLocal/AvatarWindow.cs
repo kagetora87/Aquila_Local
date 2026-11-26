@@ -12,7 +12,7 @@ using Microsoft.Win32;
 
 namespace AquilaLocal;
 
-public sealed class AvatarWindow : Window
+public sealed class AvatarWindow : AquilaWindow
 {
 	private readonly TextBlock status = new TextBlock
 	{

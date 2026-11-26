@@ -8,7 +8,7 @@ using System.Windows.Media;
 
 namespace AquilaLocal;
 
-public sealed class VoiceWindow : Window
+public sealed class VoiceWindow : AquilaWindow
 {
 	private sealed record VoiceChoice(string Key, string Label);
 
@@ -184,7 +184,7 @@ public sealed class VoiceWindow : Window
 			{
 				VoiceOptions current = voiceWindow.Read();
 				string id = current.CloneId;
-				if (id != null && MessageBox.Show(voiceWindow, "Delete the saved sample and transcript for this voice?", "Delete voice", MessageBoxButton.YesNo, MessageBoxImage.Exclamation, MessageBoxResult.No) == MessageBoxResult.Yes)
+				if (id != null && AquilaDialog.Confirm(voiceWindow, "Delete this voice?", "The saved sample and transcript for this voice will be deleted.", "Delete", "Cancel", DialogKind.Danger))
 				{
 					current.Speaker = "Kitten: Luna";
 					await apply(current, arg2: false);

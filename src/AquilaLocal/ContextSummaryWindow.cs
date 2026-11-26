@@ -5,7 +5,7 @@ using System.Windows.Media;
 
 namespace AquilaLocal;
 
-public sealed class ContextSummaryWindow : Window
+public sealed class ContextSummaryWindow : AquilaWindow
 {
 	public ContextSummaryWindow(ContextCheckpoint summary, Action reset)
 	{
@@ -63,7 +63,7 @@ public sealed class ContextSummaryWindow : Window
 		stackPanel2.Children.Add(button);
 		button.Click += delegate
 		{
-			if (MessageBox.Show(contextSummaryWindow, "Stop using this summary and use original conversation history again, within the normal context limits? Full history and cumulative usage are kept.", "Reset compacted context?", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) != MessageBoxResult.Yes)
+			if (!AquilaDialog.Confirm(contextSummaryWindow, "Use the original history again?", "Stop using this summary and use the original conversation history again, within the normal length limits.\n\nThe full history and usage totals are kept.", "Use original"))
 			{
 				return;
 			}

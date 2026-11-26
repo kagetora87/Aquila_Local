@@ -9,7 +9,7 @@ using System.Windows.Media;
 
 namespace AquilaLocal;
 
-public sealed class MemoryWindow : Window
+public sealed class MemoryWindow : AquilaWindow
 {
 	private sealed record ScopeChoice(string Label, string Workspace, bool Personal);
 

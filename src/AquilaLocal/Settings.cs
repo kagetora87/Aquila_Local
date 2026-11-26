@@ -71,6 +71,14 @@ public class Settings
 
 	public string WebMode { get; set; } = "Off";
 
+	/// <summary>Show token counts, speed and tool details on every reply.</summary>
+	public bool ShowTechnicalDetails { get; set; }
+
+	/// <summary>Quiet interface sounds (send, reply finished, model ready, …).</summary>
+	public bool UiSounds { get; set; } = true;
+
+	public double UiSoundVolume { get; set; } = 0.5;
+
 	public string WebKeyProtected { get; set; } = "";
 
 	public string AvatarFolder { get; set; } = "";
@@ -111,6 +119,7 @@ public class Settings
 	public void Validate()
 	{
 		Sprite ??= new SpriteAvatarOptions();
+		UiSoundVolume = Math.Clamp(double.IsFinite(UiSoundVolume) ? UiSoundVolume : 0.5, 0.0, 1.0);
 		Inference?.Validate();
 		if (Voice == null)
 		{

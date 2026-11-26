@@ -23,7 +23,7 @@ using Microsoft.Win32;
 
 namespace AquilaLocal;
 
-public partial class MainWindow : Window
+public partial class MainWindow : AquilaWindow
 {
 	private record InstalledModel(string Name, string Path);
 
@@ -537,7 +537,7 @@ public partial class MainWindow : Window
 	{
 		e.Handled = true;
 		ChatSession chatSession = DeleteTarget(e.Parameter);
-		if (busy || attaching || featuresClosing || chatSession == null || !chats.Contains(chatSession) || !(ConfirmDeleteForVerification?.Invoke(chatSession) ?? (MessageBox.Show(this, "Delete “" + chatSession.Title.Truncate(100) + "” and its saved attachment snapshots?\n\nThis cannot be undone in the app. Memories learned from this chat are kept; use Memories to forget them. Existing exports and backups are kept.", "Delete chat?", MessageBoxButton.YesNo, MessageBoxImage.Exclamation, MessageBoxResult.No) == MessageBoxResult.Yes)))
+		if (busy || attaching || featuresClosing || chatSession == null || !chats.Contains(chatSession) || !(ConfirmDeleteForVerification?.Invoke(chatSession) ?? AquilaDialog.Confirm(this, "Delete this chat?", "“" + chatSession.Title.Truncate(100) + "” and its saved attachments will be deleted. This cannot be undone.\n\nMemories learned from this chat are kept; use Memories to forget them. Existing exports and backups are kept.", "Delete chat", "Cancel", DialogKind.Danger)))
 		{
 			return;
 		}
@@ -548,6 +548,7 @@ public partial class MainWindow : Window
 			int val = chats.IndexOf(chatSession);
 			bool num = current == chatSession;
 			chats.Remove(chatSession);
+			UiSounds.Play(UiSound.Delete);
 			if (num)
 			{
 				if (chats.Count > 0)
@@ -580,7 +581,7 @@ public partial class MainWindow : Window
 
 	private async void Compact_Click(object sender, RoutedEventArgs e)
 	{
-		if (busy || attaching || current == null || !ConversationContext.CanCompact(current) || !ReadSettings() || MessageBox.Show(this, "Summarize earlier conversation for future model requests? The four most recent complete turns and the full visible history are kept.\n\nSummaries can omit or misstate details, including image content. Review or reset the result through View summary. This runs the selected local model and adds its token usage to this session.", "Compact context?", MessageBoxButton.YesNo, MessageBoxImage.Asterisk, MessageBoxResult.No) != MessageBoxResult.Yes)
+		if (busy || attaching || current == null || !ConversationContext.CanCompact(current) || !ReadSettings() || !AquilaDialog.Confirm(this, "Shorten this conversation?", "Aquila will summarise the earlier part of this chat so it can keep going. The four most recent exchanges and everything you can see stay as they are.\n\nSummaries can leave out or misstate details, including picture content. You can review or undo it with View summary. This uses the loaded model for a moment.", "Summarise"))
 		{
 			return;
 		}
@@ -588,7 +589,7 @@ public partial class MainWindow : Window
 		ContextCheckpoint previous = chat.CompactedContext;
 		operation = new CancellationTokenSource();
 		SetBusy(value: true);
-		StatusText.Text = "Compacting earlier conversation…";
+		StatusText.Text = "Shortening the conversation…";
 		try
 		{
 			SetAvatarState("thinking");
@@ -623,7 +624,7 @@ public partial class MainWindow : Window
 			operation = null;
 			SetBusy(value: false);
 			RefreshUsage();
-			StatusText.Text = (engine.Ready ? "Model ready · on this device" : "Model not loaded");
+			StatusText.Text = (engine.Ready ? "Ready" : "No model loaded");
 			try
 			{
 				store.SaveChat(chat);
@@ -691,7 +692,7 @@ public partial class MainWindow : Window
 			{
 				settings.PersonalityId = personalityProfile.Id;
 				store.SaveSettings(settings);
-				StatusText.Text = "Personality selected · applies to the next message";
+				StatusText.Text = "Personality changed";
 			}
 		}
 	}
@@ -852,7 +853,7 @@ public partial class MainWindow : Window
 			settings.MaxTokens = result;
 		}
 		store.SaveSettings(settings);
-		StatusText.Text = "Model selected · ready to load";
+		StatusText.Text = "Model chosen";
 	}
 
 	private async Task RefreshModelInfoAsync()
@@ -1162,6 +1163,11 @@ public partial class MainWindow : Window
 		{
 			e.Effects = ((!busy && !attaching) ? DragDropEffects.Copy : DragDropEffects.None);
 			e.Handled = true;
+			if (!composerHighlight && !busy && !attaching)
+			{
+				composerHighlight = true;
+				UpdateComposerFocus();
+			}
 		}
 	}
 
@@ -1206,6 +1212,7 @@ public partial class MainWindow : Window
 							throw new ArgumentException("Combined image data is too large. Attach fewer or smaller images.");
 						}
 						pendingAttachments.Add(attachment);
+						UiSounds.Play(UiSound.Attach);
 					}
 				}
 				catch (Exception ex)
@@ -1218,7 +1225,8 @@ public partial class MainWindow : Window
 		{
 			attaching = false;
 			AttachButton.IsEnabled = !busy;
-			SendButton.IsEnabled = true;
+			composerHighlight = false;
+			UpdateComposerFocus();
 			RenderAttachmentChips();
 		}
 		if (errors.Count > 0)
@@ -1232,21 +1240,32 @@ public partial class MainWindow : Window
 		AttachmentChips.Children.Clear();
 		foreach (Attachment attachment in pendingAttachments)
 		{
-			Button button = new Button
+			StackPanel content = new StackPanel
 			{
-				Content = attachment.Name + "  ×",
-				ToolTip = attachment.Label + " · click to remove",
-				Margin = new Thickness(0.0, 0.0, 6.0, 5.0),
-				Padding = new Thickness(8.0, 5.0, 8.0, 5.0),
-				FontSize = 11.0
+				Orientation = Orientation.Horizontal
 			};
-			button.Click += delegate
+			content.Children.Add(Ui.Icon(Ui.Glyph.Attach, 12.0, "Text.Secondary"));
+			TextBlock name = new TextBlock
+			{
+				Text = attachment.Name,
+				MaxWidth = 220.0,
+				TextTrimming = TextTrimming.CharacterEllipsis,
+				Margin = new Thickness(6.0, 0.0, 8.0, 0.0),
+				VerticalAlignment = VerticalAlignment.Center
+			};
+			content.Children.Add(name);
+			content.Children.Add(Ui.Icon(Ui.Glyph.Close, 10.0, "Text.Tertiary"));
+			Button button = Ui.Button(content, "Btn.Chip", delegate
 			{
 				pendingAttachments.Remove(attachment);
 				RenderAttachmentChips();
-			};
+			});
+			button.ToolTip = attachment.Label + "\nClick to remove.";
+			button.Margin = new Thickness(0.0, 0.0, 6.0, 0.0);
 			AttachmentChips.Children.Add(button);
 		}
+		AttachmentChips.Visibility = (pendingAttachments.Count == 0) ? Visibility.Collapsed : Visibility.Visible;
+		UpdateSendEnabled();
 	}
 
 	private void ShowInferenceSettings()
@@ -1625,7 +1644,7 @@ public partial class MainWindow : Window
 		chats = new ObservableCollection<ChatSession>(store.LoadChats());
 		ChatsList.ItemsSource = chats;
 		ShowSettings();
-		StatusText.Text = "Model not loaded";
+		StatusText.Text = "No model loaded";
 		if (chats.Count > 0)
 		{
 			ChatsList.SelectedItem = chats[0];
@@ -1641,11 +1660,13 @@ public partial class MainWindow : Window
 		renderTimer.Tick += delegate
 		{
 			RenderLive(final: false);
+			RefreshShell();
 		};
 		renderTimer.Start();
 		InitializeFeatures();
 		InitializeAvatar();
 		InitializeVoice();
+		InitializeShell();
 		if (store.RecoveryNotice != null)
 		{
 			Notice(store.RecoveryNotice);
@@ -1671,6 +1692,10 @@ public partial class MainWindow : Window
 		CpuBox.Text = settings.CpuThreads.ToString();
 		ThinkingBudgetBox.Text = settings.ThinkingBudget.ToString();
 		LookupCheck.IsChecked = settings.RequireLookup;
+		UiSoundsCheck.IsChecked = settings.UiSounds;
+		UiSoundVolumeSlider.Value = settings.UiSoundVolume;
+		UiSoundVolumePanel.IsEnabled = settings.UiSounds;
+		ShowDetailsCheck.IsChecked = settings.ShowTechnicalDetails;
 		ContextCombo.SelectedItem = ContextCombo.Items.Cast<ComboBoxItem>().FirstOrDefault((ComboBoxItem i) => i.Content.ToString() == settings.Context.ToString()) ?? ContextCombo.Items[1];
 	}
 
@@ -1718,11 +1743,15 @@ public partial class MainWindow : Window
 				WebMode = this.settings.WebMode,
 				WebKeyProtected = this.settings.WebKeyProtected,
 				Thinking = (ThinkingCheck.IsChecked == true),
-				WorkspaceTools = (ToolsCheck.IsChecked == true)
+				WorkspaceTools = (ToolsCheck.IsChecked == true),
+				UiSounds = (UiSoundsCheck.IsChecked == true),
+				UiSoundVolume = UiSoundVolumeSlider.Value,
+				ShowTechnicalDetails = (ShowDetailsCheck.IsChecked == true)
 			};
 			settings.Validate();
 			store.SaveSettings(settings);
 			this.settings = settings;
+			ApplyUiSoundSettings();
 			return true;
 		}
 		catch (Exception ex) when (((ex is ArgumentException || ex is FormatException || ex is OverflowException || ex is IOException || ex is UnauthorizedAccessException) ? 1 : 0) != 0)
@@ -1778,27 +1807,16 @@ public partial class MainWindow : Window
 			messageView.Update(Attachments.VisibleText(turn), "", null, "", renderMarkdown: false);
 			Messages.Children.Add(messageView);
 			MessageView messageView2 = new MessageView("Aquila");
-			messageView2.Update(VoiceDelivery.Display(turn, settings.Voice.RevealTags), turn.Reasoning, turn.Activity, Label(turn), renderMarkdown: true, turn.Answer);
+			ShowReply(messageView2, turn, generating: false);
 			Messages.Children.Add(messageView2);
 		}
 		RefreshUsage();
 		followBottom = true;
 		ChatScroll.ScrollToEnd();
 		RefreshContextControls();
+		RefreshShell();
 	}
 
-	private static string Label(Turn turn)
-	{
-		return turn.Status switch
-		{
-			"complete" => turn.Metrics + ((turn.PersonalityId != "default" && turn.PersonalityName.Length > 0) ? (" · " + turn.PersonalityName) : ""), 
-			"generating" => "Working…", 
-			"cancelled" => "Stopped", 
-			"error" => "Error · see activity", 
-			"limit" => "Response limit reached", 
-			_ => "Interrupted", 
-		};
-	}
 
 	private async void Send_Click(object sender, RoutedEventArgs e)
 	{
@@ -1882,12 +1900,14 @@ public partial class MainWindow : Window
 		ChatsList.Items.Refresh();
 		ChatTitle.Text = session.Title;
 		Welcome.Visibility = Visibility.Collapsed;
-		MessageView messageView = new MessageView("You");
+		MessageView messageView = new MessageView("You", animate: true);
 		messageView.Update(Attachments.VisibleText(turn), "", null, "", renderMarkdown: false);
 		Messages.Children.Add(messageView);
-		live = new MessageView("Aquila");
-		live.Update("", "", null, "Working…");
+		live = new MessageView("Aquila", animate: true);
+		ShowReply(live, turn, generating: true);
 		Messages.Children.Add(live);
+		UiSounds.Play(UiSound.Send);
+		sendStarted = DateTime.UtcNow;
 		activeTurn = turn;
 		Composer.Clear();
 		pendingAttachments.Clear();
@@ -1896,7 +1916,7 @@ public partial class MainWindow : Window
 		SetBusy(value: true);
 		operation = new CancellationTokenSource();
 		Agent agent = new Agent(engine, memories, semantic, personalities);
-		agent.ApproveWeb = (string action) => Task.FromResult(MessageBox.Show(this, action + "\n\nThis query or URL will be sent over the internet.", "Allow web lookup?", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes);
+		agent.ApproveWeb = (string action) => Task.FromResult(AquilaDialog.Confirm(this, "Allow web lookup?", action + "\n\nThis search or address will be sent over the internet.", "Allow", "Don't allow"));
 		agent.AnswerStarted += delegate
 		{
 			SetAvatarState("thinking", turn.Id);
@@ -1931,6 +1951,10 @@ public partial class MainWindow : Window
 			RenderLive(final: true);
 			if (turn.Status == "complete")
 			{
+				if (!settings.Voice.Enabled && (DateTime.UtcNow - sendStarted >= TimeSpan.FromSeconds(4.0) || !base.IsActive))
+				{
+					UiSounds.Play(UiSound.Reply);
+				}
 				SpeakCompletedReply(session, turn);
 			}
 			if (settings.LearnMemories && turn.Status == "complete" && MemoryLearner.Eligible(turn.User))
@@ -1940,7 +1964,7 @@ public partial class MainWindow : Window
 				pendingLearning = LearnInBackgroundAsync(session, turn);
 			}
 			MetricsText.Text = turn.Metrics;
-			StatusText.Text = "Model ready · on this device";
+			StatusText.Text = "Ready";
 			if (turn.Status == "limit")
 			{
 				Notice(turn.Activity.LastOrDefault() ?? "Response reached the token limit.");
@@ -1951,7 +1975,7 @@ public partial class MainWindow : Window
 			AvatarInterrupted();
 			turn.Status = "cancelled";
 			turn.Activity.Add("Generation stopped. Partial output has been saved.");
-			StatusText.Text = (engine.Ready ? "Stopped · model remains loaded" : "Loading stopped");
+			StatusText.Text = (engine.Ready ? "Stopped" : "Loading stopped");
 		}
 		catch (Exception ex4)
 		{
@@ -1959,10 +1983,12 @@ public partial class MainWindow : Window
 			turn.Status = "error";
 			turn.Activity.Add("Error: " + ex4.Message);
 			Notice(ex4.Message);
-			StatusText.Text = (engine.Ready ? "Model ready · last request failed" : "Model not loaded");
+			UiSounds.Play(UiSound.Notice);
+			StatusText.Text = (engine.Ready ? "Ready · last reply failed" : "No model loaded");
 		}
 		finally
 		{
+			live?.SetGenerating(false);
 			RenderLive(final: true);
 			store.SaveChat(session);
 			activeTurn = null;
@@ -1980,7 +2006,7 @@ public partial class MainWindow : Window
 	{
 		if (live != null && activeTurn != null && (dirtyRender || final))
 		{
-			live.Update(VoiceDelivery.Display(activeTurn, settings.Voice.RevealTags), activeTurn.Reasoning, activeTurn.Activity, Label(activeTurn), final, activeTurn.Answer);
+			ShowReply(live, activeTurn, activeTurn.Status == "generating");
 			RefreshUsage();
 			dirtyRender = false;
 			if (followBottom)
@@ -2006,6 +2032,8 @@ public partial class MainWindow : Window
 		SendButton.Visibility = (value ? Visibility.Collapsed : Visibility.Visible);
 		StopButton.Visibility = ((!value) ? Visibility.Collapsed : Visibility.Visible);
 		StopButton.IsEnabled = value;
+		UpdateSendEnabled();
+		RefreshShell();
 	}
 
 	private void Stop_Click(object sender, RoutedEventArgs e)
@@ -2013,6 +2041,7 @@ public partial class MainWindow : Window
 		operation?.Cancel();
 		StopButton.IsEnabled = false;
 		StatusText.Text = "Stopping…";
+		UiSounds.Play(UiSound.Stop);
 	}
 
 	private void Composer_KeyDown(object sender, KeyEventArgs e)
@@ -2066,7 +2095,8 @@ public partial class MainWindow : Window
 		try
 		{
 			await engine.StartAsync(settings, operation.Token);
-			StatusText.Text = "Model ready · on this device";
+			StatusText.Text = "Ready";
+			UiSounds.Play(UiSound.Ready);
 		}
 		catch (OperationCanceledException)
 		{
@@ -2075,6 +2105,7 @@ public partial class MainWindow : Window
 		catch (Exception ex2)
 		{
 			Notice(ex2.Message);
+			UiSounds.Play(UiSound.Notice);
 			StatusText.Text = "Could not load model";
 		}
 		finally
@@ -2090,7 +2121,7 @@ public partial class MainWindow : Window
 		if (!busy)
 		{
 			engine.Stop();
-			StatusText.Text = "Model unloaded · memory released";
+			StatusText.Text = "Model unloaded";
 		}
 	}
 
@@ -2132,18 +2163,7 @@ public partial class MainWindow : Window
 		}
 	}
 
-	private void SaveSettings_Click(object sender, RoutedEventArgs e)
-	{
-		if (ReadSettings())
-		{
-			StatusText.Text = "Settings saved · applied on next message";
-		}
-	}
 
-	private void Settings_Click(object sender, RoutedEventArgs e)
-	{
-		SettingsColumn.Width = ((SettingsColumn.Width.Value == 0.0) ? new GridLength(320.0) : new GridLength(0.0));
-	}
 
 	private void Internet_Click(object sender, RoutedEventArgs e)
 	{

@@ -41,7 +41,7 @@ public static class WebVerification
 		Check(WebAccess.CleanText("<script>secret script</script><style>hidden</style><p>Hello &amp; world</p>") == "Hello & world", "HTML extraction excludes scripts/styles and decodes text");
 		MessageView messageView = new MessageView("Aquila");
 		messageView.Update("[Source](<https://example.com/page_(test)>) [blocked](file:///C:/private)");
-		RichTextBox richTextBox = ((StackPanel)messageView.Child).Children.OfType<RichTextBox>().Single();
+		RichTextBox richTextBox = messageView.ProseBoxes.First();
 		Check(richTextBox.IsDocumentEnabled && richTextBox.Document.Blocks.OfType<Paragraph>().SelectMany((Paragraph p) => p.Inlines.OfType<Hyperlink>()).Count() == 1, "Source links render as clickable safe URLs, including bracketed parentheses");
 		Check(WebAccess.CleanText(new string('x', 9000)).Length <= 7001 && WebAccess.SuggestSearch("What is the latest release?") && !WebAccess.SuggestSearch("Hello, how are you?"), "Excerpts are bounded and freshness cues distinguish ordinary chat");
 		Settings settings = new Settings();

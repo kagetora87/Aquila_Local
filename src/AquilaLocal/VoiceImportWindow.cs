@@ -9,7 +9,7 @@ using Microsoft.Win32;
 
 namespace AquilaLocal;
 
-internal sealed class VoiceImportWindow : Window
+internal sealed class VoiceImportWindow : AquilaWindow
 {
 	private readonly TextBox name = new TextBox
 	{

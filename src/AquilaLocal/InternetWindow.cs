@@ -6,7 +6,7 @@ using System.Windows.Media;
 
 namespace AquilaLocal;
 
-public sealed class InternetWindow : Window
+public sealed class InternetWindow : AquilaWindow
 {
 	public InternetWindow(Settings settings, Action save)
 	{

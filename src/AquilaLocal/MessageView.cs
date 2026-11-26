@@ -1,130 +1,269 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Shapes;
+using System.Windows.Threading;
 using Emoji.Wpf;
+using TextBlock = System.Windows.Controls.TextBlock;
+using RichTextBox = System.Windows.Controls.RichTextBox;
 
 namespace AquilaLocal;
 
+/// <summary>
+/// One message in the conversation. Your messages are right-aligned bubbles; Aquila's replies sit
+/// unboxed in the reading column with a small header, an optional "Thought about it" disclosure,
+/// the reply (prose and code blocks as separate pieces), a Copy action and, when useful, Details.
+/// </summary>
 public sealed class MessageView : Border
 {
-	private readonly Emoji.Wpf.RichTextBox body;
+	private readonly bool user;
 
-	private readonly System.Windows.Controls.TextBox thoughts;
+	private readonly StackPanel bodyHost = new StackPanel();
 
-	private readonly Expander thoughtsExpander;
+	private readonly System.Windows.Controls.TextBox? thoughts;
 
-	private readonly System.Windows.Controls.TextBox activity;
+	private readonly Expander? thoughtsExpander;
 
-	private readonly Expander activityExpander;
+	private readonly System.Windows.Controls.TextBox? activity;
 
-	private readonly System.Windows.Controls.TextBlock meta;
+	private readonly Expander? activityExpander;
+
+	private readonly TextBlock? meta;
+
+	private readonly StackPanel? waiting;
+
+	private readonly StackPanel actions;
+
+	private readonly Button copyButton;
 
 	private string text = "";
 
-	public MessageView(string role)
+	private bool generating;
+
+	private bool hovering;
+
+	/// <summary>Show "Details" (tool activity) on every reply, not just when something happened.</summary>
+	public bool ShowTechnicalDetails { get; set; }
+
+	/// <summary>The prose pieces of the message, in order (for tests and copy handling).</summary>
+	public IEnumerable<Emoji.Wpf.RichTextBox> ProseBoxes => bodyHost.Children.OfType<Emoji.Wpf.RichTextBox>();
+
+	public MessageView(string role, bool animate = false)
 	{
-		base.Margin = new Thickness(0.0, 0.0, 0.0, 18.0);
-		base.Padding = new Thickness(17.0);
-		base.CornerRadius = new CornerRadius(9.0);
-		base.Background = Brush((role == "You") ? "#1C303B" : "#17222E");
-		base.BorderBrush = Brush((role == "You") ? "#35515C" : "#2A3848");
-		base.BorderThickness = new Thickness(1.0);
-		StackPanel stackPanel = (StackPanel)(Child = new StackPanel());
-		DockPanel dockPanel = new DockPanel
+		user = role == "You";
+		base.Background = Brushes.Transparent;
+		base.Margin = new Thickness(0.0, 0.0, 0.0, user ? 20.0 : 28.0);
+		copyButton = Ui.IconButton(Ui.Glyph.Copy, "Copy message", delegate
 		{
-			Margin = new Thickness(0.0, 0.0, 0.0, 10.0)
-		};
-		Button button = new Button
+			CopyAll();
+		});
+		copyButton.Width = 28.0;
+		copyButton.Height = 28.0;
+		copyButton.FontSize = 14.0;
+		actions = new StackPanel
 		{
-			Content = "Copy",
-			Padding = new Thickness(8.0, 3.0, 8.0, 3.0),
-			FontSize = 10.0,
-			Background = Brushes.Transparent,
-			BorderThickness = new Thickness(0.0),
-			Foreground = Brush("#97A8BB")
+			Orientation = Orientation.Horizontal,
+			Margin = new Thickness(-6.0, 6.0, 0.0, 0.0)
 		};
-		button.Click += delegate
+		actions.Children.Add(copyButton);
+		CommandManager.AddPreviewExecutedHandler(this, CopyMessageSelection);
+		if (user)
 		{
-			Clipboard.SetText((text.Length > 0) ? text : " ");
-		};
-		DockPanel.SetDock(button, Dock.Right);
-		dockPanel.Children.Add(button);
-		meta = new System.Windows.Controls.TextBlock
+			Border border = new Border
+			{
+				HorizontalAlignment = HorizontalAlignment.Right,
+				MaxWidth = 620.0,
+				Background = Ui.Brush("Surface.2"),
+				CornerRadius = new CornerRadius(16.0, 16.0, 4.0, 16.0),
+				Padding = new Thickness(14.0, 10.0, 14.0, 10.0),
+				Child = bodyHost
+			};
+			actions.HorizontalAlignment = HorizontalAlignment.Right;
+			actions.Margin = new Thickness(0.0, 4.0, -6.0, 0.0);
+			actions.Opacity = 0.0;
+			StackPanel stackPanel = new StackPanel();
+			stackPanel.Children.Add(border);
+			stackPanel.Children.Add(actions);
+			base.Child = stackPanel;
+		}
+		else
 		{
-			Text = ((role == "You") ? "YOU" : "AQUILA"),
-			Foreground = Brush((role == "You") ? "#A9BCCB" : "#80DEC5"),
-			FontSize = 10.0,
-			FontWeight = FontWeights.SemiBold,
-			VerticalAlignment = VerticalAlignment.Center
-		};
-		dockPanel.Children.Add(meta);
-		stackPanel.Children.Add(dockPanel);
-		thoughts = PlainBox();
-		thoughts.FontSize = 12.0;
-		thoughts.Foreground = Brush("#A4B3C4");
-		thoughtsExpander = new Expander
+			StackPanel stackPanel2 = new StackPanel();
+			StackPanel stackPanel3 = new StackPanel
+			{
+				Orientation = Orientation.Horizontal,
+				Height = 28.0,
+				Margin = new Thickness(0.0, 0.0, 0.0, 6.0)
+			};
+			Border element = new Border
+			{
+				Width = 24.0,
+				Height = 24.0,
+				CornerRadius = new CornerRadius(7.0),
+				Background = Ui.Brush("Accent.Subtle"),
+				VerticalAlignment = VerticalAlignment.Center,
+				Child = new TextBlock
+				{
+					Text = "A",
+					FontSize = 13.0,
+					FontWeight = FontWeights.SemiBold,
+					Foreground = Ui.Brush("Accent"),
+					HorizontalAlignment = HorizontalAlignment.Center,
+					VerticalAlignment = VerticalAlignment.Center
+				}
+			};
+			stackPanel3.Children.Add(element);
+			stackPanel3.Children.Add(new TextBlock
+			{
+				Text = "Aquila",
+				FontSize = 13.0,
+				FontWeight = FontWeights.SemiBold,
+				Foreground = Ui.Brush("Text.Primary"),
+				VerticalAlignment = VerticalAlignment.Center,
+				Margin = new Thickness(10.0, 0.0, 0.0, 0.0)
+			});
+			meta = new TextBlock
+			{
+				Style = Ui.Style("Type.Caption"),
+				VerticalAlignment = VerticalAlignment.Center,
+				TextTrimming = TextTrimming.CharacterEllipsis
+			};
+			stackPanel3.Children.Add(meta);
+			stackPanel2.Children.Add(stackPanel3);
+			thoughts = PlainBox(13.0, "Text.Secondary");
+			thoughtsExpander = new Expander
+			{
+				Style = Ui.Style("Expander.Quiet"),
+				Header = "Thought about it",
+				Content = new Border
+				{
+					BorderBrush = Ui.Brush("Stroke.Default"),
+					BorderThickness = new Thickness(2.0, 0.0, 0.0, 0.0),
+					Padding = new Thickness(12.0, 0.0, 0.0, 0.0),
+					Child = thoughts
+				},
+				Visibility = Visibility.Collapsed,
+				Margin = new Thickness(0.0, 0.0, 0.0, 8.0)
+			};
+			stackPanel2.Children.Add(thoughtsExpander);
+			waiting = new StackPanel
+			{
+				Orientation = Orientation.Horizontal,
+				Height = 24.0,
+				Visibility = Visibility.Collapsed
+			};
+			for (int i = 0; i < 3; i++)
+			{
+				Ellipse ellipse = new Ellipse
+				{
+					Width = 6.0,
+					Height = 6.0,
+					Fill = Ui.Brush("Text.Tertiary"),
+					Margin = new Thickness(0.0, 0.0, 6.0, 0.0),
+					VerticalAlignment = VerticalAlignment.Center
+				};
+				waiting.Children.Add(ellipse);
+			}
+			stackPanel2.Children.Add(waiting);
+			stackPanel2.Children.Add(bodyHost);
+			actions.Opacity = 0.7;
+			stackPanel2.Children.Add(actions);
+			activity = PlainBox(12.0, "Text.Secondary");
+			activity.FontFamily = Ui.FontMono;
+			activityExpander = new Expander
+			{
+				Style = Ui.Style("Expander.Quiet"),
+				Header = "Details",
+				Content = new Border
+				{
+					Background = Ui.Brush("Surface.1"),
+					CornerRadius = new CornerRadius(8.0),
+					Padding = new Thickness(12.0),
+					Child = activity
+				},
+				Visibility = Visibility.Collapsed,
+				Margin = new Thickness(0.0, 4.0, 0.0, 0.0)
+			};
+			stackPanel2.Children.Add(activityExpander);
+			base.Child = stackPanel2;
+		}
+		base.MouseEnter += delegate
 		{
-			Header = "Thinking",
-			Content = thoughts,
-			Visibility = Visibility.Collapsed,
-			Margin = new Thickness(0.0, 0.0, 0.0, 10.0)
+			hovering = true;
+			RefreshActions();
 		};
-		stackPanel.Children.Add(thoughtsExpander);
-		body = new Emoji.Wpf.RichTextBox
+		base.MouseLeave += delegate
+		{
+			hovering = false;
+			RefreshActions();
+		};
+		if (animate)
+		{
+			base.Loaded += delegate
+			{
+				Motion.RiseIn(this);
+			};
+		}
+	}
+
+	private void RefreshActions()
+	{
+		double to = ((!generating) ? (hovering ? 1.0 : (user ? 0.0 : 0.7)) : 0.0);
+		Motion.Animate(actions, UIElement.OpacityProperty, to, Motion.Fast, Motion.EaseOut);
+		actions.IsHitTestVisible = !generating;
+	}
+
+	private static System.Windows.Controls.TextBox PlainBox(double size, string brush)
+	{
+		return new System.Windows.Controls.TextBox
+		{
+			Style = Ui.Style("Text.Plain"),
+			FontSize = size,
+			Foreground = Ui.Brush(brush)
+		};
+	}
+
+	private static Emoji.Wpf.RichTextBox NewProse()
+	{
+		Emoji.Wpf.RichTextBox richTextBox = new Emoji.Wpf.RichTextBox
 		{
 			IsReadOnly = true,
 			IsDocumentEnabled = true,
 			Background = Brushes.Transparent,
-			Foreground = Brush("#E7EDF5"),
+			Foreground = Ui.Brush("Text.Primary"),
 			BorderThickness = new Thickness(0.0),
 			Padding = new Thickness(0.0),
-			FontSize = 14.0,
+			FontFamily = Ui.FontUI,
+			FontSize = 15.0,
+			SelectionBrush = Ui.Brush("Selection"),
+			SelectionOpacity = 0.6,
+			CaretBrush = Ui.Brush("Accent"),
+			FocusVisualStyle = null,
 			VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
 			HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
 		};
-		CommandManager.AddPreviewExecutedHandler(this, CopyMessageSelection);
-		stackPanel.Children.Add(body);
-		activity = PlainBox();
-		activity.FontFamily = new FontFamily("Consolas");
-		activity.FontSize = 11.0;
-		activity.Foreground = Brush("#A4B3C4");
-		activityExpander = new Expander
-		{
-			Header = "Activity",
-			Content = activity,
-			Visibility = Visibility.Collapsed,
-			Margin = new Thickness(0.0, 12.0, 0.0, 0.0)
-		};
-		stackPanel.Children.Add(activityExpander);
-	}
-
-	private static System.Windows.Controls.TextBox PlainBox()
-	{
-		return new System.Windows.Controls.TextBox
-		{
-			IsReadOnly = true,
-			TextWrapping = TextWrapping.Wrap,
-			Background = Brushes.Transparent,
-			BorderThickness = new Thickness(0.0),
-			Padding = new Thickness(0.0, 8.0, 0.0, 0.0)
-		};
+		return richTextBox;
 	}
 
 	private void CopyMessageSelection(object sender, ExecutedRoutedEventArgs e)
 	{
-		if (e.Command == ApplicationCommands.Copy && !body.Selection.IsEmpty && (e.OriginalSource == body || body.IsKeyboardFocusWithin))
+		if (e.Command != ApplicationCommands.Copy)
+		{
+			return;
+		}
+		Emoji.Wpf.RichTextBox? richTextBox = ProseBoxes.FirstOrDefault((Emoji.Wpf.RichTextBox b) => !b.Selection.IsEmpty && (e.OriginalSource == b || b.IsKeyboardFocusWithin));
+		if (richTextBox != null)
 		{
 			try
 			{
-				Clipboard.SetText(SelectedMessageText());
+				Clipboard.SetText(SelectedText(richTextBox));
 			}
 			catch (ExternalException)
 			{
@@ -133,12 +272,12 @@ public sealed class MessageView : Border
 		}
 	}
 
-	private string SelectedMessageText()
+	private static string SelectedText(Emoji.Wpf.RichTextBox box)
 	{
-		TextPointer textPointer = body.Selection.Start;
-		TextPointer end = body.Selection.End;
+		TextPointer textPointer = box.Selection.Start;
+		TextPointer end = box.Selection.End;
 		StringBuilder stringBuilder = new StringBuilder();
-		foreach (EmojiInline emojiInline in body.EmojiInlines)
+		foreach (EmojiInline emojiInline in box.EmojiInlines)
 		{
 			if (emojiInline.ContentEnd.CompareTo(textPointer) > 0)
 			{
@@ -161,172 +300,158 @@ public sealed class MessageView : Border
 		return stringBuilder.ToString();
 	}
 
+	private void CopyAll()
+	{
+		try
+		{
+			Clipboard.SetText((text.Length > 0) ? text : " ");
+		}
+		catch (ExternalException)
+		{
+			return;
+		}
+		UiSounds.Play(UiSound.Copy);
+		copyButton.Content = Ui.Icon(Ui.Glyph.Accept, 14.0, "Accent");
+		DispatcherTimer timer = new DispatcherTimer
+		{
+			Interval = TimeSpan.FromSeconds(1.2)
+		};
+		timer.Tick += delegate
+		{
+			timer.Stop();
+			copyButton.Content = Ui.Icon(Ui.Glyph.Copy, 14.0);
+		};
+		timer.Start();
+	}
+
+	/// <summary>
+	/// Updates the message. For replies, <paramref name="status"/> is the meta text after "Aquila"
+	/// (already in plain words). Markdown is rendered while streaming; unchanged pieces are kept.
+	/// </summary>
 	public void Update(string content, string reasoning = "", IEnumerable<string>? logs = null, string status = "", bool renderMarkdown = true, string? copyText = null)
 	{
 		text = copyText ?? content;
-		body.Document = (renderMarkdown ? Markdown(content) : new FlowDocument(new Paragraph(new Run(content)))
+		if (user || !renderMarkdown)
 		{
-			PagePadding = new Thickness(0.0),
-			FontFamily = new FontFamily("Segoe UI"),
-			FontSize = 14.0,
-			LineHeight = 22.0
-		});
+			Emoji.Wpf.RichTextBox richTextBox = ProseBoxes.FirstOrDefault() ?? AddProse();
+			if (!(richTextBox.Tag is string text2) || text2 != content)
+			{
+				richTextBox.Tag = content;
+				richTextBox.Document = MarkdownRenderer.Plain(content);
+			}
+		}
+		else
+		{
+			RenderSegments(content, !generating);
+		}
+		if (user)
+		{
+			return;
+		}
 		thoughts.Text = reasoning;
+		thoughtsExpander.Header = ((generating && content.Length == 0) ? "Thinking…" : "Thought about it");
 		thoughtsExpander.Visibility = ((reasoning.Length <= 0) ? Visibility.Collapsed : Visibility.Visible);
 		if (logs != null)
 		{
-			activity.Text = string.Join("\n\n", logs);
-			activityExpander.Visibility = ((activity.Text.Length <= 0) ? Visibility.Collapsed : Visibility.Visible);
+			List<string> list = logs.ToList();
+			activity.Text = string.Join("\n\n", list);
+			bool flag = ShowTechnicalDetails || list.Any((string l) => !l.StartsWith("Memory:") && !l.StartsWith("Recalled memory") && !l.StartsWith("Learned") && l.Trim().Length > 0);
+			activityExpander.Visibility = ((activity.Text.Length <= 0 || !flag) ? Visibility.Collapsed : Visibility.Visible);
 		}
-		if (status.Length > 0)
+		bool flag2 = generating && content.Length == 0 && reasoning.Length == 0;
+		if (flag2 != (waiting.Visibility == Visibility.Visible))
 		{
-			meta.Text = "AQUILA  ·  " + status;
+			waiting.Visibility = ((!flag2) ? Visibility.Collapsed : Visibility.Visible);
+			for (int i = 0; i < waiting.Children.Count; i++)
+			{
+				if (flag2)
+				{
+					Motion.Pulse(waiting.Children[i], 0.25, TimeSpan.FromMilliseconds(900.0), TimeSpan.FromMilliseconds(150 * i));
+				}
+				else
+				{
+					Motion.StopPulse(waiting.Children[i]);
+				}
+			}
+		}
+		if (status.Length > 0 || !generating)
+		{
+			meta.Text = ((status.Length > 0) ? ("  ·  " + status) : "");
 		}
 	}
 
-	private static SolidColorBrush Brush(string color)
+	/// <summary>Meta colour and the full technical line as a tooltip.</summary>
+	public void SetMeta(string brushKey, string tooltip)
 	{
-		return new SolidColorBrush((Color)ColorConverter.ConvertFromString(color));
+		if (meta != null)
+		{
+			meta.Foreground = Ui.Brush(brushKey);
+			meta.ToolTip = ((tooltip.Length > 0) ? tooltip : null);
+		}
 	}
 
-	private static FlowDocument Markdown(string text)
+	/// <summary>While generating, the action row is hidden and the waiting dots may show.</summary>
+	public void SetGenerating(bool value)
 	{
-		FlowDocument flowDocument = new FlowDocument
-		{
-			PagePadding = new Thickness(0.0),
-			FontFamily = new FontFamily("Segoe UI"),
-			FontSize = 14.0,
-			LineHeight = 22.0
-		};
-		bool flag = false;
-		StringBuilder stringBuilder = new StringBuilder();
-		string[] array = text.Replace("\r\n", "\n").Split('\n');
-		foreach (string text2 in array)
-		{
-			if (text2.TrimStart().StartsWith("```"))
-			{
-				if (flag)
-				{
-					AddCode(flowDocument, stringBuilder.ToString());
-					stringBuilder.Clear();
-				}
-				flag = !flag;
-				continue;
-			}
-			if (flag)
-			{
-				stringBuilder.AppendLine(text2);
-				continue;
-			}
-			if (string.IsNullOrWhiteSpace(text2))
-			{
-				flowDocument.Blocks.Add(new Paragraph
-				{
-					Margin = new Thickness(0.0, 3.0, 0.0, 3.0),
-					FontSize = 4.0
-				});
-				continue;
-			}
-			Paragraph paragraph = new Paragraph
-			{
-				Margin = new Thickness(0.0, 0.0, 0.0, 5.0)
-			};
-			string input = text2;
-			Match match = Regex.Match(input, "^(#{1,6})\\s+(.*)$");
-			if (match.Success)
-			{
-				input = match.Groups[2].Value;
-				paragraph.FontSize = ((match.Groups[1].Length <= 2) ? 19 : 16);
-				paragraph.FontWeight = FontWeights.SemiBold;
-				paragraph.Margin = new Thickness(0.0, 9.0, 0.0, 7.0);
-			}
-			else if (Regex.IsMatch(input, "^\\s*[-*]\\s+"))
-			{
-				input = Regex.Replace(input, "^\\s*[-*]\\s+", "•  ");
-			}
-			string[] array2 = Regex.Split(input, "(\\*\\*.*?\\*\\*|`[^`]+`)", RegexOptions.None, TimeSpan.FromMilliseconds(100.0));
-			foreach (string text3 in array2)
-			{
-				string text4;
-				if (text3.StartsWith("**") && text3.EndsWith("**") && text3.Length >= 4)
-				{
-					InlineCollection inlines = paragraph.Inlines;
-					text4 = text3;
-					inlines.Add(new Bold(new Run(text4.Substring(2, text4.Length - 2 - 2))));
-					continue;
-				}
-				if (text3.StartsWith('`') && text3.EndsWith('`') && text3.Length >= 2)
-				{
-					InlineCollection inlines2 = paragraph.Inlines;
-					text4 = text3;
-					inlines2.Add(new Run(text4.Substring(1, text4.Length - 1 - 1))
-					{
-						FontFamily = new FontFamily("Consolas"),
-						Foreground = Brush("#A8E5D5"),
-						Background = Brush("#233641")
-					});
-					continue;
-				}
-				int num = 0;
-				int num2;
-				foreach (Match item in Regex.Matches(text3, "\\[([^\\]]+)\\]\\((?:<(https?://[^\\s>]+)>|(https?://[^\\s)]+))\\)", RegexOptions.None, TimeSpan.FromMilliseconds(100.0)))
-				{
-					InlineCollection inlines3 = paragraph.Inlines;
-					num2 = num;
-					inlines3.Add(new Run(text3.Substring(num2, item.Index - num2)));
-					try
-					{
-						Uri uri = WebAccess.ValidateUrl(item.Groups[2].Success ? item.Groups[2].Value : item.Groups[3].Value);
-						Hyperlink hyperlink = new Hyperlink(new Run(item.Groups[1].Value))
-						{
-							Foreground = Brush("#80DEC5"),
-							ToolTip = uri.AbsoluteUri
-						};
-						hyperlink.Click += delegate
-						{
-							try
-							{
-								Process.Start(new ProcessStartInfo(uri.AbsoluteUri)
-								{
-									UseShellExecute = true
-								});
-							}
-							catch
-							{
-							}
-						};
-						paragraph.Inlines.Add(hyperlink);
-					}
-					catch (ArgumentException)
-					{
-						paragraph.Inlines.Add(new Run(item.Value));
-					}
-					num = item.Index + item.Length;
-				}
-				InlineCollection inlines4 = paragraph.Inlines;
-				text4 = text3;
-				num2 = num;
-				inlines4.Add(new Run(text4.Substring(num2, text4.Length - num2)));
-			}
-			flowDocument.Blocks.Add(paragraph);
-		}
-		if (stringBuilder.Length > 0)
-		{
-			AddCode(flowDocument, stringBuilder.ToString());
-		}
-		return flowDocument;
+		generating = value;
+		RefreshActions();
 	}
 
-	private static void AddCode(FlowDocument doc, string text)
+	private Emoji.Wpf.RichTextBox AddProse()
 	{
-		doc.Blocks.Add(new Paragraph(new Run(text.TrimEnd('\n')))
+		Emoji.Wpf.RichTextBox richTextBox = NewProse();
+		bodyHost.Children.Add(richTextBox);
+		return richTextBox;
+	}
+
+	private void RenderSegments(string content, bool final)
+	{
+		List<MarkdownRenderer.Segment> list = MarkdownRenderer.Split(content);
+		int i;
+		for (i = 0; i < list.Count; i++)
 		{
-			FontFamily = new FontFamily("Consolas"),
-			FontSize = 12.0,
-			Background = Brush("#101923"),
-			Padding = new Thickness(12.0),
-			Margin = new Thickness(0.0, 6.0, 0.0, 9.0),
-			LineHeight = 19.0
-		});
+			MarkdownRenderer.Segment segment = list[i];
+			UIElement? uIElement = ((i < bodyHost.Children.Count) ? bodyHost.Children[i] : null);
+			if (segment.IsCode)
+			{
+				CodeBlockView? codeBlockView = uIElement as CodeBlockView;
+				if (codeBlockView == null)
+				{
+					codeBlockView = new CodeBlockView();
+					Replace(i, codeBlockView);
+				}
+				codeBlockView.Set(segment.Source, segment.Language, segment.Closed, final);
+				continue;
+			}
+			Emoji.Wpf.RichTextBox? richTextBox = uIElement as Emoji.Wpf.RichTextBox;
+			if (richTextBox == null)
+			{
+				richTextBox = NewProse();
+				Replace(i, richTextBox);
+			}
+			if (!(richTextBox.Tag is string text) || text != segment.Source)
+			{
+				richTextBox.Tag = segment.Source;
+				richTextBox.Document = MarkdownRenderer.Prose(segment.Source);
+			}
+			richTextBox.Margin = new Thickness(0.0, 0.0, 0.0, (i < list.Count - 1) ? 12.0 : 0.0);
+		}
+		while (bodyHost.Children.Count > i)
+		{
+			bodyHost.Children.RemoveAt(bodyHost.Children.Count - 1);
+		}
+	}
+
+	private void Replace(int index, UIElement element)
+	{
+		if (index < bodyHost.Children.Count)
+		{
+			bodyHost.Children.RemoveAt(index);
+			bodyHost.Children.Insert(index, element);
+		}
+		else
+		{
+			bodyHost.Children.Add(element);
+		}
 	}
 }

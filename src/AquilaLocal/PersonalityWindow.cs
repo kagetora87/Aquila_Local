@@ -9,7 +9,7 @@ using System.Windows.Markup;
 
 namespace AquilaLocal;
 
-public partial class PersonalityWindow : Window
+public partial class PersonalityWindow : AquilaWindow
 {
 	private readonly PersonalityStore store;
 
