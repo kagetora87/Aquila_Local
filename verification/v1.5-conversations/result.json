@@ -1,0 +1,25 @@
+{
+  "checks": 22,
+  "checkpoint": {
+    "Summary": "Project CEDAR-7319 is a small warehouse planning project. The team has reviewed the existing checklist and discussed routine organization, with no final decisions made beyond initial confirmation. Measurements must be taken in centimeters, not inches. The delivery date remains undecided and should not be treated as a commitment. A synthetic reference document (reference.txt) was reviewed, identifying an inventory label as BLUE-427. The assistant confirmed this identification. No further tasks or decisions were explicitly resolved in the transcript. The next step involves continuing the warehouse planning process while adhering to the centimeter standard and maintaining the status of the delivery date as non-committal. The project remains in the planning phase.",
+    "ThroughTurnId": "13d45da7919b4fcfb916e36a044871c7",
+    "CoveredTurns": 4,
+    "Created": "2026-11-12T20:02:24.6102512-08:00",
+    "Model": "Deckard-4B-Q4_K_M.gguf",
+    "SourceTokens": 1552,
+    "SummaryTokens": 310
+  },
+  "repeatedCheckpoint": {
+    "Summary": "Project CEDAR-7319 is a small warehouse planning project currently in the planning phase. The team has reviewed the existing checklist and discussed routine organization, with no final decisions made beyond initial confirmation. Measurements must be taken in centimeters, not inches. The delivery date remains undecided and should not be treated as a commitment. A synthetic reference document (reference.txt) was reviewed, identifying an inventory label as BLUE-427.\n\nIn the most recent interaction, the user requested an explanation of why a checklist is helpful. The assistant confirmed that a checklist records steps and reduces omissions, noting that they discussed routine project organization and reviewed the existing checklist. No additional final decision was made during this explanatory exchange. The assistant emphasized that no final decision was made regarding the checklist\u0027s utility beyond the initial confirmation of its existence and review.\n\nThe project remains in the planning phase. The next step involves continuing the warehouse planning process while adhering to the centimeter standard and maintaining the status of the delivery date as non-committal. The user\u0027s goal is to clarify the utility of the checklist within the context of the project\u0027s organization. There are no unresolved questions or tasks explicitly resolved in the transcript beyond the acknowledgement of the checklist\u0027s role in reducing omissions. All measurements must remain in centimeters, and the inventory label BLUE-427 remains a verified reference point. No new tasks or decisions were explicitly resolved in the transcript. The assistant confirmed the identification of the inventory label. No further tasks or decisions were explicitly resolved in the transcript.",
+    "ThroughTurnId": "0af1b098b2524972bb8dc580a278e56f",
+    "CoveredTurns": 5,
+    "Created": "2026-11-12T20:02:39.9597178-08:00",
+    "Model": "Deckard-4B-Q4_K_M.gguf",
+    "SourceTokens": 648,
+    "SummaryTokens": 503
+  },
+  "answer": "Our project codename is **CEDAR-7319** and our preferred measurement unit is **centimeters**.",
+  "totalTokens": 5437,
+  "cpuThreads": 2,
+  "context": 8192
+}

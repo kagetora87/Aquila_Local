@@ -1,0 +1,115 @@
+{
+  "kittenModel": "https://huggingface.co/KittenML/kitten-tts-2",
+  "kittenRevision": "c93cb7c271baa51d9ae8204d5277988906f235a2",
+  "vocoderRevision": "749d1c1a46eb10492095d68fbcf55691ccf137cd",
+  "package": "kittenml==0.9.8",
+  "weights": "Pinned emb4 checkpoint expanded once to ordinary safetensors shards by QA/prepare-kitten-weights.py",
+  "decoder": "student_w4",
+  "artifacts": [
+    {
+      "path": "models/kitten/lm/model-tl2-emb4.safetensors",
+      "bytes": 492114403,
+      "sha256": "af447d02ae92ea14c733c45bbb8fb740e14efeff1643583482b5a5cd3dc5301d"
+    },
+    {
+      "path": "models/kitten/decoders/student_w4.pt",
+      "bytes": 38817934,
+      "sha256": "7e585c64b6e0d220c155b0a8ff2d3c1446e1c7b2c59800c38a11dc5aaf270560"
+    },
+    {
+      "path": "models/kitten/speaker/model.safetensors",
+      "bytes": 17418240,
+      "sha256": "c435292860671aa96e94bd19fcea055241c8ef05548e1e441a659b2bfd79fad5"
+    },
+    {
+      "path": "kitten-hub/models--ResembleAI--chatterbox-turbo/snapshots/749d1c1a46eb10492095d68fbcf55691ccf137cd/s3gen_meanflow.safetensors",
+      "bytes": 1064875036,
+      "sha256": "d65cb687a2ed581ee6cc297e919ffefa63386944f42364ae13b78a594945514f"
+    },
+    {
+      "path": "models/custom/model.safetensors",
+      "bytes": 3833402552,
+      "sha256": "38b1d5971bdbd982b561cccec982669a53b0537c3cf5e9bd4778ed07bb2f5137"
+    },
+    {
+      "path": "models/kitten/lm/model.001.safetensors",
+      "bytes": 199503960,
+      "sha256": "37e3e924bd080794b4c98069cc0bd28b43bdd0c129dfca721bf91ea4b1113daa"
+    },
+    {
+      "path": "models/kitten/lm/model.002.safetensors",
+      "bytes": 201328184,
+      "sha256": "e19b22e85288902222c403d10aa71a1f599b094adc3cc42dc310c9d7447b9ff3"
+    },
+    {
+      "path": "models/kitten/lm/model.003.safetensors",
+      "bytes": 201328184,
+      "sha256": "b8239d327a818b9a03e8b37ca351a852d629d6bb7be51980faa9d5a7ef83cbe9"
+    },
+    {
+      "path": "models/kitten/lm/model.004.safetensors",
+      "bytes": 201328184,
+      "sha256": "7c4199c90a7f322bddc3b6f6e8ad8b42ea3fcf1ff6e03e0bf62f5619f84df4e9"
+    },
+    {
+      "path": "models/kitten/lm/model.005.safetensors",
+      "bytes": 201328184,
+      "sha256": "cbf7cc631435e834221278db34f659ad1ffe63f5e79afa5db20892854aef8f84"
+    },
+    {
+      "path": "models/kitten/lm/model.006.safetensors",
+      "bytes": 201328184,
+      "sha256": "11e15fc3b4438c4694da0161564e012dea4f41c895eb3b92371edd9092deb437"
+    },
+    {
+      "path": "models/kitten/lm/model.007.safetensors",
+      "bytes": 201328176,
+      "sha256": "1561413530dee538f2bd9fc27cd7abf9ebfde71f628393e78707da3b2666448a"
+    },
+    {
+      "path": "models/kitten/lm/model.008.safetensors",
+      "bytes": 201328184,
+      "sha256": "246815cde2f1c0665c5e7a990ec131ac3e2577ba348f0573ca2291dcd7864168"
+    },
+    {
+      "path": "models/kitten/lm/model.009.safetensors",
+      "bytes": 201328184,
+      "sha256": "42995991a9ced7425a554cd6afafe8afa05a750b3f82c31418c6e9771c13559e"
+    },
+    {
+      "path": "models/kitten/lm/model.010.safetensors",
+      "bytes": 201328184,
+      "sha256": "13c92497daf268cae083d6852b747c342b9232340fd9b42f2fcac1ace9bd7054"
+    },
+    {
+      "path": "models/kitten/lm/model.011.safetensors",
+      "bytes": 201328176,
+      "sha256": "b5d001122a08d7f445e677114d79a119a4d44dc0196736bb3ad6a1c282e494c7"
+    },
+    {
+      "path": "models/kitten/lm/model.012.safetensors",
+      "bytes": 201328168,
+      "sha256": "00c26d9b2f2f68c65e00c37bcb48894b16e60c92ef797a464628ea09a3561422"
+    },
+    {
+      "path": "models/kitten/lm/model.013.safetensors",
+      "bytes": 201328168,
+      "sha256": "f122769172e790d9fc93037ae8e82512fcfe6289f17230a534c46b51ab5cb5e1"
+    },
+    {
+      "path": "models/kitten/lm/model.014.safetensors",
+      "bytes": 201328168,
+      "sha256": "cba815156ad5afc9b6377f74210d28f619cda47f968dbac5b18203ecf023dbdd"
+    },
+    {
+      "path": "models/kitten/lm/model.015.safetensors",
+      "bytes": 4194424,
+      "sha256": "6ec11d692e24a96414424545be1866d2c0d31896e3123856d187c4a01e9fcd63"
+    },
+    {
+      "path": "models/kitten/lm/model.016.safetensors",
+      "bytes": 648155248,
+      "sha256": "e62dda8cd9d4893e4e01c76c066606607a0a4edb0df97784d1ca8c058021176e"
+    }
+  ]
+}

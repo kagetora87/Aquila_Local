@@ -1,0 +1,20 @@
+PASS Actual GGUF native context and model metadata read without loading weights
+PASS Context thresholds respond to available memory and obey native limit
+PASS Deckard matching vision projector detected
+PASS Explicitly cleared vision projector stays disabled after settings reload
+PASS Text attachment extracted fully
+PASS DOCX attachment text extraction
+PASS PDF attachment selectable text extraction
+PASS Oversized attachment rejected rather than silently truncated
+PASS Binary file rejected for text injection
+PASS Image validated, encoded, and carried as actual pixel data
+PASS Cumulative input/output totals persist and incomplete usage is flagged
+PASS Conversation attachments survive persistence as content snapshots
+PASS Native Windows GPU counters and DXGI adapter mapping return live data
+PASS Actual model receives injected file text and answers from it
+PASS Actual server input/output usage captured exactly once
+PASS Actual Deckard vision recognizes red square through matching projector
+PASS Session usage accumulates across text and vision requests
+PASS Live GPU monitor attributes inference process activity/local memory to Aquila model
+PASS Image-containing conversation supports follow-up history
+PASS Actual cumulative usage survives chat save/reload

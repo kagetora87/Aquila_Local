@@ -1,0 +1,178 @@
+{
+  "chatA": {
+    "CompactedContext": null,
+    "CompactionPromptTokens": 0,
+    "CompactionCompletionTokens": 0,
+    "CompactionUsageIncomplete": false,
+    "PromptTokens": 194,
+    "CompletionTokens": 34,
+    "TotalTokens": 228,
+    "UsageIncomplete": false,
+    "Id": "55159412061e42f98037bf34e8477dcc",
+    "Title": "New conversation",
+    "Updated": "2026-11-13T15:01:41.9360152-08:00",
+    "Turns": [
+      {
+        "WebSources": [],
+        "ThinkingEnabled": false,
+        "ThinkingTokenBudget": 0,
+        "PersonalityId": "a5a64a5b7ed94582b16104bf670a059d",
+        "PersonalityName": "Concise test",
+        "Id": "d10dcfce586d45cfb1b3c1d8ed45bab7",
+        "UsedMemoryIds": [],
+        "LearnedMemoryIds": [],
+        "MemoryPromptTokens": 0,
+        "MemoryCompletionTokens": 0,
+        "MemoryLearningStatus": "",
+        "Attachments": [],
+        "PromptTokens": 194,
+        "CompletionTokens": 34,
+        "UsageRequests": 1,
+        "UsageIncomplete": false,
+        "User": "How should I approach an unfamiliar problem?",
+        "Answer": "Briefly: Break the problem into smaller parts. Test one small piece first to see if it works. Adjust based on the results. Keep steps simple and clear.",
+        "Reasoning": "",
+        "Status": "complete",
+        "Created": "2026-11-13T15:01:36.2461756-08:00",
+        "Activity": [],
+        "Metrics": "0.8s \u00B7 34 tokens \u00B7 43.2 tok/s"
+      }
+    ],
+    "Subtitle": "Nov 13 \u00B7 3:01 PM"
+  },
+  "chatB": {
+    "CompactedContext": null,
+    "CompactionPromptTokens": 0,
+    "CompactionCompletionTokens": 0,
+    "CompactionUsageIncomplete": false,
+    "PromptTokens": 199,
+    "CompletionTokens": 29,
+    "TotalTokens": 228,
+    "UsageIncomplete": false,
+    "Id": "1daa532efd594c82ba00d595408b50d0",
+    "Title": "New conversation",
+    "Updated": "2026-11-13T15:01:41.9462769-08:00",
+    "Turns": [
+      {
+        "WebSources": [],
+        "ThinkingEnabled": false,
+        "ThinkingTokenBudget": 0,
+        "PersonalityId": "4cae89b9137e42faac396676534b5ea8",
+        "PersonalityName": "Checklist test",
+        "Id": "d4fb25fcae664db3a17a76e3c12a16b3",
+        "UsedMemoryIds": [],
+        "LearnedMemoryIds": [],
+        "MemoryPromptTokens": 0,
+        "MemoryCompletionTokens": 0,
+        "MemoryLearningStatus": "",
+        "Attachments": [],
+        "PromptTokens": 199,
+        "CompletionTokens": 29,
+        "UsageRequests": 1,
+        "UsageIncomplete": false,
+        "User": "How should I approach an unfamiliar problem?",
+        "Answer": "Checklist:\n- Define the core issue clearly.\n- Break it down into smaller steps.\n- Test your solution and adjust.",
+        "Reasoning": "",
+        "Status": "complete",
+        "Created": "2026-11-13T15:01:39.4240732-08:00",
+        "Activity": [],
+        "Metrics": "0.7s \u00B7 29 tokens \u00B7 41.0 tok/s"
+      }
+    ],
+    "Subtitle": "Nov 13 \u00B7 3:01 PM"
+  },
+  "semanticChat": {
+    "CompactedContext": null,
+    "CompactionPromptTokens": 0,
+    "CompactionCompletionTokens": 0,
+    "CompactionUsageIncomplete": false,
+    "PromptTokens": 298,
+    "CompletionTokens": 31,
+    "TotalTokens": 329,
+    "UsageIncomplete": false,
+    "Id": "96cd8b7a718940dfb9068aa59af12ae6",
+    "Title": "New conversation",
+    "Updated": "2026-11-13T15:01:41.9474673-08:00",
+    "Turns": [
+      {
+        "WebSources": [],
+        "ThinkingEnabled": false,
+        "ThinkingTokenBudget": 0,
+        "PersonalityId": "a5a64a5b7ed94582b16104bf670a059d",
+        "PersonalityName": "Concise test",
+        "Id": "9f295e5e34a84a979390c7f4498c8deb",
+        "UsedMemoryIds": [
+          "8f915c3541fb44d3be806505131dfd10"
+        ],
+        "LearnedMemoryIds": [],
+        "MemoryPromptTokens": 0,
+        "MemoryCompletionTokens": 0,
+        "MemoryLearningStatus": "",
+        "Attachments": [],
+        "PromptTokens": 298,
+        "CompletionTokens": 31,
+        "UsageRequests": 1,
+        "UsageIncomplete": false,
+        "User": "I want a concise response with minimal verbosity. What response style have I saved?",
+        "Answer": "Briefly: Your saved memory indicates you prefer \u0022Keep explanations brief and to the point.\u0022 This aligns with your current request for conciseness.",
+        "Reasoning": "",
+        "Status": "complete",
+        "Created": "2026-11-13T15:01:40.1634906-08:00",
+        "Activity": [
+          "Memory search: MiniLM \u002B keywords \u00B7 5 eligible \u00B7 6 embedding pass(es) \u00B7 239 ms \u00B7 CPU 1 thread",
+          "Recalled memory: communication. Inspect sources in Memories."
+        ],
+        "Metrics": "1.1s \u00B7 31 tokens \u00B7 29.4 tok/s"
+      }
+    ],
+    "Subtitle": "Nov 13 \u00B7 3:01 PM"
+  },
+  "legacyChat": {
+    "CompactedContext": null,
+    "CompactionPromptTokens": 0,
+    "CompactionCompletionTokens": 0,
+    "CompactionUsageIncomplete": false,
+    "PromptTokens": 468,
+    "CompletionTokens": 29,
+    "TotalTokens": 497,
+    "UsageIncomplete": false,
+    "Id": "f0417d241ef94e32b1484f2ab54d8f54",
+    "Title": "New conversation",
+    "Updated": "2026-11-13T15:01:41.9490394-08:00",
+    "Turns": [
+      {
+        "WebSources": [],
+        "ThinkingEnabled": false,
+        "ThinkingTokenBudget": 0,
+        "PersonalityId": "a5a64a5b7ed94582b16104bf670a059d",
+        "PersonalityName": "Concise test",
+        "Id": "92a1dfa372ee40cfbe0ec880df6a9131",
+        "UsedMemoryIds": [
+          "100b5cb6e89742f5b27213e4212f32f2",
+          "5bab55a842694dbdb89891f733d9c0c6",
+          "95df8a856e9e49d09a5749f239435755",
+          "0e51546f7f154e7cb3e5547964339086"
+        ],
+        "LearnedMemoryIds": [],
+        "MemoryPromptTokens": 0,
+        "MemoryCompletionTokens": 0,
+        "MemoryLearningStatus": "",
+        "Attachments": [],
+        "PromptTokens": 468,
+        "CompletionTokens": 29,
+        "UsageRequests": 1,
+        "UsageIncomplete": false,
+        "User": "I want a concise response with minimal verbosity. What response style have I saved?",
+        "Answer": "Briefly: Concise test. Use direct, compact speaking style. Avoid filler and bullet points. Max 40 words per paragraph.",
+        "Reasoning": "",
+        "Status": "complete",
+        "Created": "2026-11-13T15:01:41.2178554-08:00",
+        "Activity": [
+          "Recalled memory: collecting, gardening, dessert, cycling. Inspect sources in Memories."
+        ],
+        "Metrics": "0.7s \u00B7 29 tokens \u00B7 40.4 tok/s"
+      }
+    ],
+    "Subtitle": "Nov 13 \u00B7 3:01 PM"
+  }
+}

@@ -1,0 +1,32 @@
+PASS Blocks nonpublic address 127.0.0.1
+PASS Blocks nonpublic address 10.0.0.1
+PASS Blocks nonpublic address 192.168.1.1
+PASS Blocks nonpublic address 172.16.0.1
+PASS Blocks nonpublic address 169.254.169.254
+PASS Blocks nonpublic address 100.64.0.1
+PASS Blocks nonpublic address ::1
+PASS Blocks nonpublic address fe80::1
+PASS Blocks nonpublic address ::ffff:127.0.0.1
+PASS Public IPv4 and IPv6 addresses pass
+PASS Per-message offline instructions override automatic lookup cues
+PASS Rejects unsupported URL file:///C:/Windows/win.ini
+PASS Rejects unsupported URL https://user:password@example.com
+PASS Rejects unsupported URL http://localhost/
+PASS Rejects unsupported URL http://127.0.0.1/
+PASS Rejects unsupported URL https://example.com:8080/
+PASS HTML extraction excludes scripts/styles and decodes text
+PASS Source links render as clickable safe URLs, including bracketed parentheses
+PASS Excerpts are bounded and freshness cues distinguish ordinary chat
+PASS Off mode makes no request
+PASS Declined lookup makes no request or source record
+PASS Obvious credential assignments are refused before sending a request
+PASS Missing API key is explicit rather than fabricated search results
+PASS Windows-user encryption round trips without storing plaintext
+PASS Web mode and encrypted credential persist
+PASS Provider fixture parses real search schema and records source URLs
+PASS Page reading updates source evidence without sending the API credential
+PASS Per-turn limit bounds outbound web requests
+PASS Actual public HTTPS reading works without a search key
+PASS Real local-model turn initiates URL lookup and retains visible source links
+PASS Source evidence and generation usage survive chat persistence
+PASS Normal window saves preserve Internet settings

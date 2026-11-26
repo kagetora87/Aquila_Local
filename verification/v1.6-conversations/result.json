@@ -1,0 +1,25 @@
+{
+  "checks": 22,
+  "checkpoint": {
+    "Summary": "**Project Handoff Summary**\n\n**Project Identification:**\n*   **Codename:** CEDAR-7319\n*   **Type:** Small warehouse planning project\n*   **Status:** Routine organization and checklist review conducted; no final decision made regarding project scope or progression.\n\n**User Constraints \u0026 Preferences:**\n*   **Measurement Units:** All project measurements must be recorded in centimeters; inches are to be excluded.\n*   **Delivery Date:** Any suggested dates must remain tentative. No suggested date is to be converted into a committed deadline.\n\n**Reference Material:**\n*   **File:** \u0060reference.txt\u0060 (Synthetic reference)\n*   **Content:** Identifies an inventory label as BLUE-427.\n\n**Key Decisions \u0026 Uncertainties:**\n*   **Unresolved:** The project status remains at the organizational phase without defined completion milestones or committed timelines.\n*   **Uncertain:** While the user provided a synthetic reference file, the broader context of warehouse planning specifics (e.g., exact dimensions, storage layout) remains undefined.\n\n**Action Items:**\n*   Ensure all documentation adheres to the centimeter measurement standard.\n*   Keep the delivery date suggestion flexible to avoid user disapproval.\n*   Review the \u0060reference.txt\u0060 file for further context regarding the BLUE-427 inventory label.\n\n**Notes:**\n*   The conversation contains repetitive assistant responses; substantive data points identified above override the verbatim text.\n*   No factual errors or superseded claims were found in the provided transcript; however, the lack of a final decision indicates the project is currently in a planning phase awaiting further input.",
+    "ThroughTurnId": "1d35cbc8289f4e4ea00101460c30fea1",
+    "CoveredTurns": 4,
+    "Created": "2026-11-12T20:32:10.2611769-08:00",
+    "Model": "Deckard-4B-Q4_K_M.gguf",
+    "SourceTokens": 1552,
+    "SummaryTokens": 554
+  },
+  "repeatedCheckpoint": {
+    "Summary": "**Project Handoff Summary**\n\n**Project Identification**\n*   **Codename:** CEDAR-7319\n*   **Type:** Small warehouse planning project\n*   **Status:** Routine organization and checklist review conducted; no final decision made regarding project scope or progression.\n\n**User Constraints \u0026 Preferences**\n*   **Measurement Units:** All project measurements must be recorded in centimeters; inches are to be excluded.\n*   **Delivery Date:** Any suggested dates must remain tentative. No suggested date is to be converted into a committed deadline.\n*   **Reference Material:** File \u0060reference.txt\u0060 (Synthetic reference).\n*   **Key Data Point:** Inventory label identified as BLUE-427.\n\n**Recent Discussion**\nUser requested an explanation of why a checklist is helpful. Assistant clarified that a checklist records steps and reduces omissions, confirming the team has reviewed the existing checklist for the project. No new decisions were made in this specific exchange.\n\n**Key Decisions \u0026 Uncertainties**\n*   **Unresolved:** Project status remains at the organizational phase. No defined completion milestones or committed timelines are established.\n*   **Uncertain:** Broader context regarding warehouse planning specifics (e.g., exact dimensions, storage layout) remains undefined.\n*   **Verification:** The reference to inventory label BLUE-427 in \u0060reference.txt\u0060 requires further context review.\n\n**Action Items**\n*   Ensure all documentation adheres to the centimeter measurement standard.\n*   Keep the delivery date suggestion flexible to avoid user disapproval.\n*   Review the \u0060reference.txt\u0060 file for further context regarding the BLUE-427 inventory label.\n\n**Notes**\n*   The conversation contains repetitive assistant responses; substantive data points identified above override the verbatim text.\n*   No factual errors or superseded claims were found in the provided transcript; however, the lack of a final decision indicates the project is currently in a planning phase awaiting further input.\n*   The user\u0027s query on checklists confirms the ongoing review of the project\u0027s organizational tools.",
+    "ThroughTurnId": "12e47e99f4ff439ba218bdd6c1c3b7c2",
+    "CoveredTurns": 5,
+    "Created": "2026-11-12T20:32:34.8069559-08:00",
+    "Model": "Deckard-4B-Q4_K_M.gguf",
+    "SourceTokens": 892,
+    "SummaryTokens": 661
+  },
+  "answer": "Our project codename is **CEDAR-7319** and the preferred measurement unit is **centimeters**.",
+  "totalTokens": 6659,
+  "cpuThreads": 2,
+  "context": 8192
+}

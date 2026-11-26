@@ -1,0 +1,212 @@
+{
+  "Adapters": [
+    {
+      "Name": "NVIDIA GeForce RTX 4060 Laptop GPU",
+      "Key": "0x00000000_0x00011cce",
+      "DedicatedBytes": 8342470656,
+      "Index": 0,
+      "Label": "NVIDIA GeForce RTX 4060 Laptop GPU"
+    },
+    {
+      "Name": "AMD Radeon(TM) 610M",
+      "Key": "0x00000000_0x000148e0",
+      "DedicatedBytes": 509374464,
+      "Index": 1,
+      "Label": "AMD Radeon(TM) 610M"
+    }
+  ],
+  "Apps": [
+    {
+      "Name": "ChatGPT",
+      "AdapterKey": "0x00000000_0x00011cce",
+      "Utilization": 0.04122670998547835,
+      "LocalBytes": 63815680,
+      "Pids": "27464",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "61 MB"
+    },
+    {
+      "Name": "dwm",
+      "AdapterKey": "0x00000000_0x00011cce",
+      "Utilization": 0.02154538991997892,
+      "LocalBytes": 307544064,
+      "Pids": "2596",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "293 MB"
+    },
+    {
+      "Name": "System",
+      "AdapterKey": "0x00000000_0x00011cce",
+      "Utilization": 0.018432574240653952,
+      "LocalBytes": 4235264,
+      "Pids": "4",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "4 MB"
+    },
+    {
+      "Name": "Aquila model",
+      "AdapterKey": "0x00000000_0x00011cce",
+      "Utilization": 0.015057340960455658,
+      "LocalBytes": 3557912576,
+      "Pids": "8504",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "3.31 GB"
+    },
+    {
+      "Name": "explorer",
+      "AdapterKey": "0x00000000_0x00011cce",
+      "Utilization": 0.0017283366126484559,
+      "LocalBytes": 148082688,
+      "Pids": "10100, 14716, 16612, 3504",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "141 MB"
+    },
+    {
+      "Name": "csrss",
+      "AdapterKey": "0x00000000_0x00011cce",
+      "Utilization": 0.0016921410814935147,
+      "LocalBytes": 27627520,
+      "Pids": "1156",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "26 MB"
+    },
+    {
+      "Name": "NVIDIA Overlay",
+      "AdapterKey": "0x00000000_0x00011cce",
+      "Utilization": 0,
+      "LocalBytes": 56115200,
+      "Pids": "16448, 16992",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "54 MB"
+    },
+    {
+      "Name": "brave",
+      "AdapterKey": "0x00000000_0x00011cce",
+      "Utilization": 0,
+      "LocalBytes": 51392512,
+      "Pids": "11776, 20140",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "49 MB"
+    },
+    {
+      "Name": "Notepad",
+      "AdapterKey": "0x00000000_0x00011cce",
+      "Utilization": 0,
+      "LocalBytes": 28893184,
+      "Pids": "4152",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "28 MB"
+    },
+    {
+      "Name": "RadeonSoftware",
+      "AdapterKey": "0x00000000_0x00011cce",
+      "Utilization": 0,
+      "LocalBytes": 24674304,
+      "Pids": "25032",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "24 MB"
+    },
+    {
+      "Name": "codex-computer-use-swift",
+      "AdapterKey": "0x00000000_0x00011cce",
+      "Utilization": 0,
+      "LocalBytes": 12517376,
+      "Pids": "4292",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "12 MB"
+    },
+    {
+      "Name": "AMDRSSrcExt",
+      "AdapterKey": "0x00000000_0x00011cce",
+      "Utilization": 0,
+      "LocalBytes": 10375168,
+      "Pids": "25488",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "10 MB"
+    },
+    {
+      "Name": "Taskmgr",
+      "AdapterKey": "0x00000000_0x00011cce",
+      "Utilization": 0,
+      "LocalBytes": 8527872,
+      "Pids": "16336",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "8 MB"
+    },
+    {
+      "Name": "ApplicationFrameHost",
+      "AdapterKey": "0x00000000_0x00011cce",
+      "Utilization": 0,
+      "LocalBytes": 8167424,
+      "Pids": "23868",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "8 MB"
+    },
+    {
+      "Name": "CrossDeviceResume",
+      "AdapterKey": "0x00000000_0x00011cce",
+      "Utilization": 0,
+      "LocalBytes": 7929856,
+      "Pids": "14628",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "8 MB"
+    },
+    {
+      "Name": "ShellHost",
+      "AdapterKey": "0x00000000_0x00011cce",
+      "Utilization": 0,
+      "LocalBytes": 7929856,
+      "Pids": "14928",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "8 MB"
+    },
+    {
+      "Name": "PhoneExperienceHost",
+      "AdapterKey": "0x00000000_0x00011cce",
+      "Utilization": 0,
+      "LocalBytes": 7929856,
+      "Pids": "14988",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "8 MB"
+    },
+    {
+      "Name": "StartMenuExperienceHost",
+      "AdapterKey": "0x00000000_0x00011cce",
+      "Utilization": 0,
+      "LocalBytes": 7675904,
+      "Pids": "19676",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "7 MB"
+    },
+    {
+      "Name": "SearchHost",
+      "AdapterKey": "0x00000000_0x00011cce",
+      "Utilization": 0,
+      "LocalBytes": 7667712,
+      "Pids": "19652",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "7 MB"
+    },
+    {
+      "Name": "msedgewebview2",
+      "AdapterKey": "0x00000000_0x00011cce",
+      "Utilization": 0,
+      "LocalBytes": 7606272,
+      "Pids": "21888",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "7 MB"
+    }
+  ],
+  "LocalUsage": {
+    "0x00000000_0x00011cce": 4218593280,
+    "0x00000000_0x00014894": 8192,
+    "0x00000000_0x000148e0": 1736704
+  },
+  "Error": null,
+  "At": "2026-11-12T20:33:13.9690235-08:00",
+  "EngineUsage": {
+    "0x00000000_0x00011cce": 0.06619257759959925,
+    "0x00000000_0x00014894": 0,
+    "0x00000000_0x000148e0": 0
+  }
+}

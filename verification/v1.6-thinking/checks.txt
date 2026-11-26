@@ -1,0 +1,10 @@
+PASS Thinking budget reserves a final-answer allowance
+PASS Oversized thinking budget is capped by the total response allowance
+PASS Thinking off requests zero reasoning budget
+PASS Thinking settings survive save/reload
+PASS Real Deckard produces separate reasoning and a correct completed final answer
+PASS Turn records effective thinking mode and complete combined output usage
+PASS Switching thinking off yields a direct answer without reasoning text
+PASS Stop during thinking preserves partial reasoning and cancels promptly
+PASS Reasoning and effective budget persist in conversation history
+PASS Thinking verification unloads its model

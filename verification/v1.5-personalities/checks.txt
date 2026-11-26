@@ -1,0 +1,17 @@
+PASS Default profile preserves existing instructions and built-in voices are available
+PASS Custom profiles, speaking instructions and example exchanges persist
+PASS Editing a profile updates its existing entry
+PASS Duplicate profile names are rejected
+PASS Default is protected and missing selections resolve safely
+PASS Removing a profile retains other profiles
+PASS Corrupt profile data is preserved while defaults recover
+PASS Active personality selection persists with settings
+PASS Creative profile can pause learning before any model request
+PASS Profile/example facts cannot be saved without a supporting typed user quote
+PASS Real Deckard follows a concise custom speaking profile
+PASS Switching profiles changes actual answer style without leaking the old profile
+PASS Conversation turns record which personality produced each answer
+PASS Real chat combines semantic memory retrieval with the selected speaking profile
+PASS Semantic selection reduces actual main-model input tokens for a mixed-memory fixture
+PASS Personality provenance survives conversation reload
+PASS Profile verification unloads its model

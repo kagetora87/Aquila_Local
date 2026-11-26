@@ -1,0 +1,14 @@
+Sentence Transformers all-MiniLM-L6-v2
+Source: https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2
+Revision: 1110a243fdf4706b3f48f1d95db1a4f5529b4d41
+License: Apache License 2.0 (see model-Apache-2.0.txt)
+Bundled CPU export: onnx/model_quint8_avx2.onnx, renamed embeddings/model.onnx
+SHA256: b941bf19f1f1283680f449fa6a7336bb5600bdcd5f84d10ddc5cd72218a0fd21
+Tokenizer vocabulary SHA256: 07eced375cec144d27c900241f3e339478dec958f92fddbc551f295c992038a3
+The upstream model card and tokenizer/pooling configurations accompany the assets.
+
+Aquila uses Microsoft ONNX Runtime 1.31.1 in process, CPU only, one compute thread.
+ORT_DISABLE_TELEMETRY=1 is set before runtime initialization, and the runtime telemetry
+API is also disabled. The upstream Privacy.md is included for attribution; Aquila
+opts out using these runtime controls. No runtime model download or cloud inference
+is performed. Python reference libraries were used only during build-time QA.

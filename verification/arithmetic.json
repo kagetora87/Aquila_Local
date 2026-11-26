@@ -1,0 +1,9 @@
+{
+  "User": "What is 19 \u002B 23? Reply with only the integer.",
+  "Answer": "19 \u002B 23 = 42.",
+  "Reasoning": "",
+  "Status": "complete",
+  "Created": "2026-11-11T13:32:16.9307066-08:00",
+  "Activity": [],
+  "Metrics": "0.4s \u00B7 12 tokens \u00B7 31.1 tok/s"
+}

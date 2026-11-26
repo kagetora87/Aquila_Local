@@ -1,0 +1,17 @@
+{
+  "name": "Mira",
+  "authors": [
+    "rengasato"
+  ],
+  "thumbnailImage": 25,
+  "licenseUrl": "https://vrm.dev/licenses/1.0/",
+  "avatarPermission": "everyone",
+  "allowExcessivelyViolentUsage": false,
+  "allowExcessivelySexualUsage": false,
+  "commercialUsage": "corporation",
+  "allowPoliticalOrReligiousUsage": false,
+  "allowAntisocialOrHateUsage": false,
+  "creditNotation": "unnecessary",
+  "allowRedistribution": true,
+  "modification": "allowModificationRedistribution"
+}

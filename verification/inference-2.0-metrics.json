@@ -1,0 +1,9 @@
+{
+  "checks": 19,
+  "detected": "B \u00B7 Constrained laptop",
+  "ramGiB": 15.210445404052734,
+  "gpu": "NVIDIA GeForce RTX 4060 Laptop GPU",
+  "vramGiB": 7.76953125,
+  "SlotContext": 24576,
+  "q4Model": "Deckard-4B-Q4_K_M.gguf"
+}

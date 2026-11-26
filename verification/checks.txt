@@ -1,0 +1,20 @@
+PASS Settings round trip
+PASS Interrupted turn recovery
+PASS Corrupt history preserved without losing valid chats
+PASS Workspace text reading
+PASS Workspace literal search
+PASS Workspace listing
+PASS Traversal rejected
+PASS Absolute path rejected
+PASS Alternate data stream rejected
+PASS Unknown tool rejected
+PASS Invalid tool JSON handled
+PASS Workspace scan cancellation
+PASS Real GGUF model loaded by bundled engine in CPU-only / two-thread mode
+PASS Loaded model reused
+PASS Real inference and streamed answer
+PASS Persistent memory injected into real prompt
+PASS Real model tool call, execution, and grounded answer
+PASS Streaming generation can be stopped with partial output retained
+PASS Engine accepts new request after cancellation
+PASS Unload releases engine process

@@ -1,0 +1,13 @@
+PASS Passage tags and reveal are opt-in for existing profiles
+PASS Fragmented tags stay out of the text and literal inline code survives
+PASS Reveal restores tags at the correct positions without changing the saved text
+PASS The speech plan places Kitten events and mood changes at the right passage
+PASS Qwen receives passage moods without unsupported Kitten event markup
+PASS The existing opening-cue mode still works and can be revealed
+PASS Fenced examples do not become speech directives
+PASS Repeated tags are bounded and stay hidden
+PASS An explicit Kitten direction tag is audible in a preview without a chat request
+PASS Voice picker settings persist independently of autoplay
+PASS A real local chat response generates hidden tags that survive chat reload
+PASS Kitten exposes editable pace and direction, plus the reveal switch in the actual WPF window
+PASS Real Kitten speech honors Slow and Lively pacing with an emotion and inline event

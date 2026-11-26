@@ -1,0 +1,19 @@
+PASS 24 GiB VRAM selects the high profile with its 32K default and 64K cap
+PASS 8 GiB VRAM and 16 GiB RAM select the laptop profile with its 16K default and 24K cap
+PASS Unmatched hardware retains the Custom profile
+PASS Integrated shared memory is excluded and actual Vulkan ID is retained
+PASS High mode requests full offload, Flash Attention and q8 K and V
+PASS Laptop uses mmap without mlock and ignores the MoE option for dense models
+PASS MoE caps expert placement by model layers while keeping other layers on GPU
+PASS Manual override and saved context are independent of automatic hardware selection
+PASS Creative requests transmit the intended values without additional top-k filtering
+PASS Fallback uses the supported repeat penalty key
+PASS Startup hides the placeholder warning and applies the detected profile
+PASS Custom preserves the previous version's context allowance
+PASS Switching back restores the laptop allowance
+PASS The selected profile persists through normal WPF settings save
+PASS The running llama.cpp reports DRY support and the requested q8 context
+PASS Exact backend counting trims whole oldest pairs while preserving system and current request
+PASS A real creative sampler request streams a reply
+PASS Changing to q4 cache reloads the engine and starts at 24K
+PASS The installed Deckard 4B answers correctly with q4 cache at 24K

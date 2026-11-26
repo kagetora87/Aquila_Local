@@ -1,0 +1,142 @@
+{
+  "sourceChat": {
+    "PromptTokens": 595,
+    "CompletionTokens": 196,
+    "TotalTokens": 791,
+    "UsageIncomplete": false,
+    "Id": "a741905e59c1479bb7693cbd21c16932",
+    "Title": "New conversation",
+    "Updated": "2026-11-12T06:21:23.2999607-08:00",
+    "Turns": [
+      {
+        "ThinkingEnabled": false,
+        "ThinkingTokenBudget": 0,
+        "PersonalityId": "default",
+        "PersonalityName": "",
+        "Id": "9528da24799e4472b1956589d9e2729c",
+        "UsedMemoryIds": [],
+        "LearnedMemoryIds": [
+          "78030898ff734a9e8185b603b155ee0c"
+        ],
+        "MemoryPromptTokens": 264,
+        "MemoryCompletionTokens": 103,
+        "MemoryLearningStatus": "1 saved, 0 updated, 0 for review",
+        "Attachments": [],
+        "PromptTokens": 264,
+        "CompletionTokens": 103,
+        "UsageRequests": 1,
+        "UsageIncomplete": false,
+        "User": "Please remember that my project codename is SILVER-OTTER-426.",
+        "Answer": "",
+        "Reasoning": "",
+        "Status": "complete",
+        "Created": "2026-11-12T06:21:18.5917758-08:00",
+        "Activity": [],
+        "Metrics": ""
+      },
+      {
+        "ThinkingEnabled": false,
+        "ThinkingTokenBudget": 0,
+        "PersonalityId": "default",
+        "PersonalityName": "",
+        "Id": "a4a7bb84b35a46f8ae0c7831752ba3b9",
+        "UsedMemoryIds": [],
+        "LearnedMemoryIds": [
+          "7188a436ac7345cab84c5b9aab70356e"
+        ],
+        "MemoryPromptTokens": 331,
+        "MemoryCompletionTokens": 93,
+        "MemoryLearningStatus": "0 saved, 1 updated, 0 for review",
+        "Attachments": [],
+        "PromptTokens": 331,
+        "CompletionTokens": 93,
+        "UsageRequests": 1,
+        "UsageIncomplete": false,
+        "User": "Correction: my project codename is now AMBER-FOX-919. Please remember the new codename.",
+        "Answer": "",
+        "Reasoning": "",
+        "Status": "complete",
+        "Created": "2026-11-12T06:21:21.0639974-08:00",
+        "Activity": [],
+        "Metrics": ""
+      }
+    ],
+    "Subtitle": "Nov 12 \u00B7 6:21 AM"
+  },
+  "followup": {
+    "PromptTokens": 203,
+    "CompletionTokens": 11,
+    "TotalTokens": 214,
+    "UsageIncomplete": false,
+    "Id": "b3364496931048749b41f040e6cded5d",
+    "Title": "New conversation",
+    "Updated": "2026-11-12T06:21:21.0623096-08:00",
+    "Turns": [
+      {
+        "ThinkingEnabled": false,
+        "ThinkingTokenBudget": 0,
+        "PersonalityId": "default",
+        "PersonalityName": "Default \u00B7 your instructions",
+        "Id": "f773e380862649e48673abe487ff7e05",
+        "UsedMemoryIds": [
+          "78030898ff734a9e8185b603b155ee0c"
+        ],
+        "LearnedMemoryIds": [],
+        "MemoryPromptTokens": 0,
+        "MemoryCompletionTokens": 0,
+        "MemoryLearningStatus": "",
+        "Attachments": [],
+        "PromptTokens": 203,
+        "CompletionTokens": 11,
+        "UsageRequests": 1,
+        "UsageIncomplete": false,
+        "User": "What is my project codename? Reply with just the codename.",
+        "Answer": "SILVER-OTTER-426",
+        "Reasoning": "",
+        "Status": "complete",
+        "Created": "2026-11-12T06:21:20.6367951-08:00",
+        "Activity": [
+          "Recalled memory: project_codename. Inspect sources in Memories."
+        ],
+        "Metrics": "0.4s \u00B7 11 tokens \u00B7 26.1 tok/s"
+      }
+    ],
+    "Subtitle": "Nov 12 \u00B7 6:21 AM"
+  },
+  "isolated": {
+    "PromptTokens": 87,
+    "CompletionTokens": 2,
+    "TotalTokens": 89,
+    "UsageIncomplete": false,
+    "Id": "1b0016deef2c49e19bb7452b7ee562ad",
+    "Title": "New conversation",
+    "Updated": "2026-11-12T06:21:23.3129986-08:00",
+    "Turns": [
+      {
+        "ThinkingEnabled": false,
+        "ThinkingTokenBudget": 0,
+        "PersonalityId": "default",
+        "PersonalityName": "Default \u00B7 your instructions",
+        "Id": "730d851de1ed4ed79cc5cb446ab93212",
+        "UsedMemoryIds": [],
+        "LearnedMemoryIds": [],
+        "MemoryPromptTokens": 0,
+        "MemoryCompletionTokens": 0,
+        "MemoryLearningStatus": "",
+        "Attachments": [],
+        "PromptTokens": 87,
+        "CompletionTokens": 2,
+        "UsageRequests": 1,
+        "UsageIncomplete": false,
+        "User": "What is my project codename? Say unknown if no information is supplied.",
+        "Answer": "unknown",
+        "Reasoning": "",
+        "Status": "complete",
+        "Created": "2026-11-12T06:21:23.3129958-08:00",
+        "Activity": [],
+        "Metrics": "0.3s \u00B7 2 tokens \u00B7 7.2 tok/s"
+      }
+    ],
+    "Subtitle": "Nov 12 \u00B7 6:21 AM"
+  }
+}

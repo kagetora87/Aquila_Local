@@ -1,0 +1,55 @@
+{
+  "Version": 1,
+  "Entries": [
+    {
+      "Id": "cb31c534898e4b8a807a0a48329c4a62",
+      "Scope": "personal",
+      "Kind": "preference",
+      "Topic": "project_codename",
+      "Value": "SILVER-OTTER-426",
+      "State": "superseded",
+      "Pinned": false,
+      "Origin": "automatic",
+      "Sources": [
+        {
+          "ChatId": "258bec5143fb40018bb2a93b0a1382ad",
+          "TurnId": "820209282c1246439043967ae117e7c9",
+          "Quote": "my project codename is SILVER-OTTER-426",
+          "At": "2026-11-12T20:33:00.832616-08:00"
+        }
+      ],
+      "Created": "2026-11-12T20:33:02.6406097-08:00",
+      "Updated": "2026-11-12T20:33:05.0097092-08:00",
+      "LastUsed": "2026-11-12T20:33:02.6632298-08:00",
+      "Confirmations": 1,
+      "ReplacedBy": "67d0abcfa961433a8acbcddda03134f6",
+      "ScopeLabel": "Personal",
+      "Display": "project_codename \u00B7 Personal \u00B7 superseded"
+    },
+    {
+      "Id": "67d0abcfa961433a8acbcddda03134f6",
+      "Scope": "personal",
+      "Kind": "preference",
+      "Topic": "project_codename",
+      "Value": "AMBER-FOX-919",
+      "State": "active",
+      "Pinned": false,
+      "Origin": "automatic",
+      "Sources": [
+        {
+          "ChatId": "258bec5143fb40018bb2a93b0a1382ad",
+          "TurnId": "da6d8e5a77c640dc9c237ea22c8383de",
+          "Quote": "my project codename is now AMBER-FOX-919",
+          "At": "2026-11-12T20:33:03.0759571-08:00"
+        }
+      ],
+      "Created": "2026-11-12T20:33:05.0097043-08:00",
+      "Updated": "2026-11-12T20:33:05.0097061-08:00",
+      "LastUsed": "2026-11-12T20:33:05.0225611-08:00",
+      "Confirmations": 1,
+      "ReplacedBy": "",
+      "ScopeLabel": "Personal",
+      "Display": "project_codename \u00B7 Personal \u00B7 active"
+    }
+  ]
+}

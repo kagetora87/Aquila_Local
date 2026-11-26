@@ -1,0 +1,185 @@
+{
+  "Adapters": [
+    {
+      "Name": "NVIDIA GeForce RTX 4060 Laptop GPU",
+      "Key": "0x00000000_0x00011cce",
+      "DedicatedBytes": 8342470656,
+      "Index": 0,
+      "Label": "NVIDIA GeForce RTX 4060 Laptop GPU"
+    },
+    {
+      "Name": "AMD Radeon(TM) 610M",
+      "Key": "0x00000000_0x000148e0",
+      "DedicatedBytes": 509374464,
+      "Index": 1,
+      "Label": "AMD Radeon(TM) 610M"
+    }
+  ],
+  "Apps": [
+    {
+      "Name": "System",
+      "AdapterKey": "0x00000000_0x00011cce",
+      "Utilization": 9.747432125533386,
+      "LocalBytes": 4235264,
+      "Pids": "4",
+      "UsageLabel": "9.7%",
+      "MemoryLabel": "4 MB"
+    },
+    {
+      "Name": "dwm",
+      "AdapterKey": "0x00000000_0x00011cce",
+      "Utilization": 9.517004729839357,
+      "LocalBytes": 376946688,
+      "Pids": "2596",
+      "UsageLabel": "9.5%",
+      "MemoryLabel": "359 MB"
+    },
+    {
+      "Name": "System",
+      "AdapterKey": "0x00000000_0x000148e0",
+      "Utilization": 0.06097146494243758,
+      "LocalBytes": 823296,
+      "Pids": "4",
+      "UsageLabel": "0.1%",
+      "MemoryLabel": "1 MB"
+    },
+    {
+      "Name": "ChatGPT",
+      "AdapterKey": "0x00000000_0x00011cce",
+      "Utilization": 0.020663137494437815,
+      "LocalBytes": 62181376,
+      "Pids": "27340",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "59 MB"
+    },
+    {
+      "Name": "explorer",
+      "AdapterKey": "0x00000000_0x00011cce",
+      "Utilization": 0.00476399449129904,
+      "LocalBytes": 69324800,
+      "Pids": "10100, 14716, 16612, 3504",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "66 MB"
+    },
+    {
+      "Name": "brave",
+      "AdapterKey": "0x00000000_0x00011cce",
+      "Utilization": 0.0023784044896228993,
+      "LocalBytes": 92209152,
+      "Pids": "13772, 14616",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "88 MB"
+    },
+    {
+      "Name": "Aquila model",
+      "AdapterKey": "0x00000000_0x00011cce",
+      "Utilization": 0,
+      "LocalBytes": 3557912576,
+      "Pids": "36580",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "3.31 GB"
+    },
+    {
+      "Name": "codex-computer-use",
+      "AdapterKey": "0x00000000_0x00011cce",
+      "Utilization": 0,
+      "LocalBytes": 32485376,
+      "Pids": "6316",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "31 MB"
+    },
+    {
+      "Name": "brave",
+      "AdapterKey": "0x00000000_0x000148e0",
+      "Utilization": 0,
+      "LocalBytes": 24403968,
+      "Pids": "13772",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "23 MB"
+    },
+    {
+      "Name": "csrss",
+      "AdapterKey": "0x00000000_0x00011cce",
+      "Utilization": 0,
+      "LocalBytes": 17387520,
+      "Pids": "1156",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "17 MB"
+    },
+    {
+      "Name": "NVIDIA Overlay",
+      "AdapterKey": "0x00000000_0x00011cce",
+      "Utilization": 0,
+      "LocalBytes": 16461824,
+      "Pids": "16448, 16992",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "16 MB"
+    },
+    {
+      "Name": "codex-computer-use-swift",
+      "AdapterKey": "0x00000000_0x00011cce",
+      "Utilization": 0,
+      "LocalBytes": 12517376,
+      "Pids": "35264",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "12 MB"
+    },
+    {
+      "Name": "Taskmgr",
+      "AdapterKey": "0x00000000_0x00011cce",
+      "Utilization": 0,
+      "LocalBytes": 8523776,
+      "Pids": "16336",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "8 MB"
+    },
+    {
+      "Name": "RadeonSoftware",
+      "AdapterKey": "0x00000000_0x00011cce",
+      "Utilization": 0,
+      "LocalBytes": 8269824,
+      "Pids": "25032",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "8 MB"
+    },
+    {
+      "Name": "ApplicationFrameHost",
+      "AdapterKey": "0x00000000_0x00011cce",
+      "Utilization": 0,
+      "LocalBytes": 8089600,
+      "Pids": "23868",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "8 MB"
+    },
+    {
+      "Name": "StartMenuExperienceHost",
+      "AdapterKey": "0x00000000_0x00011cce",
+      "Utilization": 0,
+      "LocalBytes": 7675904,
+      "Pids": "19676",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "7 MB"
+    },
+    {
+      "Name": "SearchHost",
+      "AdapterKey": "0x00000000_0x00011cce",
+      "Utilization": 0,
+      "LocalBytes": 7667712,
+      "Pids": "19652",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "7 MB"
+    }
+  ],
+  "LocalUsage": {
+    "0x00000000_0x00011cce": 4152492032,
+    "0x00000000_0x00014894": 8192,
+    "0x00000000_0x000148e0": 26140672
+  },
+  "Error": null,
+  "At": "2026-11-13T15:01:57.369799-08:00",
+  "EngineUsage": {
+    "0x00000000_0x00011cce": 9.747432125533386,
+    "0x00000000_0x00014894": 0,
+    "0x00000000_0x000148e0": 0.06097146494243758
+  }
+}

@@ -1,0 +1,19 @@
+PASS Adaptive placement at low VRAM has a neutral allowance and a separate full-GPU advisory
+PASS An in-range live estimate gets an advisory marker
+PASS A live estimate beyond the slider is not pinned at its end
+PASS A model-capped estimate is not a memory warning
+PASS Fixed full GPU offload has an explicit low-memory warning
+PASS The exact estimated RAM allowance is within the estimate
+PASS The full-GPU estimate is suppressed for expert offload
+PASS Memory updates leave the selected context and slider limit intact
+PASS Slider thumb and profile marker align at the profile target
+PASS Slider commands still adjust the selected context
+PASS Unchecked state has no checkmark
+PASS Checked state displays the checkmark
+PASS Vertical scroll thumb binds to the real settings viewport
+PASS Page scrolling keeps the thumb in sync
+PASS Horizontal scroll thumb uses the horizontal layout
+PASS Shared tooltip style achieves at least 7:1 contrast and wraps string content
+PASS Shared tooltip style achieves at least 7:1 contrast and wraps string content
+PASS Shared tooltip style achieves at least 7:1 contrast and wraps string content
+PASS Long explanatory tooltip wraps to multiple lines

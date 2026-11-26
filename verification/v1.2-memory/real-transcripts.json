@@ -1,0 +1,126 @@
+{
+  "sourceChat": {
+    "PromptTokens": 595,
+    "CompletionTokens": 196,
+    "TotalTokens": 791,
+    "UsageIncomplete": false,
+    "Id": "1c524f078d12484eac47e593db3b8298",
+    "Title": "New conversation",
+    "Updated": "2026-11-11T22:53:49.7969799-08:00",
+    "Turns": [
+      {
+        "Id": "c78a6ae5118d48b0a610a8ccdb89df91",
+        "UsedMemoryIds": [],
+        "LearnedMemoryIds": [
+          "19c31f4a51754c4f8537fa0cfa53b86b"
+        ],
+        "MemoryPromptTokens": 264,
+        "MemoryCompletionTokens": 103,
+        "MemoryLearningStatus": "1 saved, 0 updated, 0 for review",
+        "Attachments": [],
+        "PromptTokens": 264,
+        "CompletionTokens": 103,
+        "UsageRequests": 1,
+        "UsageIncomplete": false,
+        "User": "Please remember that my project codename is SILVER-OTTER-426.",
+        "Answer": "",
+        "Reasoning": "",
+        "Status": "complete",
+        "Created": "2026-11-11T22:53:45.1319728-08:00",
+        "Activity": [],
+        "Metrics": ""
+      },
+      {
+        "Id": "0c68287f09f246a38f5b697eddeb3cfe",
+        "UsedMemoryIds": [],
+        "LearnedMemoryIds": [
+          "24a8831177504da79d78e47940d324d3"
+        ],
+        "MemoryPromptTokens": 331,
+        "MemoryCompletionTokens": 93,
+        "MemoryLearningStatus": "0 saved, 1 updated, 0 for review",
+        "Attachments": [],
+        "PromptTokens": 331,
+        "CompletionTokens": 93,
+        "UsageRequests": 1,
+        "UsageIncomplete": false,
+        "User": "Correction: my project codename is now AMBER-FOX-919. Please remember the new codename.",
+        "Answer": "",
+        "Reasoning": "",
+        "Status": "complete",
+        "Created": "2026-11-11T22:53:47.6649495-08:00",
+        "Activity": [],
+        "Metrics": ""
+      }
+    ],
+    "Subtitle": "Nov 11 \u00B7 10:53 PM"
+  },
+  "followup": {
+    "PromptTokens": 203,
+    "CompletionTokens": 11,
+    "TotalTokens": 214,
+    "UsageIncomplete": false,
+    "Id": "799fde3c670947eb87eb55c02b68eb4f",
+    "Title": "New conversation",
+    "Updated": "2026-11-11T22:53:47.6624344-08:00",
+    "Turns": [
+      {
+        "Id": "9ebcf46dd0d74ca1a33cf5414b99e636",
+        "UsedMemoryIds": [
+          "19c31f4a51754c4f8537fa0cfa53b86b"
+        ],
+        "LearnedMemoryIds": [],
+        "MemoryPromptTokens": 0,
+        "MemoryCompletionTokens": 0,
+        "MemoryLearningStatus": "",
+        "Attachments": [],
+        "PromptTokens": 203,
+        "CompletionTokens": 11,
+        "UsageRequests": 1,
+        "UsageIncomplete": false,
+        "User": "What is my project codename? Reply with just the codename.",
+        "Answer": "SILVER-OTTER-426",
+        "Reasoning": "",
+        "Status": "complete",
+        "Created": "2026-11-11T22:53:47.1755595-08:00",
+        "Activity": [
+          "Recalled memory: project_codename. Inspect sources in Memories."
+        ],
+        "Metrics": "0.5s \u00B7 11 tokens \u00B7 22.8 tok/s"
+      }
+    ],
+    "Subtitle": "Nov 11 \u00B7 10:53 PM"
+  },
+  "isolated": {
+    "PromptTokens": 87,
+    "CompletionTokens": 2,
+    "TotalTokens": 89,
+    "UsageIncomplete": false,
+    "Id": "957eda65b5ee4ccdb1bc404f5542d1b4",
+    "Title": "New conversation",
+    "Updated": "2026-11-11T22:53:49.8092573-08:00",
+    "Turns": [
+      {
+        "Id": "73824d603d5746c28ddf6e8a3ca5c7ea",
+        "UsedMemoryIds": [],
+        "LearnedMemoryIds": [],
+        "MemoryPromptTokens": 0,
+        "MemoryCompletionTokens": 0,
+        "MemoryLearningStatus": "",
+        "Attachments": [],
+        "PromptTokens": 87,
+        "CompletionTokens": 2,
+        "UsageRequests": 1,
+        "UsageIncomplete": false,
+        "User": "What is my project codename? Say unknown if no information is supplied.",
+        "Answer": "unknown",
+        "Reasoning": "",
+        "Status": "complete",
+        "Created": "2026-11-11T22:53:49.8092515-08:00",
+        "Activity": [],
+        "Metrics": "0.3s \u00B7 2 tokens \u00B7 7.1 tok/s"
+      }
+    ],
+    "Subtitle": "Nov 11 \u00B7 10:53 PM"
+  }
+}

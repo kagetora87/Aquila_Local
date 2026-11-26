@@ -1,0 +1,10 @@
+Aquila Guide placeholder VRM 1.0
+
+Original procedural geometry, materials, skeleton and facial morphs created for Aquila Local.
+No third-party avatar model, motion capture or animation asset is included.
+The model and its generator make_robot.py are dedicated to the public domain under CC0 1.0:
+https://creativecommons.org/publicdomain/zero/1.0/
+
+This is a presentation/test asset. The body is rigidly attached to hips and the head
+to the head bone. It supports breathing, head motion, blink, aa and happy expressions;
+it is not an authored full-body animation rig. Godot/VRM importer code has separate licenses.

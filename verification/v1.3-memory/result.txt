@@ -1,0 +1,1 @@
+23 checks passed. Real Deckard Q4_K_M, GPU, 2 CPU threads, 4096 context.

@@ -1,0 +1,15 @@
+{
+  "checks": 32,
+  "answer": "The page heading in one sentence is \u0022Example Domain\u0022.\n\nSources consulted (search results may be snippets):\n- [Example Domain](\u003Chttps://example.com/\u003E)",
+  "sources": [
+    {
+      "Title": "Example Domain",
+      "Url": "https://example.com/",
+      "Text": "Example Domain This domain is for use in documentation examples without needing permission. This is not a service; avoid relying on it for testing and monitoring purposes.",
+      "Retrieved": "2026-11-13T23:04:02.4162682\u002B00:00"
+    }
+  ],
+  "providerTest": "synthetic schema fixture; no paid search request",
+  "liveRead": "https://example.com/",
+  "cpuThreads": 2
+}

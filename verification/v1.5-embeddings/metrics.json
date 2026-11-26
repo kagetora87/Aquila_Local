@@ -1,0 +1,12 @@
+{
+  "coldMilliseconds": 139,
+  "warmMilliseconds": 6,
+  "closeSimilarity": 0.42056623,
+  "unrelatedSimilarity": 0.064442985,
+  "legacyMemories": 5,
+  "hybridMemories": 1,
+  "cpuThreads": 1,
+  "gpuUsed": false,
+  "referenceRuntime": "1.31.1",
+  "checks": 29
+}

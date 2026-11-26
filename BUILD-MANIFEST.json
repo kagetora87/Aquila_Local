@@ -1,0 +1,2801 @@
+{
+  "app": "Aquila Local",
+  "version": "2.0.1",
+  "target": "Windows x64",
+  "framework": "Bundled .NET 8.0.31",
+  "engine": {
+    "project": "ggml-org/llama.cpp",
+    "tag": "b12110",
+    "commit": "cd959bae9",
+    "backend": "Vulkan with CPU fallback",
+    "archive": "https://github.com/ggml-org/llama.cpp/releases/download/b12110/llama-b12110-bin-win-vulkan-x64.zip",
+    "archiveSha256": "sha256:9732a5e48887ca54d0bfe4af4324dc85fd56cd8cda19b52df3542fa6ebe6874f"
+  },
+  "microsoftCppRuntime": {
+    "version": "14.52.37029.0",
+    "source": "https://aka.ms/vc14/vc_redist.x64.exe",
+    "sha256": "9c02c9ed120f671b900e6b9471d890e3b2414117a7e53f4ae2e855466fa2b7c9",
+    "signature": "Microsoft Corporation; Authenticode Valid",
+    "method": "Extracted app-local x64 DLLs; installer was not run"
+  },
+  "models": [
+    {
+      "file": "models/Heretic-Q4_K_M.gguf",
+      "repository": "DavidAU/Qwen3.5-9B-The-Defiant-Fable-Uncensored-Heretic-NEO-IMATRIX-MAX-MTP-GGUF",
+      "revision": "4d47954f2ef8277567a20508dd3f88def5404455",
+      "upstreamFile": "Qwen3.5-9B-The-Defiant-Fable-Uncnr-Heretic-NEO-MAX-Q4_K_M.gguf",
+      "bytes": 6828993824,
+      "sha256": "d33db5e583b9c9251402e876443791bc979f12af934bfb0630eadfb456279f84",
+      "inferenceVerified": false,
+      "hashVerified": true,
+      "reason": "Not loaded while user Blender/Godot work active and system memory low"
+    },
+    {
+      "file": "models/Qwen3-0.6B-Q4_K_M.gguf",
+      "repository": "unsloth/Qwen3-0.6B-GGUF",
+      "revision": "50968a4468ef4233ed78cd7c3de230dd1d61a56b",
+      "bytes": 396705472,
+      "sha256": "ac2d97712095a558e31573f62f466a3f9d93990898b0ec79d7c974c1780d524a",
+      "inferenceVerified": true,
+      "mode": "CPU only, 2 threads, below-normal priority"
+    },
+    {
+      "file": "models/Deckard-4B-Q4_K_M.gguf",
+      "repository": "mradermacher/Qwen3.5-4B-Deckard-HERETIC-UNCENSORED-Thinking-GGUF",
+      "originalModel": "DavidAU/Qwen3.5-4B-Deckard-HERETIC-UNCENSORED-Thinking",
+      "revision": "b07b699b8afedf73d467013d7778e706cacfb4e7",
+      "upstreamFile": "Qwen3.5-4B-Deckard-HERETIC-UNCENSORED-Thinking.Q4_K_M.gguf",
+      "bytes": 2708805472,
+      "sha256": "8e5f23331e3a17d921c7e18b9cd374d1c02d421b63e2527382c8787024efea75",
+      "hashVerified": true,
+      "inferenceVerified": true,
+      "visionVerified": true,
+      "mode": "Vulkan0 RTX 4060 Laptop GPU, CPU threads 2",
+      "nativeContext": 262144
+    },
+    {
+      "file": "models/Deckard-4B-mmproj-Q8_0.gguf",
+      "repository": "mradermacher/Qwen3.5-4B-Deckard-HERETIC-UNCENSORED-Thinking-GGUF",
+      "revision": "b07b699b8afedf73d467013d7778e706cacfb4e7",
+      "upstreamFile": "Qwen3.5-4B-Deckard-HERETIC-UNCENSORED-Thinking.mmproj-Q8_0.gguf",
+      "bytes": 366895200,
+      "sha256": "b34ad3c9f99587cad1f3ca83daa251c31e5c05b06d7961cd2e9fe72050d63fd8",
+      "hashVerified": true,
+      "type": "vision projector",
+      "visionVerified": true
+    }
+  ],
+  "checks": 222,
+  "limitations": [
+    "Heretic 9B inference and automatic memory not part of current verification",
+    "9B vision projector not included; projectors must match model",
+    "Context thresholds are estimates, not guaranteed limits",
+    "MiniLM is English-oriented, bounded to 1024 input word pieces, and semantic similarity can miss or mis-rank facts",
+    "MiniLM does not replace main-model importance extraction; speed/token savings depend on the task and catalog",
+    "Reserved final-answer allowance does not guarantee completion or frontier-level reasoning",
+    "Personality adherence varies by model and task; profiles do not fine-tune weights",
+    "Forgotten-topic suppression uses topic keys; original chats, exports and backups remain",
+    "MCP, shell execution and file editing not implemented",
+    "Physical cross-window file drag unverified; drop handler shares the tested importer",
+    "Avatar adds separate GPU rendering load and does not coordinate scheduling with other apps",
+    "Context summaries are lossy and model-dependent; image pixels are not summarized",
+    "Compaction is manual and bounded per operation; ordinary 20-turn/context trimming still applies to unsummarized history",
+    "Mira and Guide verified; other VRM 1.0 files may need compatibility checks",
+    "Original bind/rest poses are preserved; authored animation retargeting is deferred",
+    "Mira and Guide verified; other VRM 1.0 files may need compatibility checks",
+    "Original bind/rest poses are preserved; authored animation retargeting is deferred",
+    "General web search requires a configured Brave Search API key; live provider search not exercised",
+    "Web reading is bounded static text; no browser login, JavaScript, binary downloads or background browsing",
+    "Automatic lookup judgment, source selection and factual synthesis remain model-dependent",
+    "Voice cloning uses one 5–30 second WAV and its transcript per profile. Avatar mouth motion follows amplitude."
+  ],
+  "files": [
+    {
+      "path": "AVATAR-LIBRARY.md",
+      "bytes": 6468,
+      "sha256": "26b9eb25fda1800638c12f3c1370f51fedfa7ccbf6d7be419fbb6e13fc6371fe"
+    },
+    {
+      "path": "avatar\\Kaat_v2.011__Bikini___J_J_Model_.rar",
+      "bytes": 30049198,
+      "sha256": "dc70eb73539ee0e92893f14a374fb31024fe49d3b5d16f86982da8cd19ed7900"
+    },
+    {
+      "path": "avatar\\Mira-vrm.zip",
+      "bytes": 9244399,
+      "sha256": "caea65d54e1c3e83f4e46cd9e619e299dfd112bd27cac7516ce6c74ec7c3aece"
+    },
+    {
+      "path": "avatar\\Models\\aquila-guide.vrm",
+      "bytes": 873620,
+      "sha256": "2fc3c5a8c55bf7560387c90699ea09496beb3fdf94976fd8d896640fb8cc1236"
+    },
+    {
+      "path": "avatar\\Models\\Mira-README.txt",
+      "bytes": 785,
+      "sha256": "86825dc4b89c02578df146e436196c62603911c3ce5cdba5a5e41a688c646f6d"
+    },
+    {
+      "path": "avatar\\Models\\Mira.vrm",
+      "bytes": 17133756,
+      "sha256": "761e45c592fcb9a4d11c0fa419fedea793171caf3c24bf3360be9c3113c622a9"
+    },
+    {
+      "path": "avatar\\Models\\Rint_v01_R18.vrm",
+      "bytes": 13929428,
+      "sha256": "0996278a265b74b614c3470344564e4ab8da77fde80e77838fda68c81741d3af"
+    },
+    {
+      "path": "avatar\\Night_Eleanor_R15_1.11.zip",
+      "bytes": 8708151,
+      "sha256": "e2ac0b7738bd87681f725956ffb3736dd3a51803a83828c0a378309d6924aaf4"
+    },
+    {
+      "path": "avatar\\Rint_v01_R18.zip",
+      "bytes": 51429967,
+      "sha256": "e105a9cb1831fbae15117317857416c4846edfde0426514fb1bf171e10df4806"
+    },
+    {
+      "path": "embeddings\\model.onnx",
+      "bytes": 23046789,
+      "sha256": "b941bf19f1f1283680f449fa6a7336bb5600bdcd5f84d10ddc5cd72218a0fd21"
+    },
+    {
+      "path": "embeddings\\pooling_config.json",
+      "bytes": 190,
+      "sha256": "4be450dde3b0273bb9787637cfbd28fe04a7ba6ab9d36ac48e92b11e350ffc23"
+    },
+    {
+      "path": "embeddings\\README.md",
+      "bytes": 10502,
+      "sha256": "dcd602d2fd35c203a247304a06fec6654a12f7941b739f9221a064fe8dc3b7f0"
+    },
+    {
+      "path": "embeddings\\sentence_bert_config.json",
+      "bytes": 53,
+      "sha256": "fc1993fde0a95c24ec6c022539d41cf6e2f7c9721e5415d6fb6897472a9cd4b7"
+    },
+    {
+      "path": "embeddings\\tokenizer_config.json",
+      "bytes": 350,
+      "sha256": "acb92769e8195aabd29b7b2137a9e6d6e25c476a4f15aa4355c233426c61576b"
+    },
+    {
+      "path": "embeddings\\tokenizer.json",
+      "bytes": 466247,
+      "sha256": "be50c3628f2bf5bb5e3a7f17b1f74611b2561a3a27eeab05e5aa30f411572037"
+    },
+    {
+      "path": "embeddings\\vocab.txt",
+      "bytes": 231508,
+      "sha256": "07eced375cec144d27c900241f3e339478dec958f92fddbc551f295c992038a3"
+    },
+    {
+      "path": "engine\\ggml-base.dll",
+      "bytes": 832512,
+      "sha256": "3a0399fa51102a86824255beda9d021ea7e8cd2bd8ca448a43a9a80aa4829290"
+    },
+    {
+      "path": "engine\\ggml-cpu-alderlake.dll",
+      "bytes": 1442816,
+      "sha256": "1de7a0d14d70bd741f2e4cdfa959176fee26680d6fbc78c717c0bd19e20b6233"
+    },
+    {
+      "path": "engine\\ggml-cpu-cannonlake.dll",
+      "bytes": 1638400,
+      "sha256": "1451909b84c223739247088a0e03db0f89bcd83461f2af43f53d794727afddcd"
+    },
+    {
+      "path": "engine\\ggml-cpu-cascadelake.dll",
+      "bytes": 1611776,
+      "sha256": "74d79278bd20143d3e7deeb2b5c033555f9d621016a7152b5190a2fcbf30265c"
+    },
+    {
+      "path": "engine\\ggml-cpu-cooperlake.dll",
+      "bytes": 1621504,
+      "sha256": "737f0e96f23ca7d66c8dc55eace36ebbfd47770a9a228c804ffff5bf66f933a8"
+    },
+    {
+      "path": "engine\\ggml-cpu-haswell.dll",
+      "bytes": 1447424,
+      "sha256": "85d9ffd6f84fd0ec01586420b935ac4d5a5c9a1ab76b533eb3ddc060c1fe2869"
+    },
+    {
+      "path": "engine\\ggml-cpu-icelake.dll",
+      "bytes": 1618432,
+      "sha256": "41ca727e74b171983ea9afe0250553706c09225c10a8c6ad72a619f9189279a8"
+    },
+    {
+      "path": "engine\\ggml-cpu-ivybridge.dll",
+      "bytes": 1328640,
+      "sha256": "39752b7667cb34b3bbd06178fac83803f6089771d43873a9c81015d2a98c280b"
+    },
+    {
+      "path": "engine\\ggml-cpu-piledriver.dll",
+      "bytes": 1321472,
+      "sha256": "65bef2ae4f69256d9aff053a6fff1abdbd33acdbc51ede863d8bc5bd43c53ee8"
+    },
+    {
+      "path": "engine\\ggml-cpu-sandybridge.dll",
+      "bytes": 1319424,
+      "sha256": "5359624dee5670cb299c08f4a49347f7a6f4d0df35ed4c0a91164e4d771b3e23"
+    },
+    {
+      "path": "engine\\ggml-cpu-sapphirerapids.dll",
+      "bytes": 1897472,
+      "sha256": "a7a395d0e49f182240c9a2ed1d623398911506bdae418baf161354541aa06a89"
+    },
+    {
+      "path": "engine\\ggml-cpu-skylakex.dll",
+      "bytes": 1631744,
+      "sha256": "6bd53dc5731c5b9e4d3fbf98a9dc5b3ce76d357be9a579bc6c8cedac035462e8"
+    },
+    {
+      "path": "engine\\ggml-cpu-sse42.dll",
+      "bytes": 944128,
+      "sha256": "1e1700e6b6eef26b6abb0bc68669b6ee9fdad2b8d00058e491cb5160eb54afc2"
+    },
+    {
+      "path": "engine\\ggml-cpu-x64.dll",
+      "bytes": 936448,
+      "sha256": "81877c8787f9d5680b990f4cf5f8b89ba5b02ee5064b36abfd53d9d2ffb50916"
+    },
+    {
+      "path": "engine\\ggml-cpu-zen4.dll",
+      "bytes": 1627648,
+      "sha256": "b5c1eec79e83878303acfa774f1275d9e025493b2c23f2a01af09fe985cdc21a"
+    },
+    {
+      "path": "engine\\ggml-vulkan.dll",
+      "bytes": 41988608,
+      "sha256": "e863e7556e10eeea6888894755552a917ab919004882bdf89d2d684d2b54fc8c"
+    },
+    {
+      "path": "engine\\ggml.dll",
+      "bytes": 78848,
+      "sha256": "06dfdff8b7b834c757ec5b5411abfc0f732604fb595eaaffbdc6da563523e8a1"
+    },
+    {
+      "path": "engine\\libomp.dll",
+      "bytes": 768000,
+      "sha256": "a12116ba72d1d6820407cf30be23da04ce79d6bb8a71a5ee71759c5a1faa6f1c"
+    },
+    {
+      "path": "engine\\LICENSE-LLVM-OpenMP",
+      "bytes": 19741,
+      "sha256": "fdad1758a9e1f9d5a81e18879b3406772115edc92c24bfa36b70c654f325e8e4"
+    },
+    {
+      "path": "engine\\llama-common.dll",
+      "bytes": 8359936,
+      "sha256": "0898e517843e4478b5178621dc878552b4d40a4d47d7b6f1775e7897f4e2344e"
+    },
+    {
+      "path": "engine\\llama-server-impl.dll",
+      "bytes": 10098688,
+      "sha256": "c5d306bdcad1c4011f18a1c01ae2fcdca48a197af0d421c2931ace2cfb487fc6"
+    },
+    {
+      "path": "engine\\llama-server.exe",
+      "bytes": 9728,
+      "sha256": "00d50686815af38249d0218c91558fbd0e9093ac8c074bac86196907f4305e31"
+    },
+    {
+      "path": "engine\\llama.dll",
+      "bytes": 3834880,
+      "sha256": "211b91d86e67c49f12eb97992b45ae4c2fc797d6edab48637835a877c808890e"
+    },
+    {
+      "path": "engine\\msvcp140_1.dll",
+      "bytes": 35696,
+      "sha256": "1c6522f4d005539109aa040f063659704bfda94a224142f50942573cfbcf7ec9"
+    },
+    {
+      "path": "engine\\msvcp140_2.dll",
+      "bytes": 271800,
+      "sha256": "56318c983acc3914f8523be61f6b1f1c91e6c1ae4b6c531169882aa59baaec6b"
+    },
+    {
+      "path": "engine\\msvcp140_atomic_wait.dll",
+      "bytes": 58736,
+      "sha256": "8b10c6bd4c3c427ce7c8be96ef0fef0f8187bc236962be62a03caef834b37dcd"
+    },
+    {
+      "path": "engine\\msvcp140_codecvt_ids.dll",
+      "bytes": 31080,
+      "sha256": "695dbb4921cc1536429d238488cbee73581357a2fa05bb5c87b0f6ae48efcaca"
+    },
+    {
+      "path": "engine\\msvcp140.dll",
+      "bytes": 652136,
+      "sha256": "59d325227321d52b9a523ea401ce6787a5d59f78229a0ff3a6f124e5d3445685"
+    },
+    {
+      "path": "engine\\mtmd.dll",
+      "bytes": 2482176,
+      "sha256": "74a3cace50f6c545cc66e4dc05e2aecf465f146ea1b4000376cd9834598a3e14"
+    },
+    {
+      "path": "engine\\vcruntime140_1.dll",
+      "bytes": 50544,
+      "sha256": "a14b4a42a2c6df04d6d53a8340816023d953406f7f3d94996c7cab30c414ff63"
+    },
+    {
+      "path": "engine\\vcruntime140_threads.dll",
+      "bytes": 38840,
+      "sha256": "44a0a0b925242699f2b31bf40a43b54ab3513584dfe7869521d1983e40ea1f06"
+    },
+    {
+      "path": "engine\\vcruntime140.dll",
+      "bytes": 176488,
+      "sha256": "eb1ee979bf02324712346e5bdbfc59c785388bc50d18cc2688aae4b0734915a0"
+    },
+    {
+      "path": "INTERNET.md",
+      "bytes": 6689,
+      "sha256": "6468ffdfb70280d328657db7639783d9e6a0a56ab5f3e3d39092f9e3eb4a564e"
+    },
+    {
+      "path": "licenses\\Aquila-Guide-CC0.txt",
+      "bytes": 614,
+      "sha256": "1a5ae9218c1a4f0e39b249dd17acf7a9cd98df1e19c2be37509780910015bae2"
+    },
+    {
+      "path": "licenses\\dotnet-LICENSE.txt",
+      "bytes": 1139,
+      "sha256": "d7a68596ab69b06f51ca278a6545148e4269a9381c26d597c13df5d88e08cf5b"
+    },
+    {
+      "path": "licenses\\dotnet-THIRD-PARTY-NOTICES.txt",
+      "bytes": 68910,
+      "sha256": "b60b2912da28eaa6518593c9e2efb5334ee062d3c42e80d8fdfa806b3dc52977"
+    },
+    {
+      "path": "licenses\\dotnet-WindowsDesktop-LICENSE.txt",
+      "bytes": 1137,
+      "sha256": "a89886665765362eb77e0f8e26602c924520041d1711b2eedc136434fe4d01ab"
+    },
+    {
+      "path": "licenses\\Godot-COPYRIGHT.txt",
+      "bytes": 100108,
+      "sha256": "cb1980c88089573bcacd7221d777c689bb8bbd778799f24c27fca0fe5f774d6d"
+    },
+    {
+      "path": "licenses\\Godot-LICENSE.txt",
+      "bytes": 1149,
+      "sha256": "b0435e3b3e4e55238f05f4b306f30524a1b2e20147810d436eaa554fa6855c80"
+    },
+    {
+      "path": "licenses\\Godot-MToon-LICENSE.txt",
+      "bytes": 1141,
+      "sha256": "fd0a82d7d32ad7e39948363114587a3290252ee9a57da0da1582f1e9f0e602f5"
+    },
+    {
+      "path": "licenses\\godot-vrm-LICENSE.txt",
+      "bytes": 1391,
+      "sha256": "d39666c721f8453445364e66a08d0edec6fbc5b8e30ee1d9d710e84a3094c101"
+    },
+    {
+      "path": "licenses\\llama-LICENSE-jsonhpp",
+      "bytes": 1075,
+      "sha256": "c0d068392ea65358b798b8c165103560f06e9e3b38c4ab4e2d8810a7b931af86"
+    },
+    {
+      "path": "licenses\\llama.cpp-MIT.txt",
+      "bytes": 1078,
+      "sha256": "94f29bbed6a22c35b992c5c6ebf0e7c92f13b836b90f36f461c9cf2f0f1d010d"
+    },
+    {
+      "path": "licenses\\Microsoft-VCRedist-License.html",
+      "bytes": 237627,
+      "sha256": "42216a964b4ed7630255d1e363d58fc7df6ca1ae7a8a8709580ca14060013ba7"
+    },
+    {
+      "path": "licenses\\MiniLM-NOTICE.txt",
+      "bytes": 961,
+      "sha256": "405ff886a53b3c8059c94ef4bf34e2e67112235f960270edee93828a044da8a8"
+    },
+    {
+      "path": "licenses\\Mira-NOTICE.txt",
+      "bytes": 1063,
+      "sha256": "57b26e88a735703f5dad52ba52afd6da1cbc20b8d18444a24c87a50d6be384e5"
+    },
+    {
+      "path": "licenses\\Mira-publisher-README.txt",
+      "bytes": 785,
+      "sha256": "86825dc4b89c02578df146e436196c62603911c3ce5cdba5a5e41a688c646f6d"
+    },
+    {
+      "path": "licenses\\Mira-VRM-META.json",
+      "bytes": 499,
+      "sha256": "96bfa9b1c37875d145df46e0189091a15cd10a9b1f736a3469ba73616789956c"
+    },
+    {
+      "path": "licenses\\model-Apache-2.0.txt",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "path": "licenses\\ONNXRuntime-LICENSE.txt",
+      "bytes": 1094,
+      "sha256": "c250d6278f0b47a6439fb7592b08b58a55eb9f535aa49a1db63211c3f982b674"
+    },
+    {
+      "path": "licenses\\ONNXRuntime-Managed-LICENSE.txt",
+      "bytes": 1094,
+      "sha256": "c250d6278f0b47a6439fb7592b08b58a55eb9f535aa49a1db63211c3f982b674"
+    },
+    {
+      "path": "licenses\\ONNXRuntime-Managed-ThirdPartyNotices.txt",
+      "bytes": 344457,
+      "sha256": "c53a76501ef60db6f865f20599f220761201ac4057683acefdab37d861b86622"
+    },
+    {
+      "path": "licenses\\ONNXRuntime-ThirdPartyNotices.txt",
+      "bytes": 344457,
+      "sha256": "c53a76501ef60db6f865f20599f220761201ac4057683acefdab37d861b86622"
+    },
+    {
+      "path": "licenses\\ONNXRuntime-Upstream-Privacy.md",
+      "bytes": 6635,
+      "sha256": "8c26e1fc8581d9553e475250fe014e3d1e5ea4ae9f1cb084a068ff8601703dc9"
+    },
+    {
+      "path": "licenses\\PdfPig-Apache-2.0.txt",
+      "bytes": 14227,
+      "sha256": "4c510e162f896ea43b4b1cf1b743641d7c756f1004d0e5eaf0615b28b7ded409"
+    },
+    {
+      "path": "verification\\arithmetic.json",
+      "bytes": 275,
+      "sha256": "3d669298faea9955c7233f362e4ebffdf23b205207777419f52b2181847eeb80"
+    },
+    {
+      "path": "verification\\checks.txt",
+      "bytes": 799,
+      "sha256": "8089d43e2fd6a702936614d1e44a92cd15969f910656544ce6428fa650eeede6"
+    },
+    {
+      "path": "verification\\success.json",
+      "bytes": 180,
+      "sha256": "09c278da4863eac4fa76eb142095918c448f942944acd548eeab22b3eac592cb"
+    },
+    {
+      "path": "verification\\tools.json",
+      "bytes": 1200,
+      "sha256": "a52a1e2abfc5687ba91a1d0c4f12e2a75652360e21074d907b30c4a0102cb55a"
+    },
+    {
+      "path": "verification\\UI-CHECKS-1.1.md",
+      "bytes": 1250,
+      "sha256": "5f4fce62d6afc1c25d608485e27e70eeb7a5159d56615249222eed1b67ca1134"
+    },
+    {
+      "path": "verification\\UI-CHECKS-1.2.md",
+      "bytes": 2117,
+      "sha256": "6cf820a2d4bafa56ee68aa8f42e7487ef406d5c433020bdcc16849ee8fe675cf"
+    },
+    {
+      "path": "verification\\UI-CHECKS-1.3.md",
+      "bytes": 2306,
+      "sha256": "093bdacb2cdb33faa768f7fb06f252915de709806287bc7e8016a309462a3b14"
+    },
+    {
+      "path": "verification\\UI-CHECKS-1.4.md",
+      "bytes": 2305,
+      "sha256": "d29fd7cf7c9b55c0bd7754f3135b1778e10191bd90aa1fdc81dd0c8e1fd0a3f2"
+    },
+    {
+      "path": "verification\\UI-CHECKS-1.5.md",
+      "bytes": 2480,
+      "sha256": "6a5f59baf0927749a7c8e69ac5d11406b0a6981e0bb830bfc6dc62f5ed92ae57"
+    },
+    {
+      "path": "verification\\UI-CHECKS-1.6.md",
+      "bytes": 2512,
+      "sha256": "b79f9033e2524b1b117fc03d71e6a65be63d4daaf2b2207bb63e3ded1114a5dd"
+    },
+    {
+      "path": "verification\\UI-CHECKS-1.7.md",
+      "bytes": 1734,
+      "sha256": "670cb767f357783b9d184d79cccb76fbf838388387c58cbee962bf5069601fd8"
+    },
+    {
+      "path": "verification\\UI-CHECKS.md",
+      "bytes": 1331,
+      "sha256": "4c8c332d13edab6e00ffaac92d8d8f375c6d0479768eae5b0c62d12cb2764060"
+    },
+    {
+      "path": "verification\\v1.1-core\\checks.txt",
+      "bytes": 917,
+      "sha256": "e80dbdcd0dffbb637395a086d9c48266ef2e1be7cc5dd8f3d7579c743f24650b"
+    },
+    {
+      "path": "verification\\v1.1-core\\success.json",
+      "bytes": 180,
+      "sha256": "86e7f384bd81fc3779e062d0b342eb09eedbd3fe9766e3a0391efe34a26e61f9"
+    },
+    {
+      "path": "verification\\v1.1-core\\tools.json",
+      "bytes": 1326,
+      "sha256": "d348d3f5d1a22f1f023103a387197e1fe75c3c776e8f698b96b60cf4bd7afcc3"
+    },
+    {
+      "path": "verification\\v1.1-feature\\checks.txt",
+      "bytes": 1289,
+      "sha256": "7d731e2f62818713ee5da02914d78233b1d3cfe5c51198a62cd2ba57d5a9d114"
+    },
+    {
+      "path": "verification\\v1.1-feature\\gpu-active.json",
+      "bytes": 6207,
+      "sha256": "6f7679dde5a1a48f130ba9ea4232bf634c514ecdb4877842e2ef8c225d76aa6b"
+    },
+    {
+      "path": "verification\\v1.1-feature\\model-info.json",
+      "bytes": 172,
+      "sha256": "c0d2f26d67c0bd26e221ccb51b689341964c65dc4bbe9fbc8810f3e07ba44684"
+    },
+    {
+      "path": "verification\\v1.1-feature\\success.json",
+      "bytes": 125,
+      "sha256": "57bfb26ae7f4fc58138ff0c8eb365e48e6578cd1b619056ed6dcea0d3398ea74"
+    },
+    {
+      "path": "verification\\v1.1-feature\\text-injection.json",
+      "bytes": 782,
+      "sha256": "72e57336e55b75df93b2253c2b1f1331af7a329198098957652168271be9e8e0"
+    },
+    {
+      "path": "verification\\v1.1-feature\\vision.json",
+      "bytes": 1973,
+      "sha256": "fc5ac33be8fecd6034ffaa3f438480567bd56ba6aefc85a08a1e785ac8536276"
+    },
+    {
+      "path": "verification\\v1.2-core\\arithmetic.json",
+      "bytes": 586,
+      "sha256": "bf6b7953303fdadc8d78dbf616952192e00cdd37ed2923fa1ad4cec824b546f2"
+    },
+    {
+      "path": "verification\\v1.2-core\\checks.txt",
+      "bytes": 917,
+      "sha256": "e80dbdcd0dffbb637395a086d9c48266ef2e1be7cc5dd8f3d7579c743f24650b"
+    },
+    {
+      "path": "verification\\v1.2-core\\success.json",
+      "bytes": 180,
+      "sha256": "50593d859086a58fe9a4bee73472e4cfc535494076cf03a42c6bb49fd0553654"
+    },
+    {
+      "path": "verification\\v1.2-core\\tools.json",
+      "bytes": 1513,
+      "sha256": "e2faff3cec3a35894a816b63f0ecfae97ad798360e6f16ae332d7e7f1c90f622"
+    },
+    {
+      "path": "verification\\v1.2-feature\\checks.txt",
+      "bytes": 1289,
+      "sha256": "7d731e2f62818713ee5da02914d78233b1d3cfe5c51198a62cd2ba57d5a9d114"
+    },
+    {
+      "path": "verification\\v1.2-feature\\gpu-active.json",
+      "bytes": 5969,
+      "sha256": "7f751c8c1e358d0306900a1fa61579a8ca6f8e387482116fc75521802371196e"
+    },
+    {
+      "path": "verification\\v1.2-feature\\model-info.json",
+      "bytes": 172,
+      "sha256": "c0d2f26d67c0bd26e221ccb51b689341964c65dc4bbe9fbc8810f3e07ba44684"
+    },
+    {
+      "path": "verification\\v1.2-feature\\success.json",
+      "bytes": 126,
+      "sha256": "f71fb8b6f516f139537767a2d0f55acf3da35e28e537ae58c76ef64710ec5cdc"
+    },
+    {
+      "path": "verification\\v1.2-feature\\text-injection.json",
+      "bytes": 970,
+      "sha256": "a4acb8f8714e431b3fac08591509aeebbdaa3654c3909b1e2d85766281ffa5ff"
+    },
+    {
+      "path": "verification\\v1.2-feature\\vision.json",
+      "bytes": 2160,
+      "sha256": "54d47543025b5be000853589f77de55f689b7d4ec33dfff6e705acd558a28dc4"
+    },
+    {
+      "path": "verification\\v1.2-memory\\catalog.json",
+      "bytes": 1825,
+      "sha256": "74ce095cf231b50e2d85888935fc891e6acd5d6df8bcf650cbc17fb70e973fcd"
+    },
+    {
+      "path": "verification\\v1.2-memory\\checks.txt",
+      "bytes": 1748,
+      "sha256": "7fb3d4d94e4b1d15d093201f21b8b5a2786f0e736187de248fe9693ee29695b9"
+    },
+    {
+      "path": "verification\\v1.2-memory\\learned.json",
+      "bytes": 795,
+      "sha256": "6afce65a8d1ed609d146275cd1c09032d13f4ae61cf2e3e30985783bd21ce807"
+    },
+    {
+      "path": "verification\\v1.2-memory\\real-transcripts.json",
+      "bytes": 4115,
+      "sha256": "2c848222851729d417508f6ce4d2b314764e7c2aaf5daa49aee7e4fd9a59e60f"
+    },
+    {
+      "path": "verification\\v1.2-memory\\result.txt",
+      "bytes": 73,
+      "sha256": "c3abbbb5dd2ee14b67b47c6ad573d006b4955bb046be924967eaebfefc6411ad"
+    },
+    {
+      "path": "verification\\v1.3-core\\arithmetic.json",
+      "bytes": 733,
+      "sha256": "b7c790adf7ee87309bf16a462ff4013f6148f3acc39abd4d5c68f4ec0e07c27d"
+    },
+    {
+      "path": "verification\\v1.3-core\\checks.txt",
+      "bytes": 917,
+      "sha256": "e80dbdcd0dffbb637395a086d9c48266ef2e1be7cc5dd8f3d7579c743f24650b"
+    },
+    {
+      "path": "verification\\v1.3-core\\success.json",
+      "bytes": 180,
+      "sha256": "3073344c03c944ba3489243bebec1febe0d17401d707a580f0fe3f1e32f3a4dd"
+    },
+    {
+      "path": "verification\\v1.3-core\\tools.json",
+      "bytes": 1660,
+      "sha256": "7c058adedf50ac52deb938cf6f7a0a9cff25887f945f25de6aa95b57d410c077"
+    },
+    {
+      "path": "verification\\v1.3-embeddings\\checks.txt",
+      "bytes": 1740,
+      "sha256": "b64164b7b4a0d9ca33611e6170961d36d9024f44143d7630536402e9ec8a76cf"
+    },
+    {
+      "path": "verification\\v1.3-embeddings\\metrics.json",
+      "bytes": 269,
+      "sha256": "a85878f5c1690cee23bae4af580ad233aca64cb4ec6303b1a5893a41787e9fae"
+    },
+    {
+      "path": "verification\\v1.3-feature\\checks.txt",
+      "bytes": 1289,
+      "sha256": "7d731e2f62818713ee5da02914d78233b1d3cfe5c51198a62cd2ba57d5a9d114"
+    },
+    {
+      "path": "verification\\v1.3-feature\\gpu-active.json",
+      "bytes": 5098,
+      "sha256": "d5d18c4cfd1731e4b658853e33d6fe10bd94f58825a1730cb5f71325083e0351"
+    },
+    {
+      "path": "verification\\v1.3-feature\\model-info.json",
+      "bytes": 172,
+      "sha256": "c0d2f26d67c0bd26e221ccb51b689341964c65dc4bbe9fbc8810f3e07ba44684"
+    },
+    {
+      "path": "verification\\v1.3-feature\\success.json",
+      "bytes": 126,
+      "sha256": "93292cc00147eb5f89c02c9a43e9b664603e4ced9f90c6d8436b060ef3af7d9b"
+    },
+    {
+      "path": "verification\\v1.3-feature\\text-injection.json",
+      "bytes": 1117,
+      "sha256": "167e3758f1492faef6708775f0c4e17b0289384e0ce5d14272cd07df227c8798"
+    },
+    {
+      "path": "verification\\v1.3-feature\\vision.json",
+      "bytes": 2307,
+      "sha256": "88973e45b3628c635faa27d7475d33252727135ff3b1e01770886516f1bef20c"
+    },
+    {
+      "path": "verification\\v1.3-memory\\catalog.json",
+      "bytes": 1822,
+      "sha256": "4f9e6c007932824d6326b39a1a8c5059412dbb561289eb155d4316c91891edf6"
+    },
+    {
+      "path": "verification\\v1.3-memory\\checks.txt",
+      "bytes": 1748,
+      "sha256": "7fb3d4d94e4b1d15d093201f21b8b5a2786f0e736187de248fe9693ee29695b9"
+    },
+    {
+      "path": "verification\\v1.3-memory\\learned.json",
+      "bytes": 794,
+      "sha256": "3ccbd9a11928e6b649cde24ba63e686d730898b26014730a50c8f936e80385b6"
+    },
+    {
+      "path": "verification\\v1.3-memory\\real-transcripts.json",
+      "bytes": 4732,
+      "sha256": "24eea95630a86bb66f0cd23f80e089503c1d2f8f9b3fd41b7c008514c50c963b"
+    },
+    {
+      "path": "verification\\v1.3-memory\\result.txt",
+      "bytes": 73,
+      "sha256": "c3abbbb5dd2ee14b67b47c6ad573d006b4955bb046be924967eaebfefc6411ad"
+    },
+    {
+      "path": "verification\\v1.3-personalities\\checks.txt",
+      "bytes": 1137,
+      "sha256": "5ad8f6212324b36775e3c67d0fc05129bd321ecc08383a3c2031ee8c4e2c13d8"
+    },
+    {
+      "path": "verification\\v1.3-personalities\\metrics.json",
+      "bytes": 132,
+      "sha256": "3cd3b9318149c16433982a09a7c94034fc338776cd50b90dd0d79b9a02d628a9"
+    },
+    {
+      "path": "verification\\v1.3-personalities\\transcripts.json",
+      "bytes": 5959,
+      "sha256": "2a1fdde7eea5f13970a5068152d99bea84922b5269a2df0e8e0a9d993ec8567a"
+    },
+    {
+      "path": "verification\\v1.3-thinking\\checks.txt",
+      "bytes": 652,
+      "sha256": "98e471ad85217f9293612881fc70088f00bab447b578549ab4868f568e23dd3c"
+    },
+    {
+      "path": "verification\\v1.3-thinking\\result.json",
+      "bytes": 99,
+      "sha256": "f9511c9178851cd058bcc9b365a4dd6ae372462119247c6c1ac9bf0d8a16e2d8"
+    },
+    {
+      "path": "verification\\v1.3-thinking\\thinking.json",
+      "bytes": 1482,
+      "sha256": "9bc4c0f9f47a586c767b0b83ce4b86bee5b701af3d1e33b6dd53e4e36fdd85bc"
+    },
+    {
+      "path": "verification\\v1.4-avatar-lifetime\\checks.txt",
+      "bytes": 79,
+      "sha256": "770fd0b65b7e4bd2d86708a5b9f44d3574a63a078899f9c651a56d7bd985b8e5"
+    },
+    {
+      "path": "verification\\v1.4-avatar-lifetime\\result.json",
+      "bytes": 68,
+      "sha256": "1422918b685c95fc791fdb53f7220ae0e37d9b7a439e13b0542fba62a9692b88"
+    },
+    {
+      "path": "verification\\v1.4-avatar-render\\blink.png",
+      "bytes": 70109,
+      "sha256": "12e7e77cc1c97746d94aa515982acc8f8b71157405290c19e2c96a688a6b0a25"
+    },
+    {
+      "path": "verification\\v1.4-avatar-render\\idle.png",
+      "bytes": 71046,
+      "sha256": "5326c72b0fa46cf44b76721d971008c5abf0ae7abd75c61bd505a433eb688c80"
+    },
+    {
+      "path": "verification\\v1.4-avatar-render\\interrupted.png",
+      "bytes": 72426,
+      "sha256": "588d439bcce3da56776b6d051aa9595be2e9f397169619d59f6b87dd512f5b0d"
+    },
+    {
+      "path": "verification\\v1.4-avatar-render\\listening.png",
+      "bytes": 72069,
+      "sha256": "760208fff21d591e7a43eff0a5ba568bec74b43089c495186e3c7109ebc28a9a"
+    },
+    {
+      "path": "verification\\v1.4-avatar-render\\smile.png",
+      "bytes": 70331,
+      "sha256": "0d4a69e4a9a09897eaf66d58b3d5ce0bc762e409fcd28204302767d3db369b98"
+    },
+    {
+      "path": "verification\\v1.4-avatar-render\\speaking.png",
+      "bytes": 73337,
+      "sha256": "a6f90c5a8f1cc10fb7e5fcb7186cf713f09137dc55ef8f286ea5cf9fe8668080"
+    },
+    {
+      "path": "verification\\v1.4-avatar-render\\thinking.png",
+      "bytes": 71299,
+      "sha256": "0aebfd1ef87aa5b51ca53d50dfc91c7b44c31802ea5bbd6647976d43a7f262ce"
+    },
+    {
+      "path": "verification\\v1.4-avatar\\checks.txt",
+      "bytes": 1636,
+      "sha256": "d314052e0ce995780c0cbb4c1dd480fc549922401950655d93dd628b388f4cf2"
+    },
+    {
+      "path": "verification\\v1.4-avatar\\result.json",
+      "bytes": 355,
+      "sha256": "43dbcce4ea578398ac1312271872986fce64682acc6bf302c5fabf1c3fe47b43"
+    },
+    {
+      "path": "verification\\v1.4-core\\arithmetic.json",
+      "bytes": 733,
+      "sha256": "1b6bc2349206ca6f38658e3e369a038b259a2db6ecb2e18ad040b6ac4fef3a3f"
+    },
+    {
+      "path": "verification\\v1.4-core\\checks.txt",
+      "bytes": 917,
+      "sha256": "e80dbdcd0dffbb637395a086d9c48266ef2e1be7cc5dd8f3d7579c743f24650b"
+    },
+    {
+      "path": "verification\\v1.4-core\\success.json",
+      "bytes": 180,
+      "sha256": "52f56aef0cc4694b8ce2d5d3179fd619594636118d743311f2bfd76d22a02b68"
+    },
+    {
+      "path": "verification\\v1.4-core\\tools.json",
+      "bytes": 1660,
+      "sha256": "483868d6de922ed5170a5f1e8f709874857727f29703b4d66de42d2851c24399"
+    },
+    {
+      "path": "verification\\v1.4-embeddings\\checks.txt",
+      "bytes": 1740,
+      "sha256": "b64164b7b4a0d9ca33611e6170961d36d9024f44143d7630536402e9ec8a76cf"
+    },
+    {
+      "path": "verification\\v1.4-embeddings\\metrics.json",
+      "bytes": 270,
+      "sha256": "f196a31d7d99766cce317d516687023b7dce30b91f305334bc4a0262885610f5"
+    },
+    {
+      "path": "verification\\v1.4-feature\\checks.txt",
+      "bytes": 1289,
+      "sha256": "7d731e2f62818713ee5da02914d78233b1d3cfe5c51198a62cd2ba57d5a9d114"
+    },
+    {
+      "path": "verification\\v1.4-feature\\gpu-active.json",
+      "bytes": 5977,
+      "sha256": "90a4273871e16ef5557ac1e831975faeb4fef9598ca075fc9300628b0fdb2145"
+    },
+    {
+      "path": "verification\\v1.4-feature\\model-info.json",
+      "bytes": 172,
+      "sha256": "c0d2f26d67c0bd26e221ccb51b689341964c65dc4bbe9fbc8810f3e07ba44684"
+    },
+    {
+      "path": "verification\\v1.4-feature\\success.json",
+      "bytes": 126,
+      "sha256": "1032454a01a10484420a95b48aa6d1a9cee86a6d12fda259de36936cc5627777"
+    },
+    {
+      "path": "verification\\v1.4-feature\\text-injection.json",
+      "bytes": 1117,
+      "sha256": "5d31bc5587d232997c51d921dd1251125444100e39f1261fcea410b8cc0fbd37"
+    },
+    {
+      "path": "verification\\v1.4-feature\\vision.json",
+      "bytes": 2307,
+      "sha256": "58a6e6b24d5f2165c1e5af23f70d36bcaa9a7facf36ffb82220af907542a5ef7"
+    },
+    {
+      "path": "verification\\v1.4-memory\\catalog.json",
+      "bytes": 1824,
+      "sha256": "31e47721d61917f31c88b5defb4ff9dc6b268fb23bc001bccd83e9454f16e170"
+    },
+    {
+      "path": "verification\\v1.4-memory\\checks.txt",
+      "bytes": 1748,
+      "sha256": "7fb3d4d94e4b1d15d093201f21b8b5a2786f0e736187de248fe9693ee29695b9"
+    },
+    {
+      "path": "verification\\v1.4-memory\\learned.json",
+      "bytes": 794,
+      "sha256": "ae5654f1281cc0e4be54b21b7d59f7f2b151fc8f1c67485bce7092cee065bc68"
+    },
+    {
+      "path": "verification\\v1.4-memory\\real-transcripts.json",
+      "bytes": 4731,
+      "sha256": "9ac8ee1fb30584d0ad23717f638fc1843b3192610f81d07fdfc0175edc918f8f"
+    },
+    {
+      "path": "verification\\v1.4-memory\\result.txt",
+      "bytes": 73,
+      "sha256": "c3abbbb5dd2ee14b67b47c6ad573d006b4955bb046be924967eaebfefc6411ad"
+    },
+    {
+      "path": "verification\\v1.4-personalities\\checks.txt",
+      "bytes": 1137,
+      "sha256": "5ad8f6212324b36775e3c67d0fc05129bd321ecc08383a3c2031ee8c4e2c13d8"
+    },
+    {
+      "path": "verification\\v1.4-personalities\\metrics.json",
+      "bytes": 132,
+      "sha256": "48db10cddab041233a7dce16b9562201256f3139da2b5567a53f21f11d8644f5"
+    },
+    {
+      "path": "verification\\v1.4-personalities\\transcripts.json",
+      "bytes": 6054,
+      "sha256": "a2c489293b9d723b35c74d95f7a456f57554dc2b1ea29fde2d45718b45528dfe"
+    },
+    {
+      "path": "verification\\v1.4-thinking\\checks.txt",
+      "bytes": 652,
+      "sha256": "98e471ad85217f9293612881fc70088f00bab447b578549ab4868f568e23dd3c"
+    },
+    {
+      "path": "verification\\v1.4-thinking\\result.json",
+      "bytes": 99,
+      "sha256": "f9511c9178851cd058bcc9b365a4dd6ae372462119247c6c1ac9bf0d8a16e2d8"
+    },
+    {
+      "path": "verification\\v1.4-thinking\\thinking.json",
+      "bytes": 1481,
+      "sha256": "be8c38df8732012fcc8d0018e6cae575b18a2e4c55f8f3347d4c2b22b97e3464"
+    },
+    {
+      "path": "verification\\v1.5-avatar-lifetime\\checks.txt",
+      "bytes": 79,
+      "sha256": "770fd0b65b7e4bd2d86708a5b9f44d3574a63a078899f9c651a56d7bd985b8e5"
+    },
+    {
+      "path": "verification\\v1.5-avatar-lifetime\\result.json",
+      "bytes": 67,
+      "sha256": "15d4d0ef3ce77f6474b9ccc89c73869d6aef0f79bdfa000914caaabd08458df0"
+    },
+    {
+      "path": "verification\\v1.5-avatar\\checks.txt",
+      "bytes": 1636,
+      "sha256": "d314052e0ce995780c0cbb4c1dd480fc549922401950655d93dd628b388f4cf2"
+    },
+    {
+      "path": "verification\\v1.5-avatar\\result.json",
+      "bytes": 355,
+      "sha256": "43dbcce4ea578398ac1312271872986fce64682acc6bf302c5fabf1c3fe47b43"
+    },
+    {
+      "path": "verification\\v1.5-conversations\\checks.txt",
+      "bytes": 1770,
+      "sha256": "5614596d0abb965a7ba4828805437f692051003d82f712fa0d502419179d0426"
+    },
+    {
+      "path": "verification\\v1.5-conversations\\result.json",
+      "bytes": 3307,
+      "sha256": "967009c4e065229f6d4eefb23b904598fbf799e64280cfca9ebed8eae3127157"
+    },
+    {
+      "path": "verification\\v1.5-core\\arithmetic.json",
+      "bytes": 733,
+      "sha256": "a9d961424ebb7af495a48184a9b2914f9a6c207c7cce9fd9df7c19ff165bd0ed"
+    },
+    {
+      "path": "verification\\v1.5-core\\checks.txt",
+      "bytes": 917,
+      "sha256": "e80dbdcd0dffbb637395a086d9c48266ef2e1be7cc5dd8f3d7579c743f24650b"
+    },
+    {
+      "path": "verification\\v1.5-core\\success.json",
+      "bytes": 180,
+      "sha256": "0dd78e622f9b6a4c242368758a04e33a71781dee08e9db8f3ceefdcfaf9db215"
+    },
+    {
+      "path": "verification\\v1.5-core\\tools.json",
+      "bytes": 1660,
+      "sha256": "49179dd123f33d3e9c326051e913ae314d338e4888327591f680e646dc2dde41"
+    },
+    {
+      "path": "verification\\v1.5-embeddings\\checks.txt",
+      "bytes": 1740,
+      "sha256": "b64164b7b4a0d9ca33611e6170961d36d9024f44143d7630536402e9ec8a76cf"
+    },
+    {
+      "path": "verification\\v1.5-embeddings\\metrics.json",
+      "bytes": 269,
+      "sha256": "9e4f3e8cded69e0822f48a87d9d6a32124938acbf1111ecdfb4f5a8e41381814"
+    },
+    {
+      "path": "verification\\v1.5-feature\\checks.txt",
+      "bytes": 1289,
+      "sha256": "7d731e2f62818713ee5da02914d78233b1d3cfe5c51198a62cd2ba57d5a9d114"
+    },
+    {
+      "path": "verification\\v1.5-feature\\gpu-active.json",
+      "bytes": 5515,
+      "sha256": "2692ce4553acd922815210236d4649b134f1a9eea58c1dbee5a9e34330f93294"
+    },
+    {
+      "path": "verification\\v1.5-feature\\model-info.json",
+      "bytes": 172,
+      "sha256": "c0d2f26d67c0bd26e221ccb51b689341964c65dc4bbe9fbc8810f3e07ba44684"
+    },
+    {
+      "path": "verification\\v1.5-feature\\success.json",
+      "bytes": 125,
+      "sha256": "c9a01fc7b4a4383b3359752364445f8f74a43644e1e07ad49252f22756b03e89"
+    },
+    {
+      "path": "verification\\v1.5-feature\\text-injection.json",
+      "bytes": 1117,
+      "sha256": "85709021bdc6754e00e4c651a9b0e57a5e1142868f31f18d8009ff5126adc811"
+    },
+    {
+      "path": "verification\\v1.5-feature\\vision.json",
+      "bytes": 2305,
+      "sha256": "87aa0dbcdbc76d4dd2737b3b52186dcecc8983cf0d5dc813c538f9b5290c1c91"
+    },
+    {
+      "path": "verification\\v1.5-memory\\catalog.json",
+      "bytes": 1825,
+      "sha256": "9eeee17db135ca4836dfe017e6cb547ecd2bcc2b057fd5fbcc9e21927cbbf336"
+    },
+    {
+      "path": "verification\\v1.5-memory\\checks.txt",
+      "bytes": 1748,
+      "sha256": "7fb3d4d94e4b1d15d093201f21b8b5a2786f0e736187de248fe9693ee29695b9"
+    },
+    {
+      "path": "verification\\v1.5-memory\\learned.json",
+      "bytes": 795,
+      "sha256": "3ca82587b49f3762a8bc4f5ad2cac4cf990c6e9ca958dafad6b0009b14f850cc"
+    },
+    {
+      "path": "verification\\v1.5-memory\\real-transcripts.json",
+      "bytes": 5164,
+      "sha256": "f02ed3c408b2970486c1ed078abc85b4be4f595a9c4e89e63d39007789587c87"
+    },
+    {
+      "path": "verification\\v1.5-memory\\result.txt",
+      "bytes": 73,
+      "sha256": "c3abbbb5dd2ee14b67b47c6ad573d006b4955bb046be924967eaebfefc6411ad"
+    },
+    {
+      "path": "verification\\v1.5-personalities\\checks.txt",
+      "bytes": 1137,
+      "sha256": "5ad8f6212324b36775e3c67d0fc05129bd321ecc08383a3c2031ee8c4e2c13d8"
+    },
+    {
+      "path": "verification\\v1.5-personalities\\metrics.json",
+      "bytes": 132,
+      "sha256": "6b867ce9d9091ccc16e8fc74594b7fe7f5526e1ea501f917fd884eb57ddb18f7"
+    },
+    {
+      "path": "verification\\v1.5-personalities\\transcripts.json",
+      "bytes": 6633,
+      "sha256": "274c549a9705ab3fc6baa09acde07882a86bac6e365df5ae36ee23d9a811504f"
+    },
+    {
+      "path": "verification\\v1.5-thinking\\checks.txt",
+      "bytes": 652,
+      "sha256": "98e471ad85217f9293612881fc70088f00bab447b578549ab4868f568e23dd3c"
+    },
+    {
+      "path": "verification\\v1.5-thinking\\result.json",
+      "bytes": 99,
+      "sha256": "f9511c9178851cd058bcc9b365a4dd6ae372462119247c6c1ac9bf0d8a16e2d8"
+    },
+    {
+      "path": "verification\\v1.5-thinking\\thinking.json",
+      "bytes": 1482,
+      "sha256": "158bd5ac18086e4ea4064c17376c9cda02cd3eb02c9b7ba96c10d003c94fd832"
+    },
+    {
+      "path": "verification\\v1.6-avatar-library\\checks.txt",
+      "bytes": 1420,
+      "sha256": "d94c638bd87a1190dbb23a985be1b0317c45020cea5e9eadf7135c98d850c050"
+    },
+    {
+      "path": "verification\\v1.6-avatar-library\\result.json",
+      "bytes": 986,
+      "sha256": "028ccbddefd8a8532bf5b089c15cc759ca7c7fb0da51057948a14297ff609ab1"
+    },
+    {
+      "path": "verification\\v1.6-avatar-lifetime\\checks.txt",
+      "bytes": 79,
+      "sha256": "770fd0b65b7e4bd2d86708a5b9f44d3574a63a078899f9c651a56d7bd985b8e5"
+    },
+    {
+      "path": "verification\\v1.6-avatar-lifetime\\result.json",
+      "bytes": 67,
+      "sha256": "fab7757a46ce86174442b09cb6fa1bf3704a0af46a11e35a3be468ea665b4b39"
+    },
+    {
+      "path": "verification\\v1.6-avatar\\checks.txt",
+      "bytes": 1636,
+      "sha256": "d314052e0ce995780c0cbb4c1dd480fc549922401950655d93dd628b388f4cf2"
+    },
+    {
+      "path": "verification\\v1.6-avatar\\result.json",
+      "bytes": 341,
+      "sha256": "114f3f28b16a6c3895400817a01d3fba786df73f944cad74503ae83d5f1c6f8a"
+    },
+    {
+      "path": "verification\\v1.6-conversations\\checks.txt",
+      "bytes": 1770,
+      "sha256": "5614596d0abb965a7ba4828805437f692051003d82f712fa0d502419179d0426"
+    },
+    {
+      "path": "verification\\v1.6-conversations\\result.json",
+      "bytes": 4626,
+      "sha256": "c8a8cc5c5b17d95c9e19ee300ddfbbc77034da93fd48da43c392cea9ce705ce7"
+    },
+    {
+      "path": "verification\\v1.6-core\\arithmetic.json",
+      "bytes": 733,
+      "sha256": "cb195e760f5b5371cd67f8fd730662eae8cde486d3eb48259ae15d375b8c896e"
+    },
+    {
+      "path": "verification\\v1.6-core\\checks.txt",
+      "bytes": 917,
+      "sha256": "e80dbdcd0dffbb637395a086d9c48266ef2e1be7cc5dd8f3d7579c743f24650b"
+    },
+    {
+      "path": "verification\\v1.6-core\\success.json",
+      "bytes": 180,
+      "sha256": "e87728b91239444dd418957ff661466cd1bb65a49ed858014f60079ce5cee353"
+    },
+    {
+      "path": "verification\\v1.6-core\\tools.json",
+      "bytes": 1660,
+      "sha256": "3ee324d74f918ef41fcd09103f8f382de6f52515a64fa971cdea7920e069b1b9"
+    },
+    {
+      "path": "verification\\v1.6-embeddings\\checks.txt",
+      "bytes": 1740,
+      "sha256": "b64164b7b4a0d9ca33611e6170961d36d9024f44143d7630536402e9ec8a76cf"
+    },
+    {
+      "path": "verification\\v1.6-embeddings\\metrics.json",
+      "bytes": 269,
+      "sha256": "39608e1c510e083133fe4d15e849b0c9191eca8a56d6cca8af95a71af1316e0e"
+    },
+    {
+      "path": "verification\\v1.6-feature\\checks.txt",
+      "bytes": 1289,
+      "sha256": "7d731e2f62818713ee5da02914d78233b1d3cfe5c51198a62cd2ba57d5a9d114"
+    },
+    {
+      "path": "verification\\v1.6-feature\\gpu-active.json",
+      "bytes": 5535,
+      "sha256": "29e8f47fa2b8f3dc456d1e5fd51c10ad57c8c3c1cb7ce96e351e0734185678b3"
+    },
+    {
+      "path": "verification\\v1.6-feature\\model-info.json",
+      "bytes": 172,
+      "sha256": "c0d2f26d67c0bd26e221ccb51b689341964c65dc4bbe9fbc8810f3e07ba44684"
+    },
+    {
+      "path": "verification\\v1.6-feature\\success.json",
+      "bytes": 126,
+      "sha256": "8e0e8346fbe7f339837d4dfb12943b9b3a59b0041d7b8c7c2e97882faaaa1f78"
+    },
+    {
+      "path": "verification\\v1.6-feature\\text-injection.json",
+      "bytes": 1117,
+      "sha256": "0dc7a590d9b645783ae4b95bd195951b041d6b312e9f179e2d6c10251012d072"
+    },
+    {
+      "path": "verification\\v1.6-feature\\vision.json",
+      "bytes": 2307,
+      "sha256": "bfc6a5c23aac37d8e98306f9e9fb636216de3a98794dd1ea43475e267bdbc271"
+    },
+    {
+      "path": "verification\\v1.6-guide-render\\blink.png",
+      "bytes": 70172,
+      "sha256": "2468df55e123413e3e78baff0860387113112eb5fc81a5149543de60072b0d57"
+    },
+    {
+      "path": "verification\\v1.6-guide-render\\idle.png",
+      "bytes": 70988,
+      "sha256": "b653eaf7797540f880a3742ca31a4bf0efa61e1eb950804c14ce29f99f5aaeaf"
+    },
+    {
+      "path": "verification\\v1.6-guide-render\\interrupted.png",
+      "bytes": 72405,
+      "sha256": "13a52e8ef9b6724525cee5e0b1a853f6a09abbbb91b99db54201a34e23737eda"
+    },
+    {
+      "path": "verification\\v1.6-guide-render\\listening.png",
+      "bytes": 72154,
+      "sha256": "534f989aa1e541f81cb8e73ba09770753e9689fa0c1980f9a73998b5df6e58e2"
+    },
+    {
+      "path": "verification\\v1.6-guide-render\\smile.png",
+      "bytes": 70473,
+      "sha256": "804f41b35cac4ad4a7ed17e4a84860ce23ec61a9347bd7a44b14b0ffea8ce003"
+    },
+    {
+      "path": "verification\\v1.6-guide-render\\speaking.png",
+      "bytes": 73317,
+      "sha256": "3850fdb85976cbcf82f26388367b3441e15802b3da85df5f5f703e27999c933f"
+    },
+    {
+      "path": "verification\\v1.6-guide-render\\thinking.png",
+      "bytes": 71242,
+      "sha256": "1f1dd0fefc7308e7fdf177124c2ce739024154307355c4970d5521bd3eb66bc0"
+    },
+    {
+      "path": "verification\\v1.6-memory\\catalog.json",
+      "bytes": 1824,
+      "sha256": "2e54cce5bbb35a7f421ef35890daa1f74e6058cb8128e61a11c03562d569d6c6"
+    },
+    {
+      "path": "verification\\v1.6-memory\\checks.txt",
+      "bytes": 1748,
+      "sha256": "7fb3d4d94e4b1d15d093201f21b8b5a2786f0e736187de248fe9693ee29695b9"
+    },
+    {
+      "path": "verification\\v1.6-memory\\learned.json",
+      "bytes": 794,
+      "sha256": "ac45d761d8ded7f6640c9027d4b4278361bd462cc3ec7604585f5b7f2c0c583d"
+    },
+    {
+      "path": "verification\\v1.6-memory\\real-transcripts.json",
+      "bytes": 5163,
+      "sha256": "daf3897eb77b95de39d0d7c8f038fa38134ae9aa381f53f4599c63f7006f4dd9"
+    },
+    {
+      "path": "verification\\v1.6-memory\\result.txt",
+      "bytes": 73,
+      "sha256": "c3abbbb5dd2ee14b67b47c6ad573d006b4955bb046be924967eaebfefc6411ad"
+    },
+    {
+      "path": "verification\\v1.6-mira-render\\blink.png",
+      "bytes": 55099,
+      "sha256": "54b5e9c93e51eb1505667844b3afd937533b42430d786782c78d9dd1d1198b35"
+    },
+    {
+      "path": "verification\\v1.6-mira-render\\idle.png",
+      "bytes": 55470,
+      "sha256": "c51c6ae13921e0617bd3b2465f7b0f2c011296f33e101f2a82c0fd7264036238"
+    },
+    {
+      "path": "verification\\v1.6-mira-render\\interrupted.png",
+      "bytes": 56328,
+      "sha256": "8a2fb496f9e217a364cce3731621ac1930d3764ce09d27885012703ff95f7905"
+    },
+    {
+      "path": "verification\\v1.6-mira-render\\listening.png",
+      "bytes": 56761,
+      "sha256": "571f9fcd807469cb43f56111812a2e03ab57104a2be6fa718d91cafae8a28dca"
+    },
+    {
+      "path": "verification\\v1.6-mira-render\\smile.png",
+      "bytes": 55435,
+      "sha256": "a9eb533943365005544c93145e53701df423d718249aaa742fb663a2de7a7783"
+    },
+    {
+      "path": "verification\\v1.6-mira-render\\speaking.png",
+      "bytes": 57577,
+      "sha256": "38ec6cf090677c37e0997a05e3b96615cd6976fdb7d0bc84c084ec695911ccf5"
+    },
+    {
+      "path": "verification\\v1.6-mira-render\\thinking.png",
+      "bytes": 56087,
+      "sha256": "9ee6b0afc68f7f3bb2051d1b9374417533f369b54d5ce44448a301d1b8d49888"
+    },
+    {
+      "path": "verification\\v1.6-personalities\\checks.txt",
+      "bytes": 1137,
+      "sha256": "5ad8f6212324b36775e3c67d0fc05129bd321ecc08383a3c2031ee8c4e2c13d8"
+    },
+    {
+      "path": "verification\\v1.6-personalities\\metrics.json",
+      "bytes": 132,
+      "sha256": "14091225a67f9ee5a7465d09d5c5fabfc548d13176e3195623e45e670fa35b47"
+    },
+    {
+      "path": "verification\\v1.6-personalities\\transcripts.json",
+      "bytes": 6469,
+      "sha256": "004ca84cd9b1d096e058197366f7d2fd5dedd14629406969ea0dcad1a0e28547"
+    },
+    {
+      "path": "verification\\v1.6-thinking\\checks.txt",
+      "bytes": 652,
+      "sha256": "98e471ad85217f9293612881fc70088f00bab447b578549ab4868f568e23dd3c"
+    },
+    {
+      "path": "verification\\v1.6-thinking\\result.json",
+      "bytes": 99,
+      "sha256": "f9511c9178851cd058bcc9b365a4dd6ae372462119247c6c1ac9bf0d8a16e2d8"
+    },
+    {
+      "path": "verification\\v1.6-thinking\\thinking.json",
+      "bytes": 1481,
+      "sha256": "9b03b74665e570a2b8a17b7513bf80ab2f0ff2e62f8c3652ace1e1ee036b7932"
+    },
+    {
+      "path": "verification\\v1.7-avatar-library\\checks.txt",
+      "bytes": 1420,
+      "sha256": "d94c638bd87a1190dbb23a985be1b0317c45020cea5e9eadf7135c98d850c050"
+    },
+    {
+      "path": "verification\\v1.7-avatar-library\\result.json",
+      "bytes": 982,
+      "sha256": "0b7bac6d0929307d827e88fc8fd86a77f2340553d41b2d27484c489ce5d02c8d"
+    },
+    {
+      "path": "verification\\v1.7-avatar-lifetime\\checks.txt",
+      "bytes": 79,
+      "sha256": "770fd0b65b7e4bd2d86708a5b9f44d3574a63a078899f9c651a56d7bd985b8e5"
+    },
+    {
+      "path": "verification\\v1.7-avatar-lifetime\\result.json",
+      "bytes": 68,
+      "sha256": "52bae488a2b65c117569ceb5c8fa0b006fc9e017344608587449f3c3524bb9ae"
+    },
+    {
+      "path": "verification\\v1.7-avatar\\checks.txt",
+      "bytes": 1636,
+      "sha256": "d314052e0ce995780c0cbb4c1dd480fc549922401950655d93dd628b388f4cf2"
+    },
+    {
+      "path": "verification\\v1.7-avatar\\result.json",
+      "bytes": 341,
+      "sha256": "114f3f28b16a6c3895400817a01d3fba786df73f944cad74503ae83d5f1c6f8a"
+    },
+    {
+      "path": "verification\\v1.7-conversations\\checks.txt",
+      "bytes": 1770,
+      "sha256": "5614596d0abb965a7ba4828805437f692051003d82f712fa0d502419179d0426"
+    },
+    {
+      "path": "verification\\v1.7-conversations\\result.json",
+      "bytes": 4238,
+      "sha256": "bd5ed6077ce4fdd7e4336b12902f365ac1e5e997a44867ea5d3c188551f9da13"
+    },
+    {
+      "path": "verification\\v1.7-core\\arithmetic.json",
+      "bytes": 754,
+      "sha256": "8aee1301000aa4c5c86757fb99171a71acea0020699b27ba2b6f049dd31933a2"
+    },
+    {
+      "path": "verification\\v1.7-core\\checks.txt",
+      "bytes": 917,
+      "sha256": "e80dbdcd0dffbb637395a086d9c48266ef2e1be7cc5dd8f3d7579c743f24650b"
+    },
+    {
+      "path": "verification\\v1.7-core\\success.json",
+      "bytes": 180,
+      "sha256": "f8d91fe42c2a61442a4503ad9bac9f87bd3e4e4d91b16296703446fea964529f"
+    },
+    {
+      "path": "verification\\v1.7-core\\tools.json",
+      "bytes": 1681,
+      "sha256": "84b1beb2915e2a276066138fa9f316f0acb7d7bd907f05a847de045d9f3529a3"
+    },
+    {
+      "path": "verification\\v1.7-embeddings\\checks.txt",
+      "bytes": 1740,
+      "sha256": "b64164b7b4a0d9ca33611e6170961d36d9024f44143d7630536402e9ec8a76cf"
+    },
+    {
+      "path": "verification\\v1.7-embeddings\\metrics.json",
+      "bytes": 269,
+      "sha256": "967cffcf6f9d12295bc9cbc1ebce55a77a7bbc5830c05e7fe8b64cd3b3112fd3"
+    },
+    {
+      "path": "verification\\v1.7-feature\\checks.txt",
+      "bytes": 1289,
+      "sha256": "7d731e2f62818713ee5da02914d78233b1d3cfe5c51198a62cd2ba57d5a9d114"
+    },
+    {
+      "path": "verification\\v1.7-feature\\gpu-active.json",
+      "bytes": 4838,
+      "sha256": "7c5d94d4b8f9683b2b501e91b1f2d0df7fd93a6f743a34835d8ed53fb39032a2"
+    },
+    {
+      "path": "verification\\v1.7-feature\\model-info.json",
+      "bytes": 172,
+      "sha256": "c0d2f26d67c0bd26e221ccb51b689341964c65dc4bbe9fbc8810f3e07ba44684"
+    },
+    {
+      "path": "verification\\v1.7-feature\\success.json",
+      "bytes": 126,
+      "sha256": "7a1139234a568caf1a8bdcfaf1608411a0e492ced1ea6ed24e80a794cf46fc60"
+    },
+    {
+      "path": "verification\\v1.7-feature\\text-injection.json",
+      "bytes": 1138,
+      "sha256": "700d46bcb0d819a82d33a11cb2a66ac218248472d555970ea4df15db6050c3e6"
+    },
+    {
+      "path": "verification\\v1.7-feature\\vision.json",
+      "bytes": 2328,
+      "sha256": "85eb1ee8ff2870f407670dab2f3ac8013fa5d8c6a00137b0995b0e79c54f6881"
+    },
+    {
+      "path": "verification\\v1.7-memory\\catalog.json",
+      "bytes": 1824,
+      "sha256": "9eb7fe433243d94b99a570cf98d53b32c554f8ae87e7dba0d85566322fc033e8"
+    },
+    {
+      "path": "verification\\v1.7-memory\\checks.txt",
+      "bytes": 1748,
+      "sha256": "7fb3d4d94e4b1d15d093201f21b8b5a2786f0e736187de248fe9693ee29695b9"
+    },
+    {
+      "path": "verification\\v1.7-memory\\learned.json",
+      "bytes": 794,
+      "sha256": "6ece9116e2e0062e078a4d6aacb78c3ef3bfd2c0053ee5c7537126e8feeb5a90"
+    },
+    {
+      "path": "verification\\v1.7-memory\\real-transcripts.json",
+      "bytes": 5272,
+      "sha256": "1d3f5256417a086c6ffe86ed985cc28713fabfad5bc025710ee9d6f23574afb5"
+    },
+    {
+      "path": "verification\\v1.7-memory\\result.txt",
+      "bytes": 73,
+      "sha256": "c3abbbb5dd2ee14b67b47c6ad573d006b4955bb046be924967eaebfefc6411ad"
+    },
+    {
+      "path": "verification\\v1.7-personalities\\checks.txt",
+      "bytes": 1137,
+      "sha256": "5ad8f6212324b36775e3c67d0fc05129bd321ecc08383a3c2031ee8c4e2c13d8"
+    },
+    {
+      "path": "verification\\v1.7-personalities\\metrics.json",
+      "bytes": 132,
+      "sha256": "6c66550d6e312154e32708e3bc20f9550c108c3b352afead27ecd62c1454abe9"
+    },
+    {
+      "path": "verification\\v1.7-personalities\\transcripts.json",
+      "bytes": 6662,
+      "sha256": "c61386844adb3a7ac23d9ca6b872e1fa578507b828681f854b09becbd44201a0"
+    },
+    {
+      "path": "verification\\v1.7-thinking\\checks.txt",
+      "bytes": 652,
+      "sha256": "98e471ad85217f9293612881fc70088f00bab447b578549ab4868f568e23dd3c"
+    },
+    {
+      "path": "verification\\v1.7-thinking\\result.json",
+      "bytes": 99,
+      "sha256": "f9511c9178851cd058bcc9b365a4dd6ae372462119247c6c1ac9bf0d8a16e2d8"
+    },
+    {
+      "path": "verification\\v1.7-thinking\\thinking.json",
+      "bytes": 1503,
+      "sha256": "ddad8879c3b4d284e9c3db1b9b1d7e092451ec2f9c279b90473337c19ed2df79"
+    },
+    {
+      "path": "verification\\v1.7-web\\checks.txt",
+      "bytes": 1794,
+      "sha256": "52f9faa7f6b4edf4c1d40b4ce0cad2c4c6f839760050650cb9c164da09b6c742"
+    },
+    {
+      "path": "verification\\v1.7-web\\result.json",
+      "bytes": 698,
+      "sha256": "1526078f59f459102c0c0a93d15b8bc8a8e0d6c2679696834aa310a378d0a3e1"
+    },
+    {
+      "path": "licenses\\Emoji.Wpf-WTFPL.txt",
+      "bytes": 475,
+      "sha256": "51aece000df7ec969f08603556286d69012abf27b78c9c014b63f06e59751fa5"
+    },
+    {
+      "path": "licenses\\Typography-LICENSE.md",
+      "bytes": 2323,
+      "sha256": "e2449e386e85f43cd5ad20869d23653315d656ac0ffb8630143308a83bd79522"
+    },
+    {
+      "path": "AVATAR.md",
+      "bytes": 11175,
+      "sha256": "4940cb55acf6c3443fbb314de2017260b0c359dfcdf7b7347d5e7f0619d20aec"
+    },
+    {
+      "path": "avatar\\Aquila Avatar.exe",
+      "bytes": 109513728,
+      "sha256": "16e0ec3cfd398b938f514de95ff2474b532b5061ada78f92226dba3f7584d55d"
+    },
+    {
+      "path": "avatar\\Aquila Avatar.pck",
+      "bytes": 691044,
+      "sha256": "5a47f1fc2bb75334506151fbb1e6ea9bed84390dcf7eb109408c860db83dfa5c"
+    },
+    {
+      "path": "verification\\kitten-1.9-checks.txt",
+      "bytes": 859,
+      "sha256": "568e2f5a5ba93fbd34a920b1d43cf321cd32b33e1169bdde90e19cf51730f1a8"
+    },
+    {
+      "path": "verification\\kitten-1.9-metrics.json",
+      "bytes": 206,
+      "sha256": "f7ec2300705e0a01d0d8e45e48820f260abeb8be241d616af22ecfad801ccc2e"
+    },
+    {
+      "path": "verification\\core-1.9-checks.txt",
+      "bytes": 917,
+      "sha256": "e80dbdcd0dffbb637395a086d9c48266ef2e1be7cc5dd8f3d7579c743f24650b"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\AquilaAvatar.deps.json",
+      "bytes": 28034,
+      "sha256": "7a9fdab90bdb52e4a388cfeb421f87cb8e5df6228d4e6bfb8097d60af37d646e"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\AquilaAvatar.dll",
+      "bytes": 55808,
+      "sha256": "0a03e0a8f679ef77ff92e7e4844311afd6a36343b23d5299d3c7f6f9903f8fbf"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\AquilaAvatar.pdb",
+      "bytes": 27396,
+      "sha256": "bf02e06e3991d300ee179d0ec3115fdc3c26a50a1c5702d4c2ad586b26e7ccf4"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\AquilaAvatar.runtimeconfig.json",
+      "bytes": 372,
+      "sha256": "d7a0beca53834e0a387b9e5083bd1dadf5bee565b48595a9d4cb457d15726c78"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\clretwrc.dll",
+      "bytes": 310568,
+      "sha256": "bc233572d7702ec8d8763c143ec62687c38abc3aad26336fb45c26657bf3a5e7"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\clrgc.dll",
+      "bytes": 667944,
+      "sha256": "b09898e142791ea3b96fd1b432d0e5c8ad51c81cd99b608accd2981e78a93cdf"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\clrjit.dll",
+      "bytes": 1777960,
+      "sha256": "697c09ac310b8fb8118863971955da135aee348116816e3b511bf5957dc6253a"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\coreclr.dll",
+      "bytes": 4995880,
+      "sha256": "bbbcaedb369617695280caaa60cda1aba4fa3c5b557532a89d9f4a9174a5b692"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\createdump.exe",
+      "bytes": 71512,
+      "sha256": "beba75ffcd188a0ce594c304c737caf16681e1af19bdd7bb47b3f0eb8636c320"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\GodotSharp.dll",
+      "bytes": 5928960,
+      "sha256": "2afe2686aacfefac36da6601b59aeb05e560f06e4970cd5036100acd2ca4249d"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\hostfxr.dll",
+      "bytes": 366376,
+      "sha256": "4f5a0500cd2a2439b0d5edbf242950233aec4539ec9a5e7ba9b8a9b0079f63af"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\hostpolicy.dll",
+      "bytes": 406824,
+      "sha256": "24f18ccb306d5e614932478471ad276e2b041a723a45e571073db383b37c5120"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\Microsoft.CSharp.dll",
+      "bytes": 1005392,
+      "sha256": "30704c86c4c052ac630e5b5bf9e04aeb1eb0677fe3c5cf8a7df36c8ab78d0b56"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\Microsoft.DiaSymReader.Native.amd64.dll",
+      "bytes": 2377016,
+      "sha256": "70e4b89978ce57ef87b28f4921f3140c383b04aa96e7f3bdb3c4ebb898fd8a72"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\Microsoft.VisualBasic.Core.dll",
+      "bytes": 1247056,
+      "sha256": "bdcdd4bd2b6e2c0eec9a93187cd57ce9437c9a2324a6c6c20c55a2d1a27823be"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\Microsoft.VisualBasic.dll",
+      "bytes": 17192,
+      "sha256": "a172fad5b53a27d32b21ba3b18e27046c1daf7451c46bea4f57f515d0eef756a"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\Microsoft.Win32.Primitives.dll",
+      "bytes": 15184,
+      "sha256": "596160c8491d2110a36ce4cb93c736905b2c83b9b50496369f32e32ad28d2a20"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\Microsoft.Win32.Registry.dll",
+      "bytes": 120656,
+      "sha256": "a8cc5503bbba36472d1dd3a8eebc3a8b26f0b2882e770851aab486690b23ead9"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\mscordaccore_amd64_amd64_8.0.3126.42015.dll",
+      "bytes": 1348960,
+      "sha256": "a277f63f5722e1ed59a791fc5d30c53ed263abef4adf12d0bf494897d796c3e0"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\mscordaccore.dll",
+      "bytes": 1348960,
+      "sha256": "a277f63f5722e1ed59a791fc5d30c53ed263abef4adf12d0bf494897d796c3e0"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\mscordbi.dll",
+      "bytes": 1233800,
+      "sha256": "20140e71ed6dd59e6736e455b7be2784d7ac0b3f43839148a134aec3e7622de0"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\mscorlib.dll",
+      "bytes": 59216,
+      "sha256": "ee4983e136ab524f29d2f43d01d1deb978f4948eb5ca05b5d6e40be37ec43023"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\mscorrc.dll",
+      "bytes": 136488,
+      "sha256": "c0fc4c625ce2c62887a86a5e1d93895836e7c998a3c95169505f8515266160fc"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\msquic.dll",
+      "bytes": 536344,
+      "sha256": "b7158d427b01c70483bb3d80c5211e387dd98e9471c8a70e4484d449de9157e8"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\netstandard.dll",
+      "bytes": 100648,
+      "sha256": "53d854d33c3f0e1bbccff4b5c4b89420daa66fa5f6603f6e5df20d6bbb7e00f4"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.AppContext.dll",
+      "bytes": 15144,
+      "sha256": "c3d2cb89ec473b55fcbf6f0ed601139e46159e0d2834d9d92ed74ed89e2a2879"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Buffers.dll",
+      "bytes": 15184,
+      "sha256": "8cadbc77368593547381f18eafa12dd58216d7b35a60b487b66ca51a2ee3c406"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Collections.Concurrent.dll",
+      "bytes": 276264,
+      "sha256": "ed653ccb5dc40d0bb4ea3429165a0825705f2935a65c584ca67cba45671884c1"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Collections.dll",
+      "bytes": 259880,
+      "sha256": "c6bb79b8fb32504b6327b516e6ff32017a073669ab749d3c86ed49cd5f2f0c45"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Collections.Immutable.dll",
+      "bytes": 837456,
+      "sha256": "6e41c8ba23968f6a9b910e3c33f66761a588f24084c4e3599214805716d6d259"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Collections.NonGeneric.dll",
+      "bytes": 104232,
+      "sha256": "b40cdf234652b31b443164350f73e25f98c5edecfd30698789d6dbf9ca456e44"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Collections.Specialized.dll",
+      "bytes": 104272,
+      "sha256": "24022887037bfaad8c89c26642712c920dcc0ababd3396d80d8b2be16637673b"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.ComponentModel.Annotations.dll",
+      "bytes": 198480,
+      "sha256": "97060d253527bdde94022ac6d22ae4c0474cf67f40bfe8342e9420b7888b3aff"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.ComponentModel.DataAnnotations.dll",
+      "bytes": 16720,
+      "sha256": "e5b872cf98bf9f3f565877b21fdee61b569ecc586e6dc48c9199ae5e0cd100b3"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.ComponentModel.dll",
+      "bytes": 30504,
+      "sha256": "4d9e2e21ed5c16c100221433d1aab01409ec199c9f617e48b9fe1617989bbaa6"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.ComponentModel.EventBasedAsync.dll",
+      "bytes": 46928,
+      "sha256": "ce813a7cde09eba1bdd7d6661fa39c09057beddc78f554c5476c43766d763ed0"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.ComponentModel.Primitives.dll",
+      "bytes": 79696,
+      "sha256": "d981af410d4ed7939fdee47a1ee58e3db472c05f17c2b0d48e4b1ebfb2fea0e5"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.ComponentModel.TypeConverter.dll",
+      "bytes": 747304,
+      "sha256": "db04940603c749719e133bb567d142d46af3a6f2f37597db398955a3896b84c2"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Configuration.dll",
+      "bytes": 19240,
+      "sha256": "39eca0e98d4b206cbff6243a04494f79ec8b19903d3427b44d64d88097d77f65"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Console.dll",
+      "bytes": 173864,
+      "sha256": "d38105c5c790fc76ac6e4d99fe9b6c2672e4e250e191bd43593e55ae7d3b2afe"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Core.dll",
+      "bytes": 23336,
+      "sha256": "f7414ecfd958fdfb2b4bcdd2f7778a7b26968eb453ca2c03fdf53ba4bb21674f"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Data.Common.dll",
+      "bytes": 2860840,
+      "sha256": "089a74a39dceb113bea92522b227e24c881a618c5eb1e2abb166a6e8c12be0cb"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Data.DataSetExtensions.dll",
+      "bytes": 15696,
+      "sha256": "d425011a475bb44e6b9acd4c48e8f3b428312a05ca3a649abbcd871f7102decf"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Data.dll",
+      "bytes": 24912,
+      "sha256": "1efe79c9f164ce5da6542de89dc7f10d1feb1f38216b68f9a6b6a8ca5e3d2ac3"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Diagnostics.Contracts.dll",
+      "bytes": 16168,
+      "sha256": "a670f39c589bd9d4a994e75abc2385839649ed91a831a4ca7d9fe4f87834b492"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Diagnostics.Debug.dll",
+      "bytes": 15656,
+      "sha256": "e122bd1046864476252765e356c54d2454e72a6e11bf546907de1468ca0b0cb5"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Diagnostics.DiagnosticSource.dll",
+      "bytes": 415568,
+      "sha256": "25c3bf229337a485ceacb82c00f47f2e98de68a279eb5a450550526f9cbf0448"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Diagnostics.FileVersionInfo.dll",
+      "bytes": 46888,
+      "sha256": "24b0e8ed2ea93b84ff2a26cb1f69f7d6e331f6162eae4fae4446a5556b8a8eee"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Diagnostics.Process.dll",
+      "bytes": 337744,
+      "sha256": "7083c7046ac4cbed1068b6ae7a777d421eeaf180e5697283fc1c6af731c32a3d"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Diagnostics.StackTrace.dll",
+      "bytes": 46888,
+      "sha256": "7b26b1c48d500576994b3153b88fefd1e516680ae4b52cde608b8e869544b37d"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Diagnostics.TextWriterTraceListener.dll",
+      "bytes": 67368,
+      "sha256": "0279bba2ab8c1e023d043d802b0b3bbbf8483dd082e305391c6229382452b1c2"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Diagnostics.Tools.dll",
+      "bytes": 15184,
+      "sha256": "ca4cc511a2204af2a5652c7cf870a6a5eff109f98acc72a8e2a0498f72665507"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Diagnostics.TraceSource.dll",
+      "bytes": 145232,
+      "sha256": "2b5489bc5a6d65e109dbed6557dc2af3ba9dfb549efd18a64f37fd64255cb756"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Diagnostics.Tracing.dll",
+      "bytes": 16168,
+      "sha256": "6857ed7ca2c17d38f74639bacc59942599935593f9a0b33b246161c57db27eb3"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.dll",
+      "bytes": 49960,
+      "sha256": "173dd55a6d19794fb6eb8c4e4e73510ebf3a7928affe43c21e721861a4250e51"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Drawing.dll",
+      "bytes": 20304,
+      "sha256": "97562444d2daf928cd78404156665dde55aa5ec71c6fcad705284338e4a36ebe"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Drawing.Primitives.dll",
+      "bytes": 132944,
+      "sha256": "02bd1f5644dd73789b82c3a52c8f86ef726baa1d4cce2a0c64d9dc1c29b9cb02"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Dynamic.Runtime.dll",
+      "bytes": 16208,
+      "sha256": "f6a93ad11464c19f720d34b92043dcc289885bf959b32549ee3ca24537e8b65a"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Formats.Asn1.dll",
+      "bytes": 243496,
+      "sha256": "61f505f140e2c6417640a5aa47a86d148d4f6dc5317a66a7bfa2266a3ac975bf"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Formats.Tar.dll",
+      "bytes": 276304,
+      "sha256": "ee3132a84cf9fd170f3ae0899a996adc120a899c51dbc5534b22e8870b5aa137"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Globalization.Calendars.dll",
+      "bytes": 15696,
+      "sha256": "e0974066e338d22097f5c77e47d086bd9c5826c256034a31f21b34c4392fbb7b"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Globalization.dll",
+      "bytes": 15656,
+      "sha256": "88a4c4517972878aebd264ac5150a3822d14ab3f5b9577c8372e1724b0ca8d88"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Globalization.Extensions.dll",
+      "bytes": 15144,
+      "sha256": "9d57e781afd06f3c6d0a54842467b29079ba2932827a76d9047a327490f1f836"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.IO.Compression.Brotli.dll",
+      "bytes": 83752,
+      "sha256": "46d228e5ea0e3d25b15e95d6a97a3b80e86dde2660589462f30853eb5a0c40b5"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.IO.Compression.dll",
+      "bytes": 263976,
+      "sha256": "1f7e0ce87b7859c81d793750ea8fc58db6d1fa1b81d3cea1e73c614f66439c3c"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.IO.Compression.FileSystem.dll",
+      "bytes": 15144,
+      "sha256": "75972527f5c874893f0515fbe6f8d1d484354ac421ccf31af346738aa74cbc07"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.IO.Compression.Native.dll",
+      "bytes": 828240,
+      "sha256": "4f892a1f3bdf970e662435bb044b5c5e4d8f7241bce981237f57165ae12cb171"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.IO.Compression.ZipFile.dll",
+      "bytes": 55080,
+      "sha256": "a8624a7c7359c1eb6767c50513a33eb9f09125089044ef0caf9d4d225b33a230"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.IO.dll",
+      "bytes": 15656,
+      "sha256": "1ee3349f15c3a20a7394341d8d4ede2ac3d7ddbe4462f43dae828f407f84ff1d"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.IO.FileSystem.AccessControl.dll",
+      "bytes": 104232,
+      "sha256": "6c384ee8c0613a469f9894209f39f154d2e6e8796f9b9c02e3686a42e15d94a6"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.IO.FileSystem.dll",
+      "bytes": 15656,
+      "sha256": "6005e3ac5cbee19d172cc29e48ca84db8e62dff34cff95e56c3600a0a95cb170"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.IO.FileSystem.DriveInfo.dll",
+      "bytes": 55080,
+      "sha256": "3eea221aaa9e6066bffb63218ee292fe499bbb5db434a57225aac1b8531c0b90"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.IO.FileSystem.Primitives.dll",
+      "bytes": 15184,
+      "sha256": "fb2f15cf3356987e0120d265b7b4fbccc11dccfbae08b334a17b4e830eddc54e"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.IO.FileSystem.Watcher.dll",
+      "bytes": 87888,
+      "sha256": "21c97f58651ea238a7018ecfa4bb4b3b6b4e682f97163ae14f8d4d145547f3f0"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.IO.IsolatedStorage.dll",
+      "bytes": 91984,
+      "sha256": "af7c75423c9efdf88850a7197c57e19d588a326678bbe07aa7f0b5ddb3049f59"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.IO.MemoryMappedFiles.dll",
+      "bytes": 83752,
+      "sha256": "e3136d19090f173d2ab75c392486a1427060bd149d966cfd58f3df3308546dfd"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.IO.Pipes.AccessControl.dll",
+      "bytes": 16168,
+      "sha256": "fb206a579c16f5750ce10026913a7f16ad686fb37af1fc9bc997f611362b2f2e"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.IO.Pipes.dll",
+      "bytes": 165672,
+      "sha256": "35030c28374b6ffa6393c2ab8ae80cf712a2f88e92a16dbbdbf6ae03f0e0d452"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.IO.UnmanagedMemoryStream.dll",
+      "bytes": 15144,
+      "sha256": "9442d9391ff037cf388a9e15c171845e5436b093e3c928c60350957555393fd0"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Linq.dll",
+      "bytes": 542504,
+      "sha256": "2b375e90fc687967bd95a0f47dbcba44d396923f3c98b7fe5754e34c8e4befaa"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Linq.Expressions.dll",
+      "bytes": 3675984,
+      "sha256": "0f99977beddc9272d56a2e16b2581cde37f2afd43e77c8209827197c098dedeb"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Linq.Parallel.dll",
+      "bytes": 804648,
+      "sha256": "4ba87321ea950874380628879c3c25332281f7f9a920a090de930570ae8af0ea"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Linq.Queryable.dll",
+      "bytes": 173864,
+      "sha256": "5e14d4ab3bb2711b0cc4b197f973e9c74955a1e4c77041d5cad65e759c304232"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Memory.dll",
+      "bytes": 157480,
+      "sha256": "84242cce5eacc6963a77163986066bd0a1c2eb698b5f26dbdd5e6706e002fbc7"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Net.dll",
+      "bytes": 17232,
+      "sha256": "c2ddcdff66bbb2595e5bcaca342d600a81c9a2e618ac9b9b1c6977fc4e1d17fc"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Net.Http.dll",
+      "bytes": 1734440,
+      "sha256": "5102639c2037d77949340d94761c9a4c5053b940b8ae4ba2fbbe3507b8a5ec43"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Net.Http.Json.dll",
+      "bytes": 128808,
+      "sha256": "7c4b39865655dd3b695a305527b8d11092c5dcf1b786d747cd45e6c00cce5249"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Net.HttpListener.dll",
+      "bytes": 550696,
+      "sha256": "ad612ae83e313eb7fc2afa59b829533c8e8f36fb76d1d398262a610e85af1ccc"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Net.Mail.dll",
+      "bytes": 431952,
+      "sha256": "8830477bb6b18b181a2495c77038ab8a7c941897c9e46feb06f61b2013ed1c8e"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Net.NameResolution.dll",
+      "bytes": 112424,
+      "sha256": "e8cc6c2f0d59fb018fdc4a66057e3a56a3aa5ed82fede17b2398cda88da407cd"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Net.NetworkInformation.dll",
+      "bytes": 157480,
+      "sha256": "db21f0c5659d925741f7a08b0b50fc297248b0155f375f0fd7f970dd2e4cd3f0"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Net.Ping.dll",
+      "bytes": 96040,
+      "sha256": "3a9aab851fff6116dee3524177859e051512fadf7e209372e2d2342b51845474"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Net.Primitives.dll",
+      "bytes": 231248,
+      "sha256": "0f929e8581f09fe85275df7b38549bc51415cd110aadfd89eade53943174511a"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Net.Quic.dll",
+      "bytes": 284456,
+      "sha256": "58f5e4c6f2bbd5320c9797fbead001a99e4d334fa936d5469df82262ac8069da"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Net.Requests.dll",
+      "bytes": 345896,
+      "sha256": "60b7c1595cecc53767c3efcdae74ddd37350ac51f377cac8d7e95428b1f231af"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Net.Security.dll",
+      "bytes": 669520,
+      "sha256": "c957641be9192e7812f209e2120e56a71da0d99b1a8443ca5f7947f38ea4376d"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Net.ServicePoint.dll",
+      "bytes": 46888,
+      "sha256": "8969d0ea32b01b7198030afe6258d85a3021655b4f7e2291cb5521bba1f7e29f"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Net.Sockets.dll",
+      "bytes": 546600,
+      "sha256": "49e95c5a59172d80941992016eb35c965d8fb4bc05b745f85e793b6c010bdc6b"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Net.WebClient.dll",
+      "bytes": 169768,
+      "sha256": "2c8ad06a15aee44e700cbff2bdf1da0000fcaa4e8ba5524e9db1b07c3add099e"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Net.WebHeaderCollection.dll",
+      "bytes": 67368,
+      "sha256": "8db64dd40a80422673f81ec67ee9df921795b0579e5ba6cef09bffce7fef1294"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Net.WebProxy.dll",
+      "bytes": 42792,
+      "sha256": "cfd65e84a782db8180c9bb3bf6eb739f250901e1006d941d66f08d6b6edb0b0e"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Net.WebSockets.Client.dll",
+      "bytes": 100136,
+      "sha256": "41836162542928ad88ac7a0176cbdc753f63da986d668688f7fb049b2ef0aee9"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Net.WebSockets.dll",
+      "bytes": 190288,
+      "sha256": "1250d5f182a8c3655a81b1e11955d904fd147d7f770191de4004619247178629"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Numerics.dll",
+      "bytes": 15184,
+      "sha256": "adb2dda9bbfc24d694b77e1700f2df0706ff077de8f40dd09ababc92459f2e2b"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Numerics.Vectors.dll",
+      "bytes": 15656,
+      "sha256": "6e45388834e11d4a8e460f97da371d6889cdf98d7b65b300079c2f2b69ea3faf"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.ObjectModel.dll",
+      "bytes": 79656,
+      "sha256": "35187a8d7f9dc8896894d1a0a496fbabcd567f2ac0f047632f7178c308ff72f5"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Private.CoreLib.dll",
+      "bytes": 13174608,
+      "sha256": "99b168b84597a4f31fda8281efce7d42a14e2df0f4694194735e049dbc0f6418"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Private.DataContractSerialization.dll",
+      "bytes": 2082600,
+      "sha256": "f3d2acd4d5adeabb40991cd1c757d05640b64cdd89f59874cffe7bbd6ed38b97"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Private.Uri.dll",
+      "bytes": 259920,
+      "sha256": "f2a695dcd4073eaba43b4ee26f006c0174bff42673e17b38914450ca7d2547f5"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Private.Xml.dll",
+      "bytes": 7997264,
+      "sha256": "f7285c6a22e221784f1d81f884283e9dcd02aa7bfd17c428943d29e00170d749"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Private.Xml.Linq.dll",
+      "bytes": 403240,
+      "sha256": "5de081135173dd027bdc3f6285beaa31d184cff8d217d681d405e038d1819721"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Reflection.DispatchProxy.dll",
+      "bytes": 75560,
+      "sha256": "2f926a9f911d11b98c71e67b7e91f883c58b3b095794a8ac69a5cdbfd37c60c4"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Reflection.dll",
+      "bytes": 16168,
+      "sha256": "558837b6bcaf55fdbb3e7d8f565f0c04d9b415823d0abe382ac31643db3639de"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Reflection.Emit.dll",
+      "bytes": 128808,
+      "sha256": "51742f48054d452de444da58d4ac69b879a23bbc8841b4b08fc337745d50cb07"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Reflection.Emit.ILGeneration.dll",
+      "bytes": 15656,
+      "sha256": "ed892838c6ed6649ab57a436128845ec195329cdf568c99d9cb8e6f4b92c7a01"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Reflection.Emit.Lightweight.dll",
+      "bytes": 15656,
+      "sha256": "39cf409e3b41b813c9e715ec4f38bc02748499d62e89f71fd8f4dad6ebba80bb"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Reflection.Extensions.dll",
+      "bytes": 15144,
+      "sha256": "3adaaf6f0dcd0208ab0282a774801486444af53118015ac12e0c6f8623d3f3ce"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Reflection.Metadata.dll",
+      "bytes": 1115944,
+      "sha256": "1795022b24ddf1e4db47f63035b685f2a9f3e4468fb277158bb909d3b6ec00a0"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Reflection.Primitives.dll",
+      "bytes": 15656,
+      "sha256": "b15b177125f391d1caee193167caffbec4ac2586447f822ac655ace9a6bdff41"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Reflection.TypeExtensions.dll",
+      "bytes": 42792,
+      "sha256": "191c401d245fbbe8d6e0105a53db610122871168e21ac849be6fbc86bb786048"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Resources.Reader.dll",
+      "bytes": 15184,
+      "sha256": "34b31e5093ff2564fccde4b43c31330bc4cbc6cf24c38cb929d34f1ffb46d0fb"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Resources.ResourceManager.dll",
+      "bytes": 15656,
+      "sha256": "d0db07a7e954edbef7d586907574068ea2764e28acb7f5a64fd6006ee8889d93"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Resources.Writer.dll",
+      "bytes": 50984,
+      "sha256": "a09c234e643b0391367f975241592002270eb9bd5516f0d75b31f82be6426dd6"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Runtime.CompilerServices.Unsafe.dll",
+      "bytes": 15144,
+      "sha256": "69edf8cb4bfe291ff998f2ab0cea2f3b7f32664c53e9b9171a35f0664fc047cf"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Runtime.CompilerServices.VisualC.dll",
+      "bytes": 30544,
+      "sha256": "b0216c72f28e06bf4ee3c7561b5c483224847e5f40df6d939d2afbe731e2cfd2"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Runtime.dll",
+      "bytes": 43304,
+      "sha256": "e8fb5b78dc75b0650520042936fca2165a060cb4afa4b8cce90524c9c9fc3563"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Runtime.Extensions.dll",
+      "bytes": 17704,
+      "sha256": "7e7a6460090cf9170b336ca12511ea8d793c281a79ccff9f96db88db74b97ff6"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Runtime.Handles.dll",
+      "bytes": 15144,
+      "sha256": "9b193371a3e739f81e601e343c60d6214e0b3966833f4eaebdcfb49f8217e97f"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Runtime.InteropServices.dll",
+      "bytes": 96080,
+      "sha256": "1930aea4d91654a4daf13bf95b2daff023d3104a9b3794059ea139e550bcfb5f"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Runtime.InteropServices.JavaScript.dll",
+      "bytes": 50984,
+      "sha256": "7cefe89e6502602a7e0256960f5f587046016cdb9b822a104e0bf961178dcf2a"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Runtime.InteropServices.RuntimeInformation.dll",
+      "bytes": 15144,
+      "sha256": "c7fdcd989c4732af5d8c5c00a5ce68d48fa6f500dee37aa3fd716fb260b01338"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Runtime.Intrinsics.dll",
+      "bytes": 16720,
+      "sha256": "8679a62575619caa282d3fb1a1ead4680417b0384ffed8b73a2c4f7dc102c32b"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Runtime.Loader.dll",
+      "bytes": 15696,
+      "sha256": "64ac3644e7fd9279b5410e9c8d31df01f763b4a362e626e6dd96416a9f6755b3"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Runtime.Numerics.dll",
+      "bytes": 329552,
+      "sha256": "d845c2a3d8edc282d5c32fd8020c2233fbeed3eb02b5064ab8637506049cfb70"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Runtime.Serialization.dll",
+      "bytes": 16680,
+      "sha256": "a4a2cd5a396a851e444c5e6ab82c6353a1d83906b65968a15cd8d57540b4f9c3"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Runtime.Serialization.Formatters.dll",
+      "bytes": 309032,
+      "sha256": "10c352dba07e5de49fe362edd9d8a44cfc60cd0136a48eb1a5104da30d2333e5"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Runtime.Serialization.Json.dll",
+      "bytes": 15656,
+      "sha256": "70d7013dcd8aa116954f6efb1643c4db01927f75e362c5807f795e443d1eaa9a"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Runtime.Serialization.Primitives.dll",
+      "bytes": 38736,
+      "sha256": "65b4fdca2b36d551fa88c1cb8d7646ef9f29097b96487ab08fcf31f5dc9afe86"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Runtime.Serialization.Xml.dll",
+      "bytes": 16680,
+      "sha256": "875ef1fe60647f5bb00a756ad9e7bb0c4a579d35acead8386f27f8c7479ae5e0"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Security.AccessControl.dll",
+      "bytes": 231248,
+      "sha256": "149888fd2b8f15b37ba115e2bb3c0577c8db9aed6f91221902ad6c9a61a69a49"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Security.Claims.dll",
+      "bytes": 100176,
+      "sha256": "45171f0ad174047cbf511e7761d7abb2d44988e899f690c36ff3c5bcfbcb2467"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Security.Cryptography.Algorithms.dll",
+      "bytes": 17192,
+      "sha256": "e1bdf2d837d0c8c582b1f98992511421c3e5130b42603f868ef0b5c8c2609f92"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Security.Cryptography.Cng.dll",
+      "bytes": 16168,
+      "sha256": "7b6deb57bd6a2f0123527f04be5ccca9a8b30f4f09a97e6f32519b651496a7f6"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Security.Cryptography.Csp.dll",
+      "bytes": 15656,
+      "sha256": "8689e9d5ea215c4e92d8229da7dbc3fabee8997083876fed1927c4d643aef3f9"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Security.Cryptography.dll",
+      "bytes": 2049872,
+      "sha256": "1e4c4ce04a46e2a2da8221bf583ebd4f6b5149d4b32792cacc5c33978d0bb121"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Security.Cryptography.Encoding.dll",
+      "bytes": 15696,
+      "sha256": "bad69fae75cc6ea5c8cf0a953489b323857a3c8cba80418f09e98535380a6b8d"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Security.Cryptography.OpenSsl.dll",
+      "bytes": 15144,
+      "sha256": "5d580c0cafc4492dac0c4fa11ae46dd1309835ab12671b326f0b74428539d4b5"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Security.Cryptography.Primitives.dll",
+      "bytes": 15696,
+      "sha256": "a214418a0b70a48772e274ccda284d3cfc2392abf4aba55718c70324fb78a239"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Security.Cryptography.X509Certificates.dll",
+      "bytes": 16680,
+      "sha256": "07643c4b239dd2a9326c0a62491995be666a47d2c85d0455ca7379a1692fa284"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Security.dll",
+      "bytes": 18256,
+      "sha256": "ede7d28de4bfec4192915fb98b35f8979ed1e4a20a7333a7d2aea45e733a9495"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Security.Principal.dll",
+      "bytes": 15144,
+      "sha256": "aee0a10edcf634876126b0de882d01f432de3eb7cbfca0565e330efe336d6dc0"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Security.Principal.Windows.dll",
+      "bytes": 186152,
+      "sha256": "aace487981f8c9077620abf9c9d236ce5ef98241cf4222fbb49c717286f2cd0f"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Security.SecureString.dll",
+      "bytes": 15184,
+      "sha256": "a8c666cce29278836fee40d1058ebb55b56631056a26117176fce6adb793187f"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.ServiceModel.Web.dll",
+      "bytes": 16720,
+      "sha256": "059d12d427d2cf95f90f5ca817c30d12d504db13a031cf5dce53bafceacd3800"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.ServiceProcess.dll",
+      "bytes": 15656,
+      "sha256": "41a80e894c84cc938193a95a0c37fc0d3351d3b090e4fc2fe903cc384d55af2a"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Text.Encoding.CodePages.dll",
+      "bytes": 861992,
+      "sha256": "a597e456ac579a3814d4c11cd649cb188df0d4dc27ff9ae59e36664cca0927a9"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Text.Encoding.dll",
+      "bytes": 15656,
+      "sha256": "c0dda0da1aeadba8a3baa8d4704c5e4d9dadc715f72fa11c6a25899a5fa6a35b"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Text.Encoding.Extensions.dll",
+      "bytes": 15656,
+      "sha256": "9ad4679a4005eadc13af6ae025534f22648ded33ab7c1a796c70c8813ee51977"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Text.Encodings.Web.dll",
+      "bytes": 132904,
+      "sha256": "94afad93dfdd00e132467753615bfb4bc3fa6633701082a9553d6cb4eaccf2ac"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Text.Json.dll",
+      "bytes": 1501008,
+      "sha256": "9cf2e2ae44376dbea191925e571af703c6d7b53a5c138a0f0f13cd6b8af2c904"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Text.RegularExpressions.dll",
+      "bytes": 1021736,
+      "sha256": "8b3af9e3e0215b46c2dcef1f11c4cdc7ad477140883bcb5c778d04cc051bb0dc"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Threading.Channels.dll",
+      "bytes": 132944,
+      "sha256": "ab05f710069580165c588789e0623e84d213c35594e3e12ae762a6c8265740b6"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Threading.dll",
+      "bytes": 83752,
+      "sha256": "435c110b598d30f118d0e673068b535b693c5a77fae17398ad46821ce1261aba"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Threading.Overlapped.dll",
+      "bytes": 15656,
+      "sha256": "739bfb326810706f497df3b66901e5657b9835ad945fdc6728a27bf932cbafaa"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Threading.Tasks.Dataflow.dll",
+      "bytes": 489256,
+      "sha256": "39def3e572cf7e4bbf11f6565b0a25db2540d8041c2950e48029e24c14e06342"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Threading.Tasks.dll",
+      "bytes": 16680,
+      "sha256": "d965e3057dca46b1e8d56012e623a4772ab5ab009231450fdb0f4d2f3875c374"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Threading.Tasks.Extensions.dll",
+      "bytes": 15656,
+      "sha256": "336e8d8f0e79bfff0c6c38d4a7677384b7951ff66394664bf4fb866ed0bba982"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Threading.Tasks.Parallel.dll",
+      "bytes": 132904,
+      "sha256": "08ffb9101534e1644c203427bd22b3beecaab021f4ce40f4b162b898e2fa66f7"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Threading.Thread.dll",
+      "bytes": 15656,
+      "sha256": "34ed4d7d03bf9a5a5df7addc37a5b75759956fc0d949e25df61d878238bc560a"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Threading.ThreadPool.dll",
+      "bytes": 15656,
+      "sha256": "5758d73199750af708edca8456eed908b0bfdaaccd7cb2083a6c95dad4006fdb"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Threading.Timer.dll",
+      "bytes": 15144,
+      "sha256": "39e1b46a16ba5d4a4d7687dcda0b8838e45198544417d227c7f174c8e15df56d"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Transactions.dll",
+      "bytes": 16168,
+      "sha256": "2203532bf5483e00686b4f26610a6b9070e59da55f5218d4294c2c069c6fdfb9"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Transactions.Local.dll",
+      "bytes": 661328,
+      "sha256": "5428f4bcae83612694e1bec71849ffffe7ef34f62aa46daf3f01250adb019bd8"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.ValueTuple.dll",
+      "bytes": 15144,
+      "sha256": "2079ad867339bd4e2dc4d0e1c9250d9f78e4016da472c25fef3c78756244ac5b"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Web.dll",
+      "bytes": 15144,
+      "sha256": "fc90f7d949615646b8d5af798cfb2bd37fbfe21b1c790b6a2e049bea36758e2d"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Web.HttpUtility.dll",
+      "bytes": 59216,
+      "sha256": "351125823b848b8cd9e2541b1e0f13add351b6dd3c34a6acb8c243565e5c6251"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Windows.dll",
+      "bytes": 15656,
+      "sha256": "113a298c5e1887f9cc2371376e6aeadf631958c1c255ebac18282da7829d3c49"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Xml.dll",
+      "bytes": 23376,
+      "sha256": "0d13174940cbd34ccdb350b2f33037cff214420850cbf5755d9c407ba8a42407"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Xml.Linq.dll",
+      "bytes": 15656,
+      "sha256": "64cab6d274de20fb8ec0d080b96091e85af0ddfc9619869169e8c41d5c1b02c0"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Xml.ReaderWriter.dll",
+      "bytes": 21800,
+      "sha256": "7cbf62bea50b44b1350fc241281b8c5bf1373cb9ad03304b10f5b0d4805edb47"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Xml.Serialization.dll",
+      "bytes": 16168,
+      "sha256": "7823bbfdcb819bd585488adeb6612cab2357dc2df5e4a85e0f2a02079c2ec736"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Xml.XDocument.dll",
+      "bytes": 15656,
+      "sha256": "e5a4ef2a7f8c927dc5c587eeb4b5bf1a7264a89825c3d7313082447d3446a11b"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Xml.XmlDocument.dll",
+      "bytes": 15656,
+      "sha256": "48781bea76ddce3732f316bcc01bb375910b18b4d83de62b6570835e09dab363"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Xml.XmlSerializer.dll",
+      "bytes": 17744,
+      "sha256": "ea1eb8da8a46bafe8ee7a8628900e5c4a3fe23cabc7d63d5be5eb5edd3fb76fb"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Xml.XPath.dll",
+      "bytes": 15696,
+      "sha256": "cd0b232b8b161a4167b77387885b13e6bf938dfce4addfd68a646fa2e5471fcf"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\System.Xml.XPath.XDocument.dll",
+      "bytes": 30544,
+      "sha256": "01f4f51c85b1533eef9ef35fcec4c281565e661a415f7cb10422c3840c5973f7"
+    },
+    {
+      "path": "avatar\\data_AquilaAvatar_windows_x86_64\\WindowsBase.dll",
+      "bytes": 16208,
+      "sha256": "d2b82fd6347b45b6bc3ff23c60d215a8431906d25b68bf84a2ff6a0b2c46ae9e"
+    },
+    {
+      "path": "speech\\kitten-manifest.json",
+      "bytes": 4328,
+      "sha256": "15a38deab12ed3cd0fba9b554ee98ab4f3aad8bbcc3b7dffd82b0259c01cd048"
+    },
+    {
+      "path": "speech\\model-manifest.json",
+      "bytes": 1489,
+      "sha256": "e4bd2326b15a3ced4e5a2733af65c5c04e25a2b1b1a17946b6830c0a983dadb1"
+    },
+    {
+      "path": "speech\\runtime-versions.json",
+      "bytes": 55361,
+      "sha256": "0c021c2fec1f52ecba6fa0a25780276ab160789c6e738bc7903cf6260266d6e2"
+    },
+    {
+      "path": "speech\\kitten-requirements.txt",
+      "bytes": 1158,
+      "sha256": "ae19072138a9465257aabb9421d6833839a5f48dd1155dbc7c81428e4f8d7bac"
+    },
+    {
+      "path": "speech\\models/kitten/lm/model-tl2-emb4.safetensors",
+      "bytes": 492114403,
+      "sha256": "af447d02ae92ea14c733c45bbb8fb740e14efeff1643583482b5a5cd3dc5301d"
+    },
+    {
+      "path": "speech\\models/kitten/decoders/student_w4.pt",
+      "bytes": 38817934,
+      "sha256": "7e585c64b6e0d220c155b0a8ff2d3c1446e1c7b2c59800c38a11dc5aaf270560"
+    },
+    {
+      "path": "speech\\models/kitten/speaker/model.safetensors",
+      "bytes": 17418240,
+      "sha256": "c435292860671aa96e94bd19fcea055241c8ef05548e1e441a659b2bfd79fad5"
+    },
+    {
+      "path": "speech\\kitten-hub/models--ResembleAI--chatterbox-turbo/snapshots/749d1c1a46eb10492095d68fbcf55691ccf137cd/s3gen_meanflow.safetensors",
+      "bytes": 1064875036,
+      "sha256": "d65cb687a2ed581ee6cc297e919ffefa63386944f42364ae13b78a594945514f"
+    },
+    {
+      "path": "speech\\models/custom/model.safetensors",
+      "bytes": 3833402552,
+      "sha256": "38b1d5971bdbd982b561cccec982669a53b0537c3cf5e9bd4778ed07bb2f5137"
+    },
+    {
+      "path": "speech\\models/kitten/lm/model.001.safetensors",
+      "bytes": 199503960,
+      "sha256": "37e3e924bd080794b4c98069cc0bd28b43bdd0c129dfca721bf91ea4b1113daa"
+    },
+    {
+      "path": "speech\\models/kitten/lm/model.002.safetensors",
+      "bytes": 201328184,
+      "sha256": "e19b22e85288902222c403d10aa71a1f599b094adc3cc42dc310c9d7447b9ff3"
+    },
+    {
+      "path": "speech\\models/kitten/lm/model.003.safetensors",
+      "bytes": 201328184,
+      "sha256": "b8239d327a818b9a03e8b37ca351a852d629d6bb7be51980faa9d5a7ef83cbe9"
+    },
+    {
+      "path": "speech\\models/kitten/lm/model.004.safetensors",
+      "bytes": 201328184,
+      "sha256": "7c4199c90a7f322bddc3b6f6e8ad8b42ea3fcf1ff6e03e0bf62f5619f84df4e9"
+    },
+    {
+      "path": "speech\\models/kitten/lm/model.005.safetensors",
+      "bytes": 201328184,
+      "sha256": "cbf7cc631435e834221278db34f659ad1ffe63f5e79afa5db20892854aef8f84"
+    },
+    {
+      "path": "speech\\models/kitten/lm/model.006.safetensors",
+      "bytes": 201328184,
+      "sha256": "11e15fc3b4438c4694da0161564e012dea4f41c895eb3b92371edd9092deb437"
+    },
+    {
+      "path": "speech\\models/kitten/lm/model.007.safetensors",
+      "bytes": 201328176,
+      "sha256": "1561413530dee538f2bd9fc27cd7abf9ebfde71f628393e78707da3b2666448a"
+    },
+    {
+      "path": "speech\\models/kitten/lm/model.008.safetensors",
+      "bytes": 201328184,
+      "sha256": "246815cde2f1c0665c5e7a990ec131ac3e2577ba348f0573ca2291dcd7864168"
+    },
+    {
+      "path": "speech\\models/kitten/lm/model.009.safetensors",
+      "bytes": 201328184,
+      "sha256": "42995991a9ced7425a554cd6afafe8afa05a750b3f82c31418c6e9771c13559e"
+    },
+    {
+      "path": "speech\\models/kitten/lm/model.010.safetensors",
+      "bytes": 201328184,
+      "sha256": "13c92497daf268cae083d6852b747c342b9232340fd9b42f2fcac1ace9bd7054"
+    },
+    {
+      "path": "speech\\models/kitten/lm/model.011.safetensors",
+      "bytes": 201328176,
+      "sha256": "b5d001122a08d7f445e677114d79a119a4d44dc0196736bb3ad6a1c282e494c7"
+    },
+    {
+      "path": "speech\\models/kitten/lm/model.012.safetensors",
+      "bytes": 201328168,
+      "sha256": "00c26d9b2f2f68c65e00c37bcb48894b16e60c92ef797a464628ea09a3561422"
+    },
+    {
+      "path": "speech\\models/kitten/lm/model.013.safetensors",
+      "bytes": 201328168,
+      "sha256": "f122769172e790d9fc93037ae8e82512fcfe6289f17230a534c46b51ab5cb5e1"
+    },
+    {
+      "path": "speech\\models/kitten/lm/model.014.safetensors",
+      "bytes": 201328168,
+      "sha256": "cba815156ad5afc9b6377f74210d28f619cda47f968dbac5b18203ecf023dbdd"
+    },
+    {
+      "path": "speech\\models/kitten/lm/model.015.safetensors",
+      "bytes": 4194424,
+      "sha256": "6ec11d692e24a96414424545be1866d2c0d31896e3123856d187c4a01e9fcd63"
+    },
+    {
+      "path": "speech\\models/kitten/lm/model.016.safetensors",
+      "bytes": 648155248,
+      "sha256": "e62dda8cd9d4893e4e01c76c066606607a0a4edb0df97784d1ca8c058021176e"
+    },
+    {
+      "path": "SpeechWorker.py",
+      "bytes": 10049,
+      "sha256": "50721b65cf0a9f87c7a4e92a2a7514e75fb5c0c464fa5c1f8f83b44432dc87f4"
+    },
+    {
+      "path": "VOICE.md",
+      "bytes": 7942,
+      "sha256": "b46f178b164682fdb04fcff938f303f426f1844329e986f59de01f3b54840752"
+    },
+    {
+      "path": "verification\\delivery-1.9.1-checks.txt",
+      "bytes": 962,
+      "sha256": "04c32a0ff1d3389270d7ef5a0dae53a51a4b596e96ac05f9c9d0eecd815def0f"
+    },
+    {
+      "path": "verification\\delivery-1.9.1-metrics.json",
+      "bytes": 64,
+      "sha256": "0d1a74904591d88e266511d38d9e822f4adefe9ff517acf11227c3c5f25b9748"
+    },
+    {
+      "path": "verification\\clone-1.9.1-checks.txt",
+      "bytes": 859,
+      "sha256": "568e2f5a5ba93fbd34a920b1d43cf321cd32b33e1169bdde90e19cf51730f1a8"
+    },
+    {
+      "path": "verification\\core-1.9.1-checks.txt",
+      "bytes": 917,
+      "sha256": "e80dbdcd0dffbb637395a086d9c48266ef2e1be7cc5dd8f3d7579c743f24650b"
+    },
+    {
+      "path": "CONVERSATIONS.md",
+      "bytes": 7450,
+      "sha256": "f296573d1a115da696c63aed6f9d8fba1e0b8b63a905a45b5101e5ae86814a36"
+    },
+    {
+      "path": "verification\\inference-2.0-checks.txt",
+      "bytes": 1381,
+      "sha256": "0fb189c38cb1cca6b271ca8577b3fbaf7629824843c2a960ab70fcf76e6706d2"
+    },
+    {
+      "path": "verification\\inference-2.0-metrics.json",
+      "bytes": 238,
+      "sha256": "c7bd1564ac5661aca4c2bb9abf3e7034c6eec07271e21981743db7f82a9586e2"
+    },
+    {
+      "path": "verification\\core-2.0-checks.txt",
+      "bytes": 917,
+      "sha256": "e80dbdcd0dffbb637395a086d9c48266ef2e1be7cc5dd8f3d7579c743f24650b"
+    },
+    {
+      "path": "Aquila Local.pdb",
+      "bytes": 134804,
+      "sha256": "62d94fe8a1242416bd2ad3227ee8b0d3b6f61e9e077cce716012be461ed35d89"
+    },
+    {
+      "path": "README.md",
+      "bytes": 16441,
+      "sha256": "bd251cd57bcf0b8d059bc73e009af7c38322b787606b73acf12c6b6415ea776d"
+    },
+    {
+      "path": "INFERENCE.md",
+      "bytes": 3638,
+      "sha256": "ca8a30b7f7156babb5e5040a43b84e319f6dedf1b88a273e6df7ce2f267e3a9f"
+    },
+    {
+      "path": "verification\\theme-2.0.1-checks.txt",
+      "bytes": 1203,
+      "sha256": "a6056fd69e0cbc5aa89483b03d2030dece070c75b526c17089b0c4b5198b6919"
+    },
+    {
+      "path": "verification\\core-2.0.1-checks.txt",
+      "bytes": 917,
+      "sha256": "e80dbdcd0dffbb637395a086d9c48266ef2e1be7cc5dd8f3d7579c743f24650b"
+    },
+    {
+      "path": "Aquila Local.exe",
+      "bytes": 188755517,
+      "sha256": "8215744e67f5b3c7e1f4fe5bfb3e11043b21ba8464df665bd408b9cf24cbb629"
+    }
+  ],
+  "pdfReader": {
+    "package": "PdfPig",
+    "version": "0.1.16",
+    "commit": "a7bb35662bbbf405efddad50aedc9bcdcf515afc",
+    "packageSha512": "clPAR660u7oGMGO0+I4JAq3olrsbIcKO2m3JtAuOow+IbS62Pyfh00GFnG10Ngl2nizTS5+DsCSlndW6sLvNBQ==",
+    "source": "https://www.nuget.org/packages/PdfPig/0.1.16"
+  },
+  "memory": {
+    "storage": "Data/memories.json",
+    "learning": "New typed user messages after completed turns; no history backfill or attachment/tool extraction",
+    "scopes": "Personal or canonical project folder",
+    "retrieval": "MiniLM semantic similarity + lexical ranking, scoped/bounded, with keyword fallback",
+    "extraction": "Selected local model, constrained JSON, no tools/thinking, max 3 candidates, quote/value evidence validation",
+    "controls": "Independent learning/recall; inspect/edit/pin/review/forget/allow relearning",
+    "usage": "Learning input/output included in cumulative session totals with separate subset fields",
+    "limits": "5000 catalog entries, 12 MiB; 60-second extraction deadline, max 768 output tokens",
+    "verification": "23 memory checks + 29 embedding checks + profile integration and native UI"
+  },
+  "embedding": {
+    "repository": "sentence-transformers/all-MiniLM-L6-v2",
+    "revision": "1110a243fdf4706b3f48f1d95db1a4f5529b4d41",
+    "upstreamFile": "onnx/model_quint8_avx2.onnx",
+    "file": "embeddings/model.onnx",
+    "bytes": 23046789,
+    "sha256": "b941bf19f1f1283680f449fa6a7336bb5600bdcd5f84d10ddc5cd72218a0fd21",
+    "vocabularySha256": "07eced375cec144d27c900241f3e339478dec958f92fddbc551f295c992038a3",
+    "runtime": "Microsoft.ML.OnnxRuntime 1.31.1",
+    "runtimeCommit": "41d4d61f14b9c1dd0b2ccda1e9b85dd415fd0496",
+    "nativePackageSha512": "QvE8+JyhEccfOL7Oz1m+cSXZGYd4QK7/BtsdoCan0eaF2qqgOSVDV/H7hN5D5JJGesJ5vINCDLDVdHLnO0xjJw==",
+    "managedPackageSha512": "tm3+II88cNNoLWyh71GFPCeKH9BIrb5i5mLX4vVHMoPIFC/p85+Hl4G8i5qdQtB93rP21ZtzmFgTzKhRIMhFZw==",
+    "execution": "In-process CPU, 1 compute thread, no spinning, no GPU",
+    "dimensions": 384,
+    "sequenceLimit": 256,
+    "maxTextWordPieces": 1024,
+    "telemetry": "ORT_DISABLE_TELEMETRY=1 before initialization plus OrtEnv.DisableTelemetryEvents",
+    "cache": "Data/memory-vectors.bin, derived and invalidated by factual edits/forgetting",
+    "reference": "tokenizers 0.22.2 and ONNX Runtime 1.31.1, single unpadded sequences, mean pooling + L2 normalization"
+  },
+  "personalities": {
+    "storage": "Data/personalities.json",
+    "builtins": [
+      "Default",
+      "Warm & direct",
+      "Analytical",
+      "Creative storyteller"
+    ],
+    "default": "Preserves existing global instructions",
+    "examples": "Style reference only; excluded from extraction",
+    "creativeLearningDefault": false,
+    "limits": "50 profiles, 60 character names, 6000 character style and examples each"
+  },
+  "thinking": {
+    "effectiveBudget": "min(requested, response limit - min(256, half response limit))",
+    "whenOff": 0,
+    "perTurnProvenance": true,
+    "verified": "Real Deckard separated reasoning/final, correct calculation, off mode, cancellation, persistence"
+  },
+  "avatar": {
+    "phase": 1,
+    "enabledByDefault": false,
+    "engine": "Godot 4.7.2 .NET",
+    "engineCommit": "ed1daf0bf",
+    "runtime": "self-contained .NET 8.0.31",
+    "renderer": "OpenGL compatibility",
+    "importerRepository": "https://github.com/V-Sekai/godot-vrm",
+    "importerRevision": "e15199f980064028bfa4fbee5e70dddb82dd55c3",
+    "importerZipSha256": "5cb7978e3ae79e0de647bdc2e0e593ad7d79924c336fc421984ceedb290a42d7",
+    "importerChanges": "Opt-in aquila/preserve_bind_pose in VRMC_vrm._import_post: retain original rest/bind transforms and normalize bone names. Loader preserves extension order and original texture channels.",
+    "model": "Mira by rengasato / Renga Works; original Aquila Guide retained",
+    "modelFile": "avatar/Models/Mira.vrm",
+    "modelLicense": "VRM Public License 1.0 with embedded creator conditions; see licenses/Mira-*",
+    "modelSha256": "761e45c592fcb9a4d11c0fa419fedea793171caf3c24bf3360be9c3113c622a9",
+    "protocol": "Version 1 session/sequence checked state JSON over authenticated loopback WebSocket",
+    "authentication": "Random 256-bit launch token in child environment, never logs or command line",
+    "lifetime": "Independent child in kill-on-close Windows Job; graceful shutdown and bounded fallback",
+    "defaultFps": 30,
+    "minimizedFps": 5,
+    "verification": "26 avatar + 20 library + 1 abrupt-exit checks; native folder selection and Mira/guide viewport renders",
+    "speech": "Amplitude-driven mouth motion and reply mood while local audio plays"
+  },
+  "conversations": {
+    "deletion": "Right-click row or Delete key scoped to list; shared confirmation with default No; GUID-bound local file deletion",
+    "memoryDeletion": "Separate; explicit prompt explains retained memories and backups",
+    "compaction": "Manual, per-session, selected model and thinking settings; original transcript preserved",
+    "keepRecentTurns": 4,
+    "maxPrefixTurnsPerOperation": 32,
+    "outputLimit": 2048,
+    "summaryCharacterLimit": 16000,
+    "limits": "Exact token preflight; one generation; 8-minute CPU / 3-minute GPU deadline; cancellation and no-shrink guards",
+    "tokenAccounting": "Persistent per-session compaction input/output overhead; reset does not reset totals",
+    "checkpoint": "Summary + through-turn anchor, date, model, covered count and diagnostic token counts",
+    "images": "Raw pixels excluded from summary; recorded descriptions/text attachments only",
+    "verification": "22 conversation checks plus native menu, confirmation and summary-viewer inspection"
+  },
+  "internet": {
+    "modes": [
+      "Off",
+      "Ask first",
+      "Automatic"
+    ],
+    "default": "Off",
+    "provider": "Brave Search API; user-supplied key",
+    "credentials": "Windows-user DPAPI encrypted in settings; never supplied to model or page requests",
+    "workflow": "Typed-question freshness/URL preflight and model-directed web_search/web_read through bounded tool loop",
+    "backgroundBrowsing": false,
+    "maxLookupsPerTurn": 6,
+    "maxSearchResults": 5,
+    "maxResponseBytes": 1048576,
+    "maxExcerptCharacters": 7000,
+    "network": "Public HTTP/HTTPS default ports; DNS address checked at socket connect; cookies/proxy disabled; validated redirects",
+    "sources": "Turn.WebSources with retrieval timestamps and app-generated source footer; clickable HTTP/HTTPS links",
+    "verification": "32 checks; live public page and local-model answer; search API fixture only, no real provider key used"
+  },
+  "emoji": {
+    "renderer": "Emoji.Wpf 0.3.4 with Windows Segoe UI Emoji",
+    "dependencies": [
+      "Stfu 0.1.1",
+      "Typography.GlyphLayout and Typography.OpenFont bundled by Emoji.Wpf"
+    ],
+    "preference": "Opt-in prompt for occasional emoji; Unicode retained in selection, storage and export",
+    "verification": "9 targeted checks including CPU model output and offscreen color rendering; 22 core regression checks"
+  },
+  "voice": {
+    "engines": [
+      "Kitten TTS 2",
+      "Qwen3-TTS CustomVoice",
+      "Installed Windows voices"
+    ],
+    "defaultEnabled": false,
+    "defaultVoice": "Kitten: Luna",
+    "sampleLocation": "Data/voice-samples",
+    "selection": "Speak only after a complete turn. Replay is explicit.",
+    "privacy": "Bundled offline worker; no remote speech, uploads, or Whisper dependency",
+    "verification": {
+      "checks": 14,
+      "coldCloneMs": 20614,
+      "warmPresetMs": 5071,
+      "compute": "CUDA / two torch CPU threads",
+      "reference": "Synthetic Windows voice",
+      "speechLimits": "Local WAV and transcript"
+    },
+    "speechProvenance": "speech/kitten-manifest.json",
+    "delivery": {
+      "defaultAutoTags": false,
+      "defaultReveal": false,
+      "cueStorage": "Bounded mood and inline event offsets separate from reply text",
+      "kittenPace": "Pitch-preserving bundled librosa time stretch",
+      "checks": {
+        "targeted": 13,
+        "cloning": 14,
+        "core": 22
+      }
+    }
+  },
+  "inference": {
+    "backend": "llama.cpp b12110 cd959bae9",
+    "detection": "DXGI dedicated capacity, Vulkan device and free budget, and Windows RAM",
+    "high": "32K default, 64K max, full GPU offload, Flash Attention, q8_0",
+    "laptop": "16K default, 24K max, mmap without mlock, Flash Attention, q8_0 or q4_0",
+    "moe": "--n-cpu-moe for detected sparse GGUFs",
+    "sampling": "Editable creative profile with live DRY detection and repeat-penalty fallback",
+    "context": "Exact server token counting and whole-pair eviction with the system prompt pinned",
+    "verification": {
+      "checks": 19,
+      "detected": "B · Constrained laptop",
+      "ramGiB": 15.210445404052734,
+      "gpu": "NVIDIA GeForce RTX 4060 Laptop GPU",
+      "vramGiB": 7.76953125,
+      "SlotContext": 24576,
+      "q4Model": "Deckard-4B-Q4_K_M.gguf"
+    }
+  }
+}

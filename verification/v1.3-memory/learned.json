@@ -1,0 +1,27 @@
+[
+  {
+    "Id": "78030898ff734a9e8185b603b155ee0c",
+    "Scope": "personal",
+    "Kind": "preference",
+    "Topic": "project_codename",
+    "Value": "SILVER-OTTER-426",
+    "State": "active",
+    "Pinned": false,
+    "Origin": "automatic",
+    "Sources": [
+      {
+        "ChatId": "a741905e59c1479bb7693cbd21c16932",
+        "TurnId": "9528da24799e4472b1956589d9e2729c",
+        "Quote": "my project codename is SILVER-OTTER-426",
+        "At": "2026-11-12T06:21:18.5917758-08:00"
+      }
+    ],
+    "Created": "2026-11-12T06:21:20.626196-08:00",
+    "Updated": "2026-11-12T06:21:20.6261962-08:00",
+    "LastUsed": null,
+    "Confirmations": 1,
+    "ReplacedBy": "",
+    "ScopeLabel": "Personal",
+    "Display": "project_codename \u00B7 Personal \u00B7 active"
+  }
+]

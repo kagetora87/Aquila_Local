@@ -1,0 +1,14 @@
+PASS Import requires a transcript and leaves no profile on validation failure
+PASS A local sample can be prepared without appearing as a saved voice
+PASS Imported WAV is normalized and bounded
+PASS Bundled Kitten TTS 2 clones an imported draft offline
+PASS Kitten can play a preset through the same warm worker
+PASS Clone and preset produce distinct audio for identical text
+PASS Saved profile reloads and leaves the source recording intact
+PASS A named clone can be saved as the active voice
+PASS Color emoji stay in chat and are omitted from speech
+PASS Aquila saves the final local chat text before starting Kitten
+PASS The final chat reply plays using the saved clone
+PASS Cancelled chat text does not start speech
+PASS Closing Aquila releases its owned speech process
+PASS Deleting a clone removes the local copy and preserves the original

@@ -1,0 +1,20 @@
+PASS Bundled default resolves to the exact downloaded Mira model and author
+PASS Mira and the preserved guide advertise blink and mouth presets
+PASS Bundled model selections use portable identities
+PASS Folder listing includes local VRM files and both built-ins without unrelated files
+PASS External model paths with spaces resolve exactly
+PASS A missing saved selection remains visible for correction instead of silently changing characters
+PASS Folder/model selection persists independently of enabling the avatar
+PASS Unbounded avatar paths are rejected by settings validation
+PASS Invalid binary files are rejected before invoking Godot
+PASS VRM 0.x gets an explicit re-export-as-1.0 explanation
+PASS External texture paths and URLs are rejected without any fetch
+PASS Exported child loads the selected default Mira independently
+PASS An invalid selection leaves the currently running avatar intact
+PASS A missing model leaves the currently running avatar intact
+PASS Switching back to the guide restarts only the avatar process
+PASS A model selected from an external folder loads in the exported child
+PASS All five state commands apply with the folder-loaded Mira model
+PASS Stopping a folder-loaded model releases the child and listener
+PASS Mira and guide import without runtime errors or skin/spring failures
+PASS Normal main-window settings saves preserve the chosen avatar folder and file

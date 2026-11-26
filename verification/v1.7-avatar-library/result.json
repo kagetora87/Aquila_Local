@@ -1,0 +1,36 @@
+{
+  "checks": 20,
+  "mira": {
+    "Name": "Mira",
+    "Authors": "rengasato",
+    "LicenseUrl": "https://vrm.dev/licenses/1.0/",
+    "Usage": "Avatar use: everyone \u00B7 Redistribution: allowed",
+    "Blink": true,
+    "Mouth": true,
+    "Bytes": 17133756
+  },
+  "robot": {
+    "Name": "Aquila Guide",
+    "Authors": "Aquila Local project",
+    "LicenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "Usage": "Avatar use: everyone \u00B7 Redistribution: allowed",
+    "Blink": true,
+    "Mouth": true,
+    "Bytes": 873620
+  },
+  "folderChoices": [
+    {
+      "Key": "",
+      "Label": "Mira \u00B7 bundled"
+    },
+    {
+      "Key": "builtin:guide",
+      "Label": "Aquila Guide \u00B7 bundled"
+    },
+    {
+      "Key": "C:\\Users\\kaget\\Documents\\Codex\\2026-11-11\\if\\work\\avatar-library-final-1.7\\Custom avatars with spaces\\Mira custom.vrm",
+      "Label": "Mira custom"
+    }
+  ],
+  "exportedRendererVerified": true
+}

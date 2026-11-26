@@ -1,0 +1,23 @@
+PASS Automatic entries preserve exact supporting user quote and chat/turn provenance
+PASS Repeated processing of one turn does not duplicate evidence
+PASS Corrections supersede old facts without retrieving stale values
+PASS Pinned conflict waits for review and cannot replace active memory automatically
+PASS Project memory is isolated by canonical folder and personal scope crosses projects
+PASS Automatic project facts cannot become personal without explicit global wording
+PASS Explicit across-project preferences can be personal and recalled in another workspace
+PASS Fabricated source quotes cannot enter the memory catalog
+PASS Values must be directly supported by their quoted user text
+PASS Forgetting clears all topic versions and evidence, blocks automatic relearning
+PASS Explicit relearning control removes the forgotten-topic block
+PASS Catalog and scope survive a fresh store instance
+PASS Concurrent writers retain every edit through the catalog mutex
+PASS Retrieval obeys its memory character budget
+PASS Corrupt catalog is preserved and recovered without losing the original file
+PASS Likely secrets, fictional instructions and explicit non-remember requests skip automatic extraction
+PASS Real Deckard automatically extracts a durable fact with validated source evidence
+PASS Memory inference overhead is counted once in cumulative session tokens
+PASS Real model recalls saved information in a separate conversation with no source history
+PASS Real extraction recognizes a correction and retrieval excludes the superseded fact
+PASS Disabling recall prevents memory injection into a new chat
+PASS Disabling learning makes no extraction request
+PASS Memory verification unloads its model and releases the GPU

@@ -1,0 +1,8 @@
+{
+  "checks": 14,
+  "coldCloneMs": 20614,
+  "warmPresetMs": 5071,
+  "compute": "CUDA / two torch CPU threads",
+  "reference": "Synthetic Windows voice",
+  "speechLimits": "Local WAV and transcript"
+}

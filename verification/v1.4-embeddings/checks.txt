@@ -1,0 +1,29 @@
+PASS ONNX telemetry is disabled before embedding runtime initialization
+PASS Reference tokenizer parity: fixture 0
+PASS Reference tokenizer parity: fixture 1
+PASS Reference tokenizer parity: fixture 2
+PASS Reference tokenizer parity: fixture 3
+PASS Reference tokenizer parity: fixture 4
+PASS Reference tokenizer parity: fixture 5
+PASS Reference tokenizer parity: fixture 6
+PASS Reference tokenizer parity: fixture 7
+PASS Reference tokenizer parity: fixture 8
+PASS Reference mean-pooling/normalization parity: fixture 0
+PASS Reference mean-pooling/normalization parity: fixture 1
+PASS Reference mean-pooling/normalization parity: fixture 2
+PASS Reference mean-pooling/normalization parity: fixture 3
+PASS Reference mean-pooling/normalization parity: fixture 4
+PASS Reference mean-pooling/normalization parity: fixture 5
+PASS Reference mean-pooling/normalization parity: fixture 6
+PASS Reference mean-pooling/normalization parity: fixture 7
+PASS Semantic paraphrase similarity outranks unrelated text
+PASS Semantic recall finds a paraphrase while excluding another project's pinned memory
+PASS Cached memories require only the new query embedding on repeated recall
+PASS Memory vectors persist and are reused by a fresh app instance
+PASS Editing a memory invalidates its old vector before the next query
+PASS Forgetting immediately removes cached vectors and prevents their retrieval
+PASS Unavailable embeddings fall back to working keyword recall
+PASS Semantic recall still obeys the memory prompt budget
+PASS Embedding search honors cancellation
+PASS Corrupt derived vector cache rebuilds from the intact memory catalog
+PASS Hybrid selection excludes unrelated preferences while retaining relevant pinned facts

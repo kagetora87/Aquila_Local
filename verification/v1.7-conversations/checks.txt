@@ -1,0 +1,22 @@
+PASS Deletion removes only the selected chat and its temporary snapshot
+PASS Deleting a missing saved file is safe and preserves neighbors
+PASS Deletion rejects path traversal IDs
+PASS Declining confirmation keeps the selected chat in UI and storage
+PASS Confirmed command deletes the selected chat and selects its neighbor
+PASS Chat deletion preserves separately learned memories as the prompt explains
+PASS Deleting the last chat opens a fresh blank conversation
+PASS Delete shortcut is restricted to the conversation list
+PASS Closing the window does not resurrect a deleted chat
+PASS Compaction preserves four recent complete turns and requires earlier history
+PASS Real Deckard summary preserves the project identifier and corrected units
+PASS Compaction covers a contiguous prefix and produces a smaller token-counted representation
+PASS Summary generation leaves all original messages and the active checkpoint unchanged until committed
+PASS Compaction checkpoint and cumulative overhead survive persistence exactly once
+PASS Future requests retain the most recent four turns verbatim and exclude summarized originals
+PASS An invalid summary anchor falls back to original history without dropping turns
+PASS Real chat recalls summarized facts after the original turns are excluded from input
+PASS Repeated compaction merges the earlier summary and advances the checkpoint with additional accounted usage
+PASS Cancellation before inference preserves the previous checkpoint and usage totals
+PASS Oversized earliest turns are rejected without skipping history or starting inference
+PASS Resetting compaction restores original history eligibility without resetting cumulative usage
+PASS Verification unloads the model after the bounded GPU run

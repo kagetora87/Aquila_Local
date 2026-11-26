@@ -1,0 +1,32 @@
+﻿# Model weights and large binaries
+*.gguf
+*.safetensors
+*.onnx
+*.pt
+*.bin
+*.rar
+*.zip
+*.vrm
+Models/
+models/
+# Runtimes / environments
+venv/
+.venv/
+speech/python/
+speech/kitten-packages/
+speech/kitten-hub/
+node_modules/
+bin/
+obj/
+# User data
+Data/chats/
+Data/logs/
+Data/speech-temp/
+Data/voice-samples/
+Data/memories.json
+Data/memory-vectors.bin
+*.log
+# Secrets
+.env
+*.pfx
+*.key

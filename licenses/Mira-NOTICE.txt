@@ -1,0 +1,17 @@
+Mira by rengasato / Renga Works
+Source: https://booth.pm/en/items/8684534
+Original Mira-vrm.zip supplied by the user from the publisher download.
+Archive SHA-256: caea65d54e1c3e83f4e46cd9e619e299dfd112bd27cac7516ce6c74ec7c3aece
+Mira.vrm SHA-256: 761e45c592fcb9a4d11c0fa419fedea793171caf3c24bf3360be9c3113c622a9
+The 17,133,756-byte VRM file is distributed unchanged.
+
+Licence: https://vrm.dev/licenses/1.0/ with the model's embedded conditions.
+See Mira-VRM-META.json and Mira-publisher-README.txt for the original conditions.
+The embedded metadata permits avatar use by everyone, corporate commercial use,
+redistribution and modification/redistribution, and does not require credit.
+It disallows excessively sexual or violent use, political/religious use and
+antisocial/hateful use. These conditions belong to this character asset.
+
+Aquila applies an in-memory presentation pose and procedural facial movement.
+The local importer patch preserves the original rest/bind transforms and only
+normalizes bone names. It does not rewrite or modify the source VRM file.

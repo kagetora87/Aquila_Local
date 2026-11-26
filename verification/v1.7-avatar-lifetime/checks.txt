@@ -1,0 +1,1 @@
+PASS Abrupt main-process exit closes the owned avatar through its Windows Job

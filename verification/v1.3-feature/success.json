@@ -1,0 +1,6 @@
+{
+  "passed": 20,
+  "model": "Deckard-4B-Q4_K_M.gguf",
+  "gpu": true,
+  "finished": "2026-11-12T06:21:32.3294175-08:00"
+}

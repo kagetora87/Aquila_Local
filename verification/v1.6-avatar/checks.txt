@@ -1,0 +1,26 @@
+PASS Avatar defaults off with a bounded camera and frame rate
+PASS Disabled avatar setting survives save/reload
+PASS Protocol rejects unsupported versions and stale sessions
+PASS Protocol rejects unknown states and invalid presentation values
+PASS Disabled subsystem creates no listener or process
+PASS Exported avatar launches independently and loads the real VRM model
+PASS Connection uses loopback with a fresh session and launch token
+PASS Exported renderer applies state: idle
+PASS Exported renderer applies state: listening
+PASS Exported renderer applies state: thinking
+PASS Exported renderer applies state: speaking
+PASS Exported renderer applies state: interrupted
+PASS Unauthenticated WebSocket connection is rejected without disturbing the avatar
+PASS Browser-origin connection is rejected
+PASS Camera and frame-rate configuration are acknowledged from actual Godot state
+PASS Avatar reconnects and receives the latest state after a dropped connection
+PASS Avatar failure is isolated from the main harness process
+PASS Restart replaces the process, session and credentials
+PASS Existing inference works while the avatar receives answer lifecycle events
+PASS Shutdown closes the avatar process, socket and listener
+PASS Existing chat remains functional with the avatar stopped and disabled
+PASS Missing renderer fails cleanly without leaking a listener
+PASS Enabled avatar and presentation settings persist
+PASS Avatar logs contain neither launch secrets nor runtime script errors
+PASS Actual main window closes cleanly with avatar disabled
+PASS Actual main window closes cleanly with avatar enabled

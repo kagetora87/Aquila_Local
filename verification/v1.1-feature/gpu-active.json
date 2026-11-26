@@ -1,0 +1,239 @@
+{
+  "Adapters": [
+    {
+      "Name": "NVIDIA GeForce RTX 4060 Laptop GPU",
+      "Key": "0x00000000_0x00011f18",
+      "DedicatedBytes": 8342470656,
+      "Index": 0,
+      "Label": "NVIDIA GeForce RTX 4060 Laptop GPU"
+    },
+    {
+      "Name": "AMD Radeon(TM) 610M",
+      "Key": "0x00000000_0x00014a30",
+      "DedicatedBytes": 509374464,
+      "Index": 1,
+      "Label": "AMD Radeon(TM) 610M"
+    }
+  ],
+  "Apps": [
+    {
+      "Name": "System",
+      "AdapterKey": "0x00000000_0x00011f18",
+      "Utilization": 7.9209544689875955,
+      "LocalBytes": 4235264,
+      "Pids": "4",
+      "UsageLabel": "7.9%",
+      "MemoryLabel": "4 MB"
+    },
+    {
+      "Name": "ChatGPT",
+      "AdapterKey": "0x00000000_0x00011f18",
+      "Utilization": 0.089054237082471,
+      "LocalBytes": 50741248,
+      "Pids": "14392, 37132",
+      "UsageLabel": "0.1%",
+      "MemoryLabel": "48 MB"
+    },
+    {
+      "Name": "dwm",
+      "AdapterKey": "0x00000000_0x00011f18",
+      "Utilization": 0.0827297016289705,
+      "LocalBytes": 263036928,
+      "Pids": "2632",
+      "UsageLabel": "0.1%",
+      "MemoryLabel": "251 MB"
+    },
+    {
+      "Name": "System",
+      "AdapterKey": "0x00000000_0x00014a30",
+      "Utilization": 0.05122647179106849,
+      "LocalBytes": 823296,
+      "Pids": "4",
+      "UsageLabel": "0.1%",
+      "MemoryLabel": "1 MB"
+    },
+    {
+      "Name": "explorer",
+      "AdapterKey": "0x00000000_0x00011f18",
+      "Utilization": 0.0015260438850680127,
+      "LocalBytes": 64651264,
+      "Pids": "14836, 42332",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "62 MB"
+    },
+    {
+      "Name": "Aquila model",
+      "AdapterKey": "0x00000000_0x00011f18",
+      "Utilization": 0,
+      "LocalBytes": 3557912576,
+      "Pids": "42052",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "3.31 GB"
+    },
+    {
+      "Name": "brave",
+      "AdapterKey": "0x00000000_0x00011f18",
+      "Utilization": 0,
+      "LocalBytes": 36782080,
+      "Pids": "11552, 28804",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "35 MB"
+    },
+    {
+      "Name": "brave",
+      "AdapterKey": "0x00000000_0x00014a30",
+      "Utilization": 0,
+      "LocalBytes": 24403968,
+      "Pids": "28804",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "23 MB"
+    },
+    {
+      "Name": "4kvideodownloaderplus",
+      "AdapterKey": "0x00000000_0x00011f18",
+      "Utilization": 0,
+      "LocalBytes": 17756160,
+      "Pids": "17324",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "17 MB"
+    },
+    {
+      "Name": "csrss",
+      "AdapterKey": "0x00000000_0x00011f18",
+      "Utilization": 0,
+      "LocalBytes": 16707584,
+      "Pids": "1200",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "16 MB"
+    },
+    {
+      "Name": "msedgewebview2",
+      "AdapterKey": "0x00000000_0x00011f18",
+      "Utilization": 0,
+      "LocalBytes": 12750848,
+      "Pids": "20780",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "12 MB"
+    },
+    {
+      "Name": "codex-computer-use-swift",
+      "AdapterKey": "0x00000000_0x00011f18",
+      "Utilization": 0,
+      "LocalBytes": 12517376,
+      "Pids": "51016",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "12 MB"
+    },
+    {
+      "Name": "steamwebhelper",
+      "AdapterKey": "0x00000000_0x00011f18",
+      "Utilization": 0,
+      "LocalBytes": 11825152,
+      "Pids": "23060",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "11 MB"
+    },
+    {
+      "Name": "pia-client",
+      "AdapterKey": "0x00000000_0x00011f18",
+      "Utilization": 0,
+      "LocalBytes": 11333632,
+      "Pids": "28348",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "11 MB"
+    },
+    {
+      "Name": "Taskmgr",
+      "AdapterKey": "0x00000000_0x00011f18",
+      "Utilization": 0,
+      "LocalBytes": 8454144,
+      "Pids": "34012",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "8 MB"
+    },
+    {
+      "Name": "NVIDIA Overlay",
+      "AdapterKey": "0x00000000_0x00011f18",
+      "Utilization": 0,
+      "LocalBytes": 8310784,
+      "Pids": "16256, 18248",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "8 MB"
+    },
+    {
+      "Name": "RadeonSoftware",
+      "AdapterKey": "0x00000000_0x00011f18",
+      "Utilization": 0,
+      "LocalBytes": 8253440,
+      "Pids": "14660",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "8 MB"
+    },
+    {
+      "Name": "codex-computer-use",
+      "AdapterKey": "0x00000000_0x00011f18",
+      "Utilization": 0,
+      "LocalBytes": 8171520,
+      "Pids": "37488",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "8 MB"
+    },
+    {
+      "Name": "ApplicationFrameHost",
+      "AdapterKey": "0x00000000_0x00011f18",
+      "Utilization": 0,
+      "LocalBytes": 8085504,
+      "Pids": "32600",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "8 MB"
+    },
+    {
+      "Name": "PhoneExperienceHost",
+      "AdapterKey": "0x00000000_0x00011f18",
+      "Utilization": 0,
+      "LocalBytes": 7929856,
+      "Pids": "13660",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "8 MB"
+    },
+    {
+      "Name": "StartMenuExperienceHost",
+      "AdapterKey": "0x00000000_0x00011f18",
+      "Utilization": 0,
+      "LocalBytes": 7675904,
+      "Pids": "17072",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "7 MB"
+    },
+    {
+      "Name": "SearchHost",
+      "AdapterKey": "0x00000000_0x00011f18",
+      "Utilization": 0,
+      "LocalBytes": 7671808,
+      "Pids": "17048",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "7 MB"
+    },
+    {
+      "Name": "ChatGPT",
+      "AdapterKey": "0x00000000_0x00014a30",
+      "Utilization": 0,
+      "LocalBytes": 2936832,
+      "Pids": "37132",
+      "UsageLabel": "0.0%",
+      "MemoryLabel": "3 MB"
+    }
+  ],
+  "LocalUsage": {
+    "0x00000000_0x00011f18": 4033142784,
+    "0x00000000_0x000149fa": 8192,
+    "0x00000000_0x00014a30": 29077504
+  },
+  "Error": null,
+  "At": "2026-11-11T22:20:53.5649716-08:00",
+  "EngineUsage": {
+    "0x00000000_0x00011f18": 7.9209544689875955,
+    "0x00000000_0x00014a30": 0.05122647179106849,
+    "0x00000000_0x000149fa": 0
+  }
+}

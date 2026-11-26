@@ -1,0 +1,6 @@
+{
+  "passed": 22,
+  "engine": "b12110 CPU-only / two threads / below-normal priority",
+  "model": "Qwen3-0.6B-Q4_K_M.gguf",
+  "finished": "2026-11-12T20:03:24.9098899-08:00"
+}

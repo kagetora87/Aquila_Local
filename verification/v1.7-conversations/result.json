@@ -1,0 +1,25 @@
+{
+  "checks": 22,
+  "checkpoint": {
+    "Summary": "Project Context: The user is managing a small warehouse planning project codenamed CEDAR-7319. The previous summary contained no data, so this summary relies on the provided transcript.\n\nKey Decisions and Constraints:\n1.  **Measurement Units:** All project measurements must be recorded and used in centimeters; inches are to be excluded.\n2.  **Delivery Date:** No committed delivery date exists. Any suggested dates are merely suggestions and must not be treated as commitments.\n3.  **Reference Material:** A synthetic reference document was provided and reviewed. It identifies a specific inventory label as BLUE-427.\n\nUnresolved Items:\n*   The specific delivery date remains undecided.\n*   The project is currently in the planning/organization phase, having reviewed an existing checklist without making a final decision on organization structure.\n\nNext Steps:\n*   Continue planning the warehouse layout using centimeters.\n*   Await confirmation or further input regarding the undecided delivery date without binding it to the project schedule.\n*   Proceed with warehouse planning tasks based on the reference material identifying inventory label BLUE-427.\n\nUncertainities:\n*   The delivery date is explicitly noted as undecided; any future mention of a date is hypothetical until confirmed.\n*   The synthetic reference document is external to the project team and its validity depends on its own internal logic.",
+    "ThroughTurnId": "ca2e2e79a72d4ec183fdbb40468a1028",
+    "CoveredTurns": 4,
+    "Created": "2026-11-13T15:00:53.0986573-08:00",
+    "Model": "Deckard-4B-Q4_K_M.gguf",
+    "SourceTokens": 1552,
+    "SummaryTokens": 458
+  },
+  "repeatedCheckpoint": {
+    "Summary": "**Project Handoff Summary: CEDAR-7319**\n\n**Context:** The user manages a small warehouse planning project codenamed CEDAR-7319. The project is currently in the planning/organization phase.\n\n**Key Constraints \u0026 Preferences:**\n1.  **Measurement Units:** All project measurements must be recorded and used in centimeters; inches are to be excluded.\n2.  **Delivery Date:** No committed delivery date exists. Any suggested dates are merely suggestions and must not be treated as commitments.\n3.  **Reference Material:** A synthetic reference document was reviewed. It identifies a specific inventory label as BLUE-427.\n4.  **Checklist Status:** The user asked for an explanation of why a checklist is helpful. The assistant explained that checklists record steps and reduce omissions. The existing checklist was reviewed, but no additional final decision was made regarding organization structure.\n\n**Unresolved Items:**\n*   **Delivery Date:** The specific delivery date remains undecided. Any future mention of a date is hypothetical until confirmed.\n*   **Layout:** The specific warehouse layout is not yet finalized.\n*   **Reference Validity:** The synthetic reference document is external to the project team; its validity depends on its own internal logic.\n\n**Next Steps:**\n*   Continue planning the warehouse layout using centimeters.\n*   Await confirmation or further input regarding the undecided delivery date without binding it to the project schedule.\n*   Proceed with warehouse planning tasks based on the reference material identifying inventory label BLUE-427.\n\n**User Goals:**\n*   Maintain accurate record-keeping (checklist utility acknowledged).\n*   Ensure all measurements adhere to the centimeter standard.\n*   Avoid treating suggested deadlines as firm commitments.\n\n**Uncertainties:**\n*   The delivery date is explicitly noted as undecided.\n*   The synthetic reference document\u0027s external origin introduces potential validity uncertainties.\n*   The project remains in the preliminary organization phase.",
+    "ThroughTurnId": "ef521b7919c549c886d4aa45522ff741",
+    "CoveredTurns": 5,
+    "Created": "2026-11-13T15:01:20.3611651-08:00",
+    "Model": "Deckard-4B-Q4_K_M.gguf",
+    "SourceTokens": 796,
+    "SummaryTokens": 604
+  },
+  "answer": "Our project codename is **CEDAR-7319**, and the preferred measurement unit is **centimeters**.",
+  "totalTokens": 6366,
+  "cpuThreads": 2,
+  "context": 8192
+}

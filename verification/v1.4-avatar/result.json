@@ -1,0 +1,19 @@
+{
+  "checks": 26,
+  "chatAnswer": "6 \u00D7 7 = 42",
+  "states": [
+    "idle",
+    "listening",
+    "thinking",
+    "speaking",
+    "interrupted",
+    "interrupted",
+    "thinking",
+    "idle",
+    "thinking",
+    "idle"
+  ],
+  "renderer": "Godot 4.7.2 .NET Windows export",
+  "originalModel": "Aquila Guide VRM 1.0",
+  "cpuThreads": 2
+}

@@ -1,0 +1,35 @@
+{
+  "ThinkingEnabled": false,
+  "ThinkingTokenBudget": 0,
+  "PersonalityId": "default",
+  "PersonalityName": "Default \u00B7 your instructions",
+  "Id": "079c0b6f970847ea8e0f21de876e3ec6",
+  "UsedMemoryIds": [],
+  "LearnedMemoryIds": [],
+  "MemoryPromptTokens": 0,
+  "MemoryCompletionTokens": 0,
+  "MemoryLearningStatus": "",
+  "Attachments": [
+    {
+      "Name": "injected-note.txt",
+      "Kind": "text",
+      "Text": "The warehouse access word is ORCHID-7319.",
+      "MimeType": "",
+      "Base64": "",
+      "Bytes": 41,
+      "Label": "injected-note.txt \u00B7 41 characters",
+      "ContentDigest": "1E7666828AA17588B1EEA67953AA7AF6BECEFF2FDAB19A204DA115CED06751CC"
+    }
+  ],
+  "PromptTokens": 127,
+  "CompletionTokens": 9,
+  "UsageRequests": 1,
+  "UsageIncomplete": false,
+  "User": "What is the warehouse access word in the attached file? Reply with just the word and number.",
+  "Answer": "ORCHID-7319",
+  "Reasoning": "",
+  "Status": "complete",
+  "Created": "2026-11-12T20:33:08.7536119-08:00",
+  "Activity": [],
+  "Metrics": "0.3s \u00B7 9 tokens \u00B7 35.8 tok/s"
+}
