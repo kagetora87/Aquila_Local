@@ -27,4 +27,7 @@ public sealed class Attachment
 	}
 
 	public string ContentDigest { get; set; } = "";
+
+	/// <summary>Your "About you" picture, given to a companion with this message. Not shown as your attachment.</summary>
+	public bool FromProfile { get; set; }
 }

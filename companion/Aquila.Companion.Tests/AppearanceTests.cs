@@ -283,3 +283,24 @@ public sealed class AppearanceCapTests
         rt.Prepare("still fine?", new HashSet<string>(), false, TestPersona.T0.AddMinutes(1));
     }
 }
+
+public sealed class AboutUserTests
+{
+    [Fact]
+    public void Her_system_prompt_carries_the_users_profile_and_how_to_react()
+    {
+        using var dir = new TempDir();
+        PersonaConfig c = TestPersona.Config();
+        PersonaStore store = PersonaStore.Create(dir.File("v.db"), c, TestPersona.T0);
+        CompanionRuntime rt = CompanionRuntime.ForTests(c, store, new FakeEmbedder());
+        rt.AboutUser = "Nickname: Ru\nAge: 38";
+
+        PreparedTurn p = rt.Prepare("hi", new HashSet<string>(), false, TestPersona.T0);
+
+        Assert.Contains("Nickname: Ru", p.SystemPrompt);
+        Assert.Contains("react tool", p.SystemPrompt);
+        Assert.True(p.SystemPrompt.IndexOf("Nickname: Ru", StringComparison.Ordinal) < p.SystemPrompt.IndexOf("Takeru lives in Japan.", StringComparison.Ordinal));
+        rt.AboutUser = new string('x', 3000);
+        Assert.Throws<PersonaConfigException>(() => rt.Assemble());
+    }
+}

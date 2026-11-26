@@ -40,6 +40,9 @@ public sealed class Agent(Engine engine, MemoryStore? memories = null, SemanticM
 
 	public event Action? AnswerStarted;
 
+	/// <summary>The companion reacted to the user's message with an emoji.</summary>
+	public event Action<string>? Reacted;
+
 	private void Log(Turn turn, string text)
 	{
 		turn.Activity.Add(text);
@@ -87,6 +90,24 @@ public sealed class Agent(Engine engine, MemoryStore? memories = null, SemanticM
 			}
 			AquilaLocal.Companion.CompanionRuntime runtime = Companion.Open(session.PersonaId);
 			CompanionRuntime = runtime;
+			runtime.AboutUser = Companion.LoadAboutYou().Render();
+			bool chatStart = !session.Turns.Any((Turn t) => t != turn && t.Status == "complete");
+			Attachment? picture = Companion.AboutYouPicture();
+			if (picture != null && (chatStart || session.AboutYouPictureSeen != picture.ContentDigest) && !turn.Attachments.Any((Attachment a) => a.FromProfile))
+			{
+				if (string.IsNullOrWhiteSpace(settings.ProjectorPath))
+				{
+					Log(turn, "Your About you picture wasn't shown to " + session.PersonaName + ": the loaded model has no vision projector.");
+				}
+				else
+				{
+					picture.FromProfile = true;
+					picture.Name = "This is a picture of the person you're talking with, from their About you profile:";
+					turn.Attachments.Add(picture);
+					session.AboutYouPictureSeen = picture.ContentDigest;
+					Log(turn, session.PersonaName + " was shown your About you picture.");
+				}
+			}
 			int index = session.Turns.IndexOf(turn);
 			List<Turn> earlier = session.Turns.Take(index < 0 ? session.Turns.Count : index).Where((Turn t) => t.Status == "complete").ToList();
 			string userText = turn.User;
@@ -287,6 +308,7 @@ public sealed class Agent(Engine engine, MemoryStore? memories = null, SemanticM
 				if (persona && CompanionRuntime != null)
 				{
 					jsonArray.Add(ChangeOutfitDefinition.DeepClone());
+					jsonArray.Add(ReactDefinition.DeepClone());
 				}
 				if (web != null)
 				{
@@ -550,6 +572,10 @@ public sealed class Agent(Engine engine, MemoryStore? memories = null, SemanticM
 				{
 					text8 = ChangeOutfit(CompanionRuntime, call.Arguments.ToString(), turn);
 				}
+				else if (text3 == "react" && persona)
+				{
+					text8 = React(call.Arguments.ToString(), turn);
+				}
 				else if ((text3 == "web_search" || text3 == "web_read") ? true : false)
 				{
 					string text7 = ((web != null) ? (await web.ExecuteAsync(call.Name, call.Arguments.ToString(), ct)) : "Web access is off.");
@@ -580,6 +606,55 @@ public sealed class Agent(Engine engine, MemoryStore? memories = null, SemanticM
 
 	/// <summary>Her read-write interface to her appearance card: she can log a wardrobe change, never touch her permanent traits.</summary>
 	private static readonly JsonNode ChangeOutfitDefinition = JsonNode.Parse("{\"type\":\"function\",\"function\":{\"name\":\"change_outfit\",\"description\":\"Change what you are wearing. It is logged in your wardrobe diary with the time and your reason, and your appearance card updates. Give only what changes; anything left out stays the same. Your permanent traits can't be changed.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"outfit\":{\"type\":\"string\",\"description\":\"What you are wearing now, e.g. 'oversized grey hoodie and bare feet'\"},\"color\":{\"type\":\"string\"},\"fabric\":{\"type\":\"string\"},\"condition\":{\"type\":\"string\",\"description\":\"e.g. neat, rumpled, rain-soaked\"},\"reason\":{\"type\":\"string\",\"description\":\"Why you are changing, in a few words\"}},\"required\":[\"reason\"],\"additionalProperties\":false}}}")!;
+
+	private static readonly JsonNode ReactDefinition = JsonNode.Parse("{\"type\":\"function\",\"function\":{\"name\":\"react\",\"description\":\"React to their latest message with one emoji, shown on their message like a chat-app reaction. Use it when the message really warrants it; it doesn't replace your reply.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"emoji\":{\"type\":\"string\",\"description\":\"Exactly one emoji\"}},\"required\":[\"emoji\"],\"additionalProperties\":false}}}")!;
+
+	private string React(string arguments, Turn turn)
+	{
+		string emoji;
+		try
+		{
+			emoji = (JsonNode.Parse(arguments)?["emoji"]?.GetValue<string>() ?? "").Trim();
+		}
+		catch (Exception ex) when (ex is JsonException || ex is InvalidOperationException || ex is FormatException)
+		{
+			return "Not reacted: give one emoji.";
+		}
+		if (!IsSingleEmoji(emoji))
+		{
+			return "Not reacted: give exactly one emoji, nothing else.";
+		}
+		turn.Reaction = emoji;
+		this.Reacted?.Invoke(emoji);
+		return "Reacted " + emoji + " to their message. Now reply as usual, without mentioning the reaction.";
+	}
+
+	/// <summary>One emoji (which may be built from several code points, like a skin tone or a ZWJ sequence), with no letters or digits.</summary>
+	internal static bool IsSingleEmoji(string text)
+	{
+		if (text.Length == 0 || text.Length > 16 || text.Any(char.IsWhiteSpace))
+		{
+			return false;
+		}
+		if (System.Globalization.StringInfo.ParseCombiningCharacters(text).Length > 4)
+		{
+			return false;
+		}
+		bool symbol = false;
+		for (int i = 0; i < text.Length; i++)
+		{
+			char c = text[i];
+			if (char.IsLetterOrDigit(c) && c != '\u20e3')
+			{
+				return false;
+			}
+			if (char.IsHighSurrogate(c) || c >= '\u2190')
+			{
+				symbol = true;
+			}
+		}
+		return symbol;
+	}
 
 	private static string ChangeOutfit(AquilaLocal.Companion.CompanionRuntime runtime, string arguments, Turn turn)
 	{

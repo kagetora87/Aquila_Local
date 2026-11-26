@@ -114,6 +114,22 @@ flagging, say, a missing beauty mark) attach later through the `IImageRenderer` 
 interfaces. Wardrobe changes she makes herself are handed to the satisfaction loop (`TurnObservation.SelfChanges`),
 ready for scoring later.
 
+## Reactions
+
+She can react to your message with one emoji, like a chat-app reaction (the `react` tool). It shows on the
+lower edge of your message bubble as soon as she reacts, and it's saved with the chat. Her instructions tell
+her to react when a message really lands (good news, a joke, affection, a picture, a confession, a surprise),
+to skip routine messages, not to be shy when it fits, and to pick the emoji that fits the moment. A reaction
+never replaces her reply.
+
+## About you
+
+Companions → About you is your own profile: what to call you, age, appearance, background and anything else.
+Every companion reads it (it's yours, not part of any persona's memory), in her stable system prompt, so it
+costs nothing extra per turn. Your picture is shown to her (with the vision model) on the first message of
+each chat, and once more whenever you change it. Files: `Data\personas\about-you.json` and
+`about-you-picture.json`.
+
 ## Fail loud
 
 If her state can't be read (file missing, damaged, belongs to another persona, a drive missing or impossible,

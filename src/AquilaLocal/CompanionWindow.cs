@@ -110,6 +110,19 @@ public sealed class CompanionWindow : AquilaWindow
 			}
 		};
 		body.Children.Add(Ui.Group("Persona", picker));
+		AboutYou? about = null;
+		try
+		{
+			about = host.LoadAboutYou();
+		}
+		catch (PersonaConfigException ex)
+		{
+			body.Children.Add(Warning(ex.Message));
+		}
+		if (about != null)
+		{
+			body.Children.Add(Section("About you (every companion reads this)", AboutYouView(about), expanded: about.Render().Length == 0));
+		}
 		Button primary = Ui.Button("Start a chat", "Btn.Primary");
 		primary.IsEnabled = false;
 		if (personaId.Length > 0)
@@ -547,6 +560,118 @@ public sealed class CompanionWindow : AquilaWindow
 			list.Add(new AppearanceTrait { Name = line.Substring(0, colon).Trim(), Text = line.Substring(colon + 1).Trim() });
 		}
 		return list;
+	}
+
+	// ---- about you -----------------------------------------------------------------------------------
+
+	private UIElement AboutYouView(AboutYou about)
+	{
+		StackPanel panel = new StackPanel();
+		TextBlock intro = Ui.Text("Tell your companions who you are. They read this at the start of every reply. Your picture is shown to them at the start of each chat, and again whenever you change it (this needs a vision model, which you have).", "Type.Small");
+		intro.TextWrapping = TextWrapping.Wrap;
+		intro.Margin = new Thickness(0, 0, 0, 8);
+		panel.Children.Add(intro);
+		TextBox nickname = Field(panel, "What they should call you (nickname)", about.Nickname);
+		TextBox age = Field(panel, "Age", about.Age);
+		panel.Children.Add(Ui.Text("Your appearance", "Type.Caption"));
+		TextBox appearance = Multiline(about.Appearance, 70);
+		appearance.MaxLength = AboutYou.MaxFieldChars;
+		panel.Children.Add(appearance);
+		panel.Children.Add(Ui.Text("Your background", "Type.Caption"));
+		TextBox background = Multiline(about.Background, 90);
+		background.MaxLength = AboutYou.MaxFieldChars;
+		panel.Children.Add(background);
+		panel.Children.Add(Ui.Text("Anything else they should know", "Type.Caption"));
+		TextBox other = Multiline(about.Other, 70);
+		other.MaxLength = AboutYou.MaxFieldChars;
+		panel.Children.Add(other);
+		Button save = Ui.Button("Save About you", "Btn.Primary", delegate
+		{
+			try
+			{
+				host.SaveAboutYou(new AboutYou { Nickname = nickname.Text.Trim(), Age = age.Text.Trim(), Appearance = appearance.Text.Trim(), Background = background.Text.Trim(), Other = other.Text.Trim() });
+				Ok("Saved. Your companions read it from their next reply.");
+				Build();
+			}
+			catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+			{
+				Problem("Not saved: " + ex.Message);
+			}
+		});
+		save.HorizontalAlignment = HorizontalAlignment.Left;
+		save.Margin = new Thickness(0, 10, 0, 0);
+		panel.Children.Add(save);
+
+		panel.Children.Add(Label("Your picture"));
+		WrapPanel row = new WrapPanel();
+		Attachment? picture = null;
+		try
+		{
+			picture = host.AboutYouPicture();
+		}
+		catch (PersonaConfigException ex)
+		{
+			panel.Children.Add(Warning(ex.Message));
+		}
+		if (picture != null)
+		{
+			try
+			{
+				System.Windows.Media.Imaging.BitmapImage image = new System.Windows.Media.Imaging.BitmapImage();
+				image.BeginInit();
+				image.StreamSource = new MemoryStream(Convert.FromBase64String(picture.Base64));
+				image.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+				image.DecodePixelHeight = 160;
+				image.EndInit();
+				image.Freeze();
+				row.Children.Add(new Border { CornerRadius = new CornerRadius(8), ClipToBounds = true, Margin = new Thickness(0, 0, 12, 8), Child = new System.Windows.Controls.Image { Source = image, Height = 120, Stretch = Stretch.Uniform } });
+			}
+			catch (Exception ex) when (ex is FormatException || ex is NotSupportedException || ex is IOException)
+			{
+			}
+		}
+		Button choose = Ui.Button(picture == null ? "Choose a picture of you…" : "Change picture…", "Btn.Secondary", delegate
+		{
+			OpenFileDialog dialog = new OpenFileDialog { Filter = "Pictures|*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.webp;*.tif;*.tiff", Title = "Choose a picture of you" };
+			if (dialog.ShowDialog(this) != true)
+			{
+				return;
+			}
+			try
+			{
+				host.SetAboutYouPicture(dialog.FileName);
+				Ok("Picture saved. Your companions will see it in their next reply.");
+			}
+			catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is NotSupportedException || ex is ArgumentException || ex is FileFormatException || ex is InvalidOperationException)
+			{
+				Problem("That picture couldn't be used: " + ex.Message);
+			}
+			Build();
+		});
+		choose.Margin = new Thickness(0, 0, 8, 8);
+		choose.VerticalAlignment = VerticalAlignment.Bottom;
+		row.Children.Add(choose);
+		if (picture != null)
+		{
+			Button remove = Ui.Button("Remove", "Btn.Ghost", delegate
+			{
+				try
+				{
+					host.RemoveAboutYouPicture();
+					Ok("Picture removed.");
+				}
+				catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+				{
+					Problem(ex.Message);
+				}
+				Build();
+			});
+			remove.Margin = new Thickness(0, 0, 8, 8);
+			remove.VerticalAlignment = VerticalAlignment.Bottom;
+			row.Children.Add(remove);
+		}
+		panel.Children.Add(row);
+		return panel;
 	}
 
 	// ---- appearance ----------------------------------------------------------------------------------

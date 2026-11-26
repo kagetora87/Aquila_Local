@@ -119,6 +119,9 @@ public partial class MainWindow : AquilaWindow
 	/// <summary>The reply view of each turn in the open chat, so notices like "New memory created" can be added later.</summary>
 	private readonly Dictionary<string, MessageView> replyViews = new Dictionary<string, MessageView>();
 
+	/// <summary>Your message view of each turn in the open chat, so a companion's emoji reaction can be shown on it.</summary>
+	private readonly Dictionary<string, MessageView> userViews = new Dictionary<string, MessageView>();
+
 	private Turn? activeTurn;
 
 	private bool dirtyRender;
@@ -1861,13 +1864,16 @@ public partial class MainWindow : AquilaWindow
 		ChatTitle.Text = current.Title;
 		ImageSource? avatar = RefreshChatAvatar(current);
 		replyViews.Clear();
+		userViews.Clear();
 		Welcome.Visibility = ((current.Turns.Count != 0) ? Visibility.Collapsed : Visibility.Visible);
 		foreach (Turn turn in current.Turns)
 		{
 			MessageView messageView = new MessageView("You");
 			messageView.ShowPictures(turn.Attachments);
 			messageView.Update(Attachments.VisibleText(turn), "", null, "", renderMarkdown: false);
+			messageView.SetReaction(turn.Reaction, current.Speaker);
 			Messages.Children.Add(messageView);
+			userViews[turn.Id] = messageView;
 			MessageView messageView2 = new MessageView(current.Speaker, animate: false, avatar);
 			ShowReply(messageView2, turn, generating: false);
 			Messages.Children.Add(messageView2);
@@ -2139,6 +2145,7 @@ public partial class MainWindow : AquilaWindow
 		messageView.ShowPictures(turn.Attachments);
 		messageView.Update(Attachments.VisibleText(turn), "", null, "", renderMarkdown: false);
 		Messages.Children.Add(messageView);
+		userViews[turn.Id] = messageView;
 		live = new MessageView(session.Speaker, animate: true, replyAvatar);
 		ShowReply(live, turn, generating: true);
 		Messages.Children.Add(live);
@@ -2155,6 +2162,16 @@ public partial class MainWindow : AquilaWindow
 		Agent agent = new Agent(engine, memories, semantic, personalities);
 		agent.Companion = companion;
 		agent.ApproveWeb = (string action) => Task.FromResult(AquilaDialog.Confirm(this, "Allow web lookup?", action + "\n\nThis search or address will be sent over the internet.", "Allow", "Don't allow"));
+		agent.Reacted += delegate(string emoji)
+		{
+			base.Dispatcher.InvokeAsync(delegate
+			{
+				if (current == session && userViews.TryGetValue(turn.Id, out MessageView? view))
+				{
+					view.SetReaction(emoji, session.Speaker);
+				}
+			});
+		};
 		agent.AnswerStarted += delegate
 		{
 			SetAvatarState("thinking", turn.Id);

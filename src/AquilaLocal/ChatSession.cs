@@ -52,6 +52,9 @@ public class ChatSession
 	/// one persona's conversation can never be continued by another.</summary>
 	public string PersonaId { get; set; } = "";
 
+	/// <summary>The About you picture the companion was last shown in this chat, so a new one is shown once.</summary>
+	public string AboutYouPictureSeen { get; set; } = "";
+
 	public string PersonaName { get; set; } = "";
 
 	[System.Text.Json.Serialization.JsonIgnore]

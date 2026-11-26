@@ -276,6 +276,80 @@ public sealed class CompanionHost : IDisposable
 		}
 	}
 
+	// ---- About you: the user's own profile, shared by every companion ---------------------------------
+
+	private string AboutYouPath => Path.Combine(Registry.Root, "about-you.json");
+
+	private string AboutYouPicturePath => Path.Combine(Registry.Root, "about-you-picture.json");
+
+	/// <summary>Your profile, or an empty one. A damaged file is reported, never silently replaced.</summary>
+	public AboutYou LoadAboutYou()
+	{
+		if (!File.Exists(AboutYouPath))
+		{
+			return new AboutYou();
+		}
+		try
+		{
+			return System.Text.Json.JsonSerializer.Deserialize<AboutYou>(File.ReadAllText(AboutYouPath), PersonaConfig.Json) ?? new AboutYou();
+		}
+		catch (System.Text.Json.JsonException ex)
+		{
+			throw new PersonaConfigException("Your \"About you\" file (" + AboutYouPath + ") isn't valid: " + ex.Message, ex);
+		}
+	}
+
+	public void SaveAboutYou(AboutYou about)
+	{
+		Directory.CreateDirectory(Registry.Root);
+		string tmp = AboutYouPath + ".tmp";
+		File.WriteAllText(tmp, System.Text.Json.JsonSerializer.Serialize(about, PersonaConfig.Json));
+		File.Move(tmp, AboutYouPath, overwrite: true);
+	}
+
+	/// <summary>Your picture, prepared for the vision model (turned upright and sized), or null when none is set.</summary>
+	public Attachment? AboutYouPicture()
+	{
+		if (!File.Exists(AboutYouPicturePath))
+		{
+			return null;
+		}
+		try
+		{
+			return System.Text.Json.JsonSerializer.Deserialize<Attachment>(File.ReadAllText(AboutYouPicturePath), PersonaConfig.Json);
+		}
+		catch (System.Text.Json.JsonException ex)
+		{
+			throw new PersonaConfigException("Your \"About you\" picture (" + AboutYouPicturePath + ") couldn't be read: " + ex.Message, ex);
+		}
+	}
+
+	public void SetAboutYouPicture(string file)
+	{
+		Attachment picture = Attachments.Read(file);
+		if (picture.Kind != "image")
+		{
+			throw new ArgumentException("That file isn't a picture.");
+		}
+		picture.FromProfile = true;
+		if (string.IsNullOrEmpty(picture.ContentDigest))
+		{
+			picture.ContentDigest = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Convert.FromBase64String(picture.Base64)));
+		}
+		Directory.CreateDirectory(Registry.Root);
+		string tmp = AboutYouPicturePath + ".tmp";
+		File.WriteAllText(tmp, System.Text.Json.JsonSerializer.Serialize(picture, PersonaConfig.Json));
+		File.Move(tmp, AboutYouPicturePath, overwrite: true);
+	}
+
+	public void RemoveAboutYouPicture()
+	{
+		if (File.Exists(AboutYouPicturePath))
+		{
+			File.Delete(AboutYouPicturePath);
+		}
+	}
+
 	public static Summarizer SummarizerFor(CompanionRuntime runtime, Engine engine, int contextTokens)
 	{
 		return new Summarizer(runtime.Config, runtime.Store, new EngineGenerator(engine))
@@ -287,5 +361,35 @@ public sealed class CompanionHost : IDisposable
 	public void Dispose()
 	{
 		embedder.Dispose();
+	}
+}
+
+/// <summary>Your own profile ("About you"). Every companion reads it; it's yours, not part of any persona's memory.</summary>
+public sealed class AboutYou
+{
+	public const int MaxFieldChars = 600;
+
+	public string Nickname { get; set; } = "";
+	public string Age { get; set; } = "";
+	public string Appearance { get; set; } = "";
+	public string Background { get; set; } = "";
+	public string Other { get; set; } = "";
+
+	public string Render()
+	{
+		List<string> lines = new List<string>();
+		void Add(string label, string value)
+		{
+			if (!string.IsNullOrWhiteSpace(value))
+			{
+				lines.Add(label + ": " + value.Trim());
+			}
+		}
+		Add("What to call them", Nickname);
+		Add("Age", Age);
+		Add("Appearance", Appearance);
+		Add("Background", Background);
+		Add("Also", Other);
+		return string.Join("\n", lines);
 	}
 }

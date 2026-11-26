@@ -22,6 +22,9 @@ public class Turn
 	/// <summary>Wardrobe diary entries she wrote during this turn (through change_outfit).</summary>
 	public List<long> CompanionWardrobeIds { get; set; } = new List<long>();
 
+	/// <summary>The companion's emoji reaction to this message, if she gave one.</summary>
+	public string Reaction { get; set; } = "";
+
 	public string SpeechMood { get; set; } = "neutral";
 
 	public string SpeechMoodSource { get; set; } = "default";

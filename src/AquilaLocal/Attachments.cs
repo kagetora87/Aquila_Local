@@ -264,7 +264,7 @@ public static class Attachments
 			jsonArray.Add(new JsonObject
 			{
 				["type"] = "text",
-				["text"] = "Attached image: " + item2.Name
+				["text"] = item2.FromProfile ? item2.Name : ("Attached image: " + item2.Name)
 			});
 			jsonArray.Add(new JsonObject
 			{
@@ -281,6 +281,7 @@ public static class Attachments
 
 	public static string VisibleText(Turn turn)
 	{
-		return turn.User + ((turn.Attachments.Count == 0) ? "" : ("\n\nAttached: " + string.Join(" · ", turn.Attachments.Select((Attachment a) => a.Name))));
+		List<Attachment> shown = turn.Attachments.Where((Attachment a) => !a.FromProfile).ToList();
+		return turn.User + ((shown.Count == 0) ? "" : ("\n\nAttached: " + string.Join(" · ", shown.Select((Attachment a) => a.Name))));
 	}
 }

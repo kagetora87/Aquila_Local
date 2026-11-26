@@ -37,6 +37,9 @@ public sealed class CompanionRuntime
 
     private readonly List<WardrobeEntry> selfChanges = new();
 
+    /// <summary>The user's own "About you" profile (shared by all companions; it isn't persona memory). Set by the app.</summary>
+    public string AboutUser { get; set; } = "";
+
     private CompanionRuntime(PersonaConfig config, PersonaStore store, IEmbedder embedder, ISatisfactionScorer scorer)
     {
         Config = config;
@@ -121,7 +124,7 @@ public sealed class CompanionRuntime
         AppearanceCard card = Store.ReadAppearance();
         string top = DriveEngine.TopDrive(Config, drives);
         string achievements = ContextInjector.AchievementsBlock(Store.Achievements(ContextInjector.AchievementsShown), Store.AchievementCount());
-        return (ContextInjector.Assemble(Config, Store.ReadSummary(), drives, top, card, achievements), top, card);
+        return (ContextInjector.Assemble(Config, Store.ReadSummary(), drives, top, card, achievements, AboutUser), top, card);
     }
 
     /// <summary>

@@ -33,6 +33,17 @@ public sealed class MessageView : Border
 	/// <summary>Small clickable notices under a reply's header, such as "New memory created".</summary>
 	private readonly WrapPanel notices = new WrapPanel { Visibility = Visibility.Collapsed, Margin = new Thickness(0.0, 0.0, 0.0, 8.0) };
 
+	/// <summary>The persona's emoji reaction to this (user) message, overlapping the bubble's lower edge.</summary>
+	private readonly Border reaction = new Border
+	{
+		Visibility = Visibility.Collapsed,
+		HorizontalAlignment = HorizontalAlignment.Right,
+		Margin = new Thickness(0.0, -10.0, 14.0, 0.0),
+		Padding = new Thickness(7.0, 1.0, 7.0, 2.0),
+		CornerRadius = new CornerRadius(11.0),
+		BorderThickness = new Thickness(1.0)
+	};
+
 	private readonly System.Windows.Controls.TextBox? thoughts;
 
 	private readonly Expander? thoughtsExpander;
@@ -109,7 +120,9 @@ public sealed class MessageView : Border
 			DockPanel.SetDock(actions, Dock.Left);
 			dock.Children.Add(actions);
 			dock.Children.Add(border);
-			base.Child = dock;
+			reaction.Background = Ui.Brush("Surface.3");
+			reaction.BorderBrush = Ui.Brush("Surface.1");
+			base.Child = new StackPanel { Children = { dock, reaction } };
 		}
 		else
 		{
@@ -238,11 +251,24 @@ public sealed class MessageView : Border
 		}
 	}
 
+	/// <summary>Shows (or, with an empty string, hides) the persona's emoji reaction to this message.</summary>
+	public void SetReaction(string emoji, string who)
+	{
+		if (string.IsNullOrEmpty(emoji))
+		{
+			reaction.Visibility = Visibility.Collapsed;
+			return;
+		}
+		reaction.Child = new Emoji.Wpf.TextBlock { Text = emoji, FontSize = 15.0 };
+		reaction.ToolTip = who + " reacted " + emoji;
+		reaction.Visibility = Visibility.Visible;
+	}
+
 	/// <summary>Shows the attached pictures as thumbnails; clicking one opens it larger.</summary>
 	public void ShowPictures(IEnumerable<Attachment> attachments)
 	{
 		pictures.Children.Clear();
-		foreach (Attachment a in attachments.Where((Attachment x) => x.Kind == "image" && x.Base64.Length > 0))
+		foreach (Attachment a in attachments.Where((Attachment x) => x.Kind == "image" && x.Base64.Length > 0 && !x.FromProfile))
 		{
 			System.Windows.Media.Imaging.BitmapImage image;
 			try
