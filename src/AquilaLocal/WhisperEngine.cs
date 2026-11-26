@@ -213,7 +213,8 @@ public sealed class WhisperEngine : IDisposable
 	}
 
 	/// <param name="language">"en", "ja", ... or "auto".</param>
-	public async Task<List<TranscriptSegment>> TranscribeAsync(byte[] wav, string language, CancellationToken ct)
+	/// <param name="prompt">Optional spelling hint (the wake word, persona names) so names come out as you write them.</param>
+	public async Task<List<TranscriptSegment>> TranscribeAsync(byte[] wav, string language, CancellationToken ct, string prompt = "")
 	{
 		HttpClient client = http ?? throw new ListeningUnavailableException("The speech recognizer isn't running.");
 		using MultipartFormDataContent form = new MultipartFormDataContent();
@@ -223,6 +224,10 @@ public sealed class WhisperEngine : IDisposable
 		form.Add(new StringContent("0.0"), "temperature");
 		form.Add(new StringContent("verbose_json"), "response_format");
 		form.Add(new StringContent(string.IsNullOrWhiteSpace(language) ? "auto" : language), "language");
+		if (!string.IsNullOrWhiteSpace(prompt))
+		{
+			form.Add(new StringContent(prompt), "prompt");
+		}
 		using HttpResponseMessage response = await client.PostAsync("inference", form, ct);
 		string body = await response.Content.ReadAsStringAsync(ct);
 		if (!response.IsSuccessStatusCode)

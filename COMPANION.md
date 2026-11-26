@@ -159,6 +159,22 @@ each chat, and once more whenever you change it. Files: `Data\personas\about-you
   missing speech recognizer turns listening off with a message saying why. Aquila never quietly switches
   back to typing.
 
+## "Aquila" voice commands
+
+Right-click the microphone → **Listen for "Aquila" while the app is running**. In standby the microphone
+checks short bursts of speech only for the wake word; everything else is thrown away at once (never shown,
+sent or kept). After the wake word (a chime), say a command, or say it all at once ("Aquila, call Vicki"):
+
+- **"Let's talk"** (or "let's chat", "talk to me", "can we talk"…): full listening in the current chat.
+  Back to standby after "Aquila, stop listening" or 2 quiet minutes.
+- **"Call Vicki"**: opens her ongoing "Call with Vicki" chat; she picks up and every reply is spoken in her
+  own voice even when voice is otherwise off. "Aquila, hang up" or clicking the microphone ends the call.
+- **"Hang up"**, **"Stop listening"**.
+
+The wake word, the sound-alikes the recognizer sometimes writes, and every phrase are editable in
+**Voice commands…** (right-click the microphone), saved to `Data\voice-commands.json`. Wordings not in the
+list are matched by meaning (local embeddings), and persona names are matched by sound ("Vicky" is Vicki).
+
 ## Scenes (several personas together)
 
 Sidebar → **Scenes**. A scene is three layers working as one:

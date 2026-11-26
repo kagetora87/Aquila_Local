@@ -1634,7 +1634,7 @@ public partial class MainWindow : AquilaWindow
 
 	private async Task SpeakCompletedReply(ChatSession session, Turn turn)
 	{
-		if (!settings.Voice.Enabled || turn.Status != "complete")
+		if ((!settings.Voice.Enabled && !session.IsCall) || turn.Status != "complete")
 		{
 			return;
 		}
@@ -1789,6 +1789,10 @@ public partial class MainWindow : AquilaWindow
 		{
 			NewChat();
 		}
+		base.Loaded += delegate
+		{
+			_ = StartWakeIfEnabledAsync();
+		};
 		renderTimer = new DispatcherTimer
 		{
 			Interval = TimeSpan.FromMilliseconds(100.0)

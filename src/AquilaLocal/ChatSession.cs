@@ -57,6 +57,9 @@ public class ChatSession
 
 	public string PersonaName { get; set; } = "";
 
+	/// <summary>A voice call with this persona (started with "Aquila, call ..."): her replies are always spoken.</summary>
+	public bool IsCall { get; set; }
+
 	[System.Text.Json.Serialization.JsonIgnore]
 	public bool IsCompanion => !string.IsNullOrEmpty(PersonaId);
 

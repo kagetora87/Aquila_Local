@@ -38,10 +38,10 @@ public partial class MainWindow
 		{
 			base.Dispatcher.InvokeAsync(delegate
 			{
-				if (!featuresClosing)
+				if (!featuresClosing && (voiceMode == VoiceMode.Talk || voiceMode == VoiceMode.Call))
 				{
 					MicButton.ToolTip = text + " (click to stop listening · right-click for settings)";
-					ComposerHint.Text = text;
+					ComposerHint.Text = voiceMode == VoiceMode.Call ? text + " · on a call with " + callSession?.PersonaName + " (say \u201c" + voiceCommands.WakeWord + ", hang up\u201d or click the microphone)" : text;
 				}
 			});
 		};
@@ -95,7 +95,8 @@ public partial class MainWindow
 			base.Dispatcher.InvokeAsync(async delegate
 			{
 				waitingSpoken = "";
-				if (featuresClosing)
+				lastSpeech = DateTime.UtcNow;
+				if (featuresClosing || (voiceMode != VoiceMode.Talk && voiceMode != VoiceMode.Call))
 				{
 					return;
 				}
@@ -124,9 +125,30 @@ public partial class MainWindow
 			{
 				if (!featuresClosing)
 				{
+					voiceMode = VoiceMode.Off;
 					ShowListening(on: false);
 					Notice(text);
 					UiSounds.Play(UiSound.Notice);
+				}
+			});
+		};
+		input.WakeHeard += delegate(string rest)
+		{
+			base.Dispatcher.InvokeAsync(delegate
+			{
+				if (!featuresClosing)
+				{
+					OnWake(rest);
+				}
+			});
+		};
+		input.CommandHeard += delegate(string text)
+		{
+			base.Dispatcher.InvokeAsync(delegate
+			{
+				if (!featuresClosing)
+				{
+					OnCommand(text);
 				}
 			});
 		};
@@ -159,13 +181,40 @@ public partial class MainWindow
 		{
 			return;
 		}
+		switch (voiceMode)
+		{
+		case VoiceMode.Call:
+			EndCall();
+			return;
+		case VoiceMode.Talk:
+			if (settings.Listening.WakeEnabled)
+			{
+				EnterStandby();
+			}
+			else
+			{
+				StopListening();
+			}
+			return;
+		case VoiceMode.Standby:
+		case VoiceMode.Command:
+			EnterTalk();
+			return;
+		}
+		if (await EnsureListeningAsync())
+		{
+			EnterTalk();
+		}
+	}
+
+	/// <summary>Starts the microphone and recognizer if they aren't running. Problems are shown, never hidden.</summary>
+	private async Task<bool> EnsureListeningAsync()
+	{
 		VoiceInput input = Listener();
+		RefreshVoiceCommands();
 		if (input.Listening)
 		{
-			input.Flush();
-			input.Stop();
-			ShowListening(on: false);
-			return;
+			return true;
 		}
 		listeningStarting = true;
 		MicButton.IsEnabled = false;
@@ -173,23 +222,26 @@ public partial class MainWindow
 		try
 		{
 			await input.StartAsync(settings.Listening, monitorCancellation.Token);
-			ShowListening(on: true);
 			input.SetHerVoicePlaying(speech.Active);
+			return true;
 		}
 		catch (ListeningUnavailableException ex)
 		{
+			voiceMode = VoiceMode.Off;
 			ShowListening(on: false);
 			Notice(ex.Message);
 			UiSounds.Play(UiSound.Notice);
 		}
 		catch (Exception ex2) when (ex2 is System.IO.IOException || ex2 is System.Net.Http.HttpRequestException || ex2 is System.ComponentModel.Win32Exception || ex2 is UnauthorizedAccessException)
 		{
+			voiceMode = VoiceMode.Off;
 			ShowListening(on: false);
 			Notice("Listening couldn't start: " + ex2.Message);
 			UiSounds.Play(UiSound.Notice);
 		}
 		catch (OperationCanceledException)
 		{
+			voiceMode = VoiceMode.Off;
 			ShowListening(on: false);
 		}
 		finally
@@ -197,6 +249,15 @@ public partial class MainWindow
 			listeningStarting = false;
 			MicButton.IsEnabled = true;
 		}
+		return false;
+	}
+
+	private void StopListening()
+	{
+		listener?.Flush();
+		listener?.Stop();
+		voiceMode = VoiceMode.Off;
+		ShowListening(on: false);
 	}
 
 	private void ShowListening(bool on)
@@ -276,6 +337,35 @@ public partial class MainWindow
 			SaveListening();
 		};
 		menu.Items.Add(interrupt);
+		menu.Items.Add(new Separator());
+		MenuItem wake = new MenuItem { Header = "Listen for \u201c" + voiceCommands.WakeWord + "\u201d while the app is running", IsCheckable = true, IsChecked = settings.Listening.WakeEnabled };
+		wake.Click += delegate
+		{
+			settings.Listening.WakeEnabled = wake.IsChecked;
+			try
+			{
+				store.SaveSettings(settings);
+			}
+			catch (Exception ex) when (ex is System.IO.IOException || ex is UnauthorizedAccessException)
+			{
+				Notice("Couldn't save the listening setting: " + ex.Message);
+			}
+			if (wake.IsChecked && voiceMode == VoiceMode.Off)
+			{
+				_ = StartWakeIfEnabledAsync();
+			}
+			else if (!wake.IsChecked && (voiceMode == VoiceMode.Standby || voiceMode == VoiceMode.Command))
+			{
+				StopListening();
+			}
+		};
+		menu.Items.Add(wake);
+		MenuItem commands = new MenuItem { Header = "Voice commands…" };
+		commands.Click += delegate
+		{
+			OpenVoiceCommands();
+		};
+		menu.Items.Add(commands);
 		if (MicButton.ContextMenu == null)
 		{
 			MicButton.ContextMenu = menu;
@@ -294,10 +384,8 @@ public partial class MainWindow
 		}
 		if (listener?.Listening == true)
 		{
-			// Restart so the new microphone or pause length takes effect right away.
-			listener.Stop();
-			ShowListening(on: false);
-			Mic_Click(MicButton, new RoutedEventArgs());
+			// Restart so the new microphone or pause length takes effect right away, in the same mode.
+			_ = RestartListeningAsync();
 		}
 	}
 

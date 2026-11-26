@@ -20,6 +20,9 @@ public sealed class ListeningOptions
 	/// <summary>Send by itself when you pause; off means what you said waits in the message box for Enter.</summary>
 	public bool AutoSend { get; set; } = true;
 
+	/// <summary>Keep listening for the wake word ("Aquila") whenever the app is running.</summary>
+	public bool WakeEnabled { get; set; }
+
 	/// <summary>Settings layout version, so older saved defaults can be moved to better ones once.</summary>
 	public int Version { get; set; }
 
@@ -31,6 +34,14 @@ public sealed class ListeningOptions
 
 	/// <summary>Your usual speaking level, learned as you talk, so "quietly" and "loudly" mean something.</summary>
 	public double TypicalLevel { get; set; }
+}
+
+/// <summary>What listening is doing: a normal conversation, waiting only for the wake word, or waiting for a command after it.</summary>
+public enum ListenMode
+{
+	Conversation,
+	Standby,
+	Command
 }
 
 /// <param name="Text">What you said with notes: "[paused 1.8s]", "[trailed off]" and so on.</param>
@@ -88,6 +99,15 @@ public sealed class VoiceInput : IDisposable
 
 	public bool Listening => mic != null;
 
+	/// <summary>Standby only checks for the wake word and throws everything else away (never shown or kept).</summary>
+	public ListenMode Mode { get; set; } = ListenMode.Conversation;
+
+	/// <summary>The wake word and commands.</summary>
+	public VoiceCommandSet Commands { get; set; } = VoiceCommandSet.Defaults();
+
+	/// <summary>Spelling hint for the recognizer: the wake word and persona names.</summary>
+	public string Hint { get; set; } = "";
+
 	public bool Hearing
 	{
 		get
@@ -107,6 +127,12 @@ public sealed class VoiceInput : IDisposable
 	public event Action<string>? Partial;
 
 	public event Action<SpokenMessage>? Heard;
+
+	/// <summary>The wake word was heard; the text is whatever followed it (may be empty).</summary>
+	public event Action<string>? WakeHeard;
+
+	/// <summary>What you said while it was waiting for a command after the wake word.</summary>
+	public event Action<string>? CommandHeard;
 
 	/// <summary>What you've said so far while it waits for you to go on (or empty when that's cleared).</summary>
 	public event Action<string>? Waiting;
@@ -302,7 +328,10 @@ public sealed class VoiceInput : IDisposable
 			lastPartial = DateTime.UtcNow;
 			speechStartedAt = DateTime.UtcNow.AddSeconds(-0.4);
 			lastActivity = DateTime.UtcNow;
-			State?.Invoke("Hearing you…");
+			if (Mode != ListenMode.Standby)
+			{
+				State?.Invoke("Hearing you…");
+			}
 			SpeechStarted?.Invoke();
 		}
 		CancellationToken ct = life?.Token ?? CancellationToken.None;
@@ -312,7 +341,7 @@ public sealed class VoiceInput : IDisposable
 			DateTime started = speechStartedAt;
 			_ = FinishAsync(finished, started, ct);
 		}
-		else if (Hearing && !partialBusy && DateTime.UtcNow - lastPartial > TimeSpan.FromMilliseconds(900))
+		else if (Mode == ListenMode.Conversation && Hearing && !partialBusy && DateTime.UtcNow - lastPartial > TimeSpan.FromMilliseconds(900))
 		{
 			lastPartial = DateTime.UtcNow;
 			_ = PartialAsync(ct);
@@ -352,12 +381,67 @@ public sealed class VoiceInput : IDisposable
 		}
 	}
 
+	/// <summary>Standby and command waiting: only the wake word and commands matter; nothing else is kept or shown.</summary>
+	private async Task FinishCommandAsync(Utterance utterance, ListenMode mode, CancellationToken ct)
+	{
+		if (mode == ListenMode.Standby && utterance.Seconds > 10)
+		{
+			return;
+		}
+		List<TranscriptSegment> segments = await engine.TranscribeAsync(utterance.ToWav(), options.Language, ct, Hint);
+		if (ct.IsCancellationRequested)
+		{
+			return;
+		}
+		segments = PhantomFilter.Keep(segments, utterance, options.TypicalLevel > 0 ? options.TypicalLevel : null);
+		string text = string.Join(" ", segments.Select((TranscriptSegment s) => s.Text)).Trim();
+		WakeResult wake = VoiceCommandMatcher.FindWake(text, Commands);
+		if (mode == ListenMode.Standby)
+		{
+			if (wake.Heard)
+			{
+				WakeHeard?.Invoke(wake.Rest);
+			}
+			return;
+		}
+		string command = wake.Heard ? wake.Rest : text;
+		if (command.Length > 0)
+		{
+			CommandHeard?.Invoke(command);
+		}
+		else if (wake.Heard)
+		{
+			WakeHeard?.Invoke("");
+		}
+	}
+
 	private async Task FinishAsync(Utterance utterance, DateTime started, CancellationToken ct)
 	{
+		ListenMode mode = Mode;
+		if (mode != ListenMode.Conversation)
+		{
+			try
+			{
+				await FinishCommandAsync(utterance, mode, ct);
+			}
+			catch (Exception) when (ct.IsCancellationRequested)
+			{
+			}
+			catch (Exception ex)
+			{
+				Stop();
+				Problem?.Invoke("Couldn't check what you said for the wake word: " + ex.Message + " Listening is off.");
+			}
+			finally
+			{
+				Interlocked.Decrement(ref finishing);
+			}
+			return;
+		}
 		State?.Invoke("Writing down what you said…");
 		try
 		{
-			List<TranscriptSegment> segments = await engine.TranscribeAsync(utterance.ToWav(), options.Language, ct);
+			List<TranscriptSegment> segments = await engine.TranscribeAsync(utterance.ToWav(), options.Language, ct, Hint);
 			if (ct.IsCancellationRequested)
 			{
 				return;
@@ -378,6 +462,14 @@ public sealed class VoiceInput : IDisposable
 			string plain = string.Join(" ", segments.Select((TranscriptSegment s) => s.Text)).Trim();
 			SpokenMessage message = new SpokenMessage(prosody.Text, plain, prosody.Notes, utterance.Seconds);
 			State?.Invoke("Listening…");
+			string head = string.Join(" ", plain.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(3));
+			if (VoiceCommandMatcher.FindWake(head, Commands).Heard)
+			{
+				// "Aquila, hang up" in the middle of a conversation is a command, not something to send.
+				Flush();
+				WakeHeard?.Invoke(VoiceCommandMatcher.FindWake(plain, Commands).Rest);
+				return;
+			}
 			if (!options.AutoSend)
 			{
 				Heard?.Invoke(message);
