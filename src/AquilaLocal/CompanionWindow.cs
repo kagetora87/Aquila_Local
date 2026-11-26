@@ -31,11 +31,15 @@ public sealed class CompanionWindow : AquilaWindow
 	/// <summary>Memory entries to highlight and scroll to (from a chat's "New memory" notice).</summary>
 	private readonly HashSet<long> highlight;
 
-	public CompanionWindow(CompanionHost host, Action<string, string> startChat, string? focusPersona = null, IEnumerable<long>? highlightMemory = null)
+	/// <summary>Wardrobe diary entries to highlight (from a chat's "Changed outfit" notice).</summary>
+	private readonly HashSet<long> highlightWardrobe;
+
+	public CompanionWindow(CompanionHost host, Action<string, string> startChat, string? focusPersona = null, IEnumerable<long>? highlightMemory = null, IEnumerable<long>? highlightWardrobe = null)
 	{
 		this.host = host;
 		this.startChat = startChat;
 		highlight = new HashSet<long>(highlightMemory ?? Enumerable.Empty<long>());
+		this.highlightWardrobe = new HashSet<long>(highlightWardrobe ?? Enumerable.Empty<long>());
 		base.Title = "Aquila · Companions";
 		base.Width = 860.0;
 		base.Height = 820.0;
@@ -160,7 +164,28 @@ public sealed class CompanionWindow : AquilaWindow
 				store = null;
 			}
 		}
-		body.Children.Add(Section("Settings (saved to persona.json)", SettingsEditor(config, st.StoreExists), expanded: !st.Ready));
+		bool hasAppearance = false;
+		if (store != null)
+		{
+			try
+			{
+				hasAppearance = store.HasAppearance;
+			}
+			catch (Microsoft.Data.Sqlite.SqliteException ex)
+			{
+				body.Children.Add(Warning("Her appearance card couldn't be read: " + ex.Message));
+			}
+			Expander appearanceSection = Section("Appearance", AppearanceView(config, store, hasAppearance), expanded: highlightWardrobe.Count > 0 || !hasAppearance);
+			body.Children.Add(appearanceSection);
+			if (highlightWardrobe.Count > 0)
+			{
+				appearanceSection.Loaded += delegate
+				{
+					appearanceSection.BringIntoView();
+				};
+			}
+		}
+		body.Children.Add(Section("Settings (saved to persona.json)", SettingsEditor(config, st.StoreExists, editAppearance: !st.StoreExists || (store != null && !hasAppearance)), expanded: !st.Ready || (store != null && !hasAppearance)));
 		if (store != null)
 		{
 			Expander memorySection = Section("Long-term memory", MemoryView(config, store), expanded: highlight.Count > 0);
@@ -346,7 +371,7 @@ public sealed class CompanionWindow : AquilaWindow
 
 	// ---- settings editor -----------------------------------------------------------------------------
 
-	private UIElement SettingsEditor(PersonaConfig config, bool setUp)
+	private UIElement SettingsEditor(PersonaConfig config, bool setUp, bool editAppearance)
 	{
 		StackPanel panel = new StackPanel();
 		TextBox sheet = Multiline(config.PersonalitySheet, 120);
@@ -423,6 +448,23 @@ public sealed class CompanionWindow : AquilaWindow
 			panel.Children.Add(seed);
 		}
 
+		TextBox traits = null, anchor = null, outfit = null, color = null, fabric = null, condition = null;
+		if (editAppearance)
+		{
+			AppearanceSeed a = config.Seed.Appearance;
+			panel.Children.Add(Label("Appearance: permanent traits (one per line, like  eyes: grey-green). Locked once her card is set up."));
+			traits = Multiline(string.Join("\n", a.Traits.Select((AppearanceTrait t) => t.Name + ": " + t.Text)), 120);
+			panel.Children.Add(traits);
+			panel.Children.Add(Label("Identity anchor (the one detail every picture of her must show)"));
+			anchor = new TextBox { Text = a.IdentityAnchor, MaxLength = AppearanceSeed.MaxTraitChars };
+			panel.Children.Add(anchor);
+			panel.Children.Add(Label("What she's wearing at the start (she can change it later; every change is logged)"));
+			outfit = Field(panel, "Outfit", a.Wardrobe.Outfit);
+			color = Field(panel, "Colour", a.Wardrobe.Color);
+			fabric = Field(panel, "Fabric", a.Wardrobe.Fabric);
+			condition = Field(panel, "Condition", a.Wardrobe.Condition);
+		}
+
 		Button save = Ui.Button("Save settings", "Btn.Primary", delegate
 		{
 			try
@@ -453,6 +495,15 @@ public sealed class CompanionWindow : AquilaWindow
 				{
 					edited.Seed.Summary = ParseSeed(seed.Text);
 				}
+				if (traits != null)
+				{
+					edited.Seed.Appearance = new AppearanceSeed
+					{
+						Traits = ParseTraits(traits.Text),
+						IdentityAnchor = anchor.Text.Trim(),
+						Wardrobe = new Wardrobe { Outfit = outfit.Text.Trim(), Color = color.Text.Trim(), Fabric = fabric.Text.Trim(), Condition = condition.Text.Trim() }
+					};
+				}
 				edited.ValidateShape();
 				edited.Save(host.ConfigPath(personaId));
 				host.Forget(personaId);
@@ -468,6 +519,226 @@ public sealed class CompanionWindow : AquilaWindow
 		save.Margin = new Thickness(0, 14, 0, 0);
 		panel.Children.Add(save);
 		return panel;
+	}
+
+	private static TextBox Field(Panel panel, string caption, string text)
+	{
+		panel.Children.Add(Ui.Text(caption, "Type.Caption"));
+		TextBox box = new TextBox { Text = text, MaxLength = 200, Margin = new Thickness(0, 2, 0, 6) };
+		panel.Children.Add(box);
+		return box;
+	}
+
+	private static List<AppearanceTrait> ParseTraits(string text)
+	{
+		List<AppearanceTrait> list = new List<AppearanceTrait>();
+		foreach (string raw in text.Replace("\r", "").Split('\n'))
+		{
+			string line = raw.Trim().TrimStart('-', '•').Trim();
+			if (line.Length == 0)
+			{
+				continue;
+			}
+			int colon = line.IndexOf(':');
+			if (colon <= 0 || colon == line.Length - 1)
+			{
+				throw new FormatException("Write each trait as  name: description  (for example  eyes: grey-green). This line has no name: " + line);
+			}
+			list.Add(new AppearanceTrait { Name = line.Substring(0, colon).Trim(), Text = line.Substring(colon + 1).Trim() });
+		}
+		return list;
+	}
+
+	// ---- appearance ----------------------------------------------------------------------------------
+
+	private UIElement AppearanceView(PersonaConfig config, PersonaStore store, bool hasAppearance)
+	{
+		StackPanel panel = new StackPanel();
+		if (!hasAppearance)
+		{
+			TextBlock note = Ui.Text(config.Seed.Appearance.IsComplete
+				? config.Name + " doesn't have an appearance card yet, so she can't chat until it's set up. Her settings below have one ready: set it up to lock in her permanent traits and start her wardrobe diary."
+				: config.Name + " doesn't have an appearance card yet, so she can't chat until it's set up. Fill in her appearance in Settings below, save, then set it up here.", "Type.Body");
+			note.TextWrapping = TextWrapping.Wrap;
+			panel.Children.Add(note);
+			Button setUp = Ui.Button("Set up her appearance card", "Btn.Primary", delegate
+			{
+				if (!AquilaDialog.Confirm(this, "Lock in " + config.Name + "'s appearance?", "Her permanent traits and identity anchor become part of her and can only be amended deliberately, one at a time, with a reason. Her outfit stays hers to change.", "Set up"))
+				{
+					return;
+				}
+				try
+				{
+					store.SeedAppearance(host.Registry.LoadConfig(personaId).Seed.Appearance, DateTimeOffset.Now);
+					host.Forget(personaId);
+					Ok(config.Name + "'s appearance card is set up.");
+				}
+				catch (Exception ex) when (ex is PersonaConfigException || ex is InvalidOperationException || ex is Microsoft.Data.Sqlite.SqliteException)
+				{
+					Problem(ex.Message);
+				}
+				Build();
+			});
+			setUp.IsEnabled = config.Seed.Appearance.IsComplete;
+			setUp.HorizontalAlignment = HorizontalAlignment.Left;
+			setUp.Margin = new Thickness(0, 10, 0, 0);
+			panel.Children.Add(setUp);
+			return panel;
+		}
+		AppearanceCard card;
+		List<WardrobeEntry> diary;
+		List<TraitEntry> traitHistory;
+		try
+		{
+			card = store.ReadAppearance();
+			diary = store.WardrobeHistory();
+			traitHistory = store.TraitHistory();
+		}
+		catch (Exception ex) when (ex is AppearanceCardUnavailableException || ex is Microsoft.Data.Sqlite.SqliteException)
+		{
+			panel.Children.Add(Warning(ex.Message));
+			return panel;
+		}
+		TextBlock intro = Ui.Text("Her canonical appearance card. She reads it before every reply, and any picture of her is described from it, never guessed. Permanent traits are locked; her clothes are hers to change, and every change goes into her wardrobe diary with the time and a reason.", "Type.Small");
+		intro.TextWrapping = TextWrapping.Wrap;
+		intro.Margin = new Thickness(0, 0, 0, 8);
+		panel.Children.Add(intro);
+
+		panel.Children.Add(Label("Permanent traits (locked)"));
+		foreach (TraitEntry t in card.Traits)
+		{
+			TextBlock line = Ui.Text(t.Name + ": " + t.Text, "Type.Body");
+			line.TextWrapping = TextWrapping.Wrap;
+			panel.Children.Add(line);
+		}
+		TextBlock anchorLine = Ui.Text("Identity anchor: " + card.IdentityAnchor, "Type.Body");
+		anchorLine.TextWrapping = TextWrapping.Wrap;
+		anchorLine.FontWeight = FontWeights.SemiBold;
+		anchorLine.Margin = new Thickness(0, 4, 0, 0);
+		panel.Children.Add(anchorLine);
+
+		panel.Children.Add(Label("Wearing now"));
+		TextBlock wearing = Ui.Text(ContextInjector.WardrobeText(card.Wardrobe.Wardrobe), "Type.Body");
+		wearing.TextWrapping = TextWrapping.Wrap;
+		panel.Children.Add(wearing);
+		panel.Children.Add(Ui.Text($"since {card.Wardrobe.At.LocalDateTime:MMM d, yyyy h:mm tt} · {Who(card.Wardrobe.Author, config.Name)} · {card.Wardrobe.Reason}", "Type.Caption"));
+
+		TextBox caption = Multiline(AppearanceCaption.For(config.Name, card), 70);
+		caption.IsReadOnly = true;
+		panel.Children.Add(Label("Image caption (made from her card, for the picture generator)"));
+		panel.Children.Add(caption);
+		Button copy = Ui.Button(Ui.IconLabel("\uE8C8", "Copy image caption"), "Btn.Secondary", delegate
+		{
+			try
+			{
+				Clipboard.SetText(caption.Text);
+				Ok("Caption copied.");
+			}
+			catch (System.Runtime.InteropServices.ExternalException ex)
+			{
+				Problem("Couldn't copy: " + ex.Message);
+			}
+		});
+		copy.HorizontalAlignment = HorizontalAlignment.Left;
+		copy.Margin = new Thickness(0, 6, 0, 0);
+		panel.Children.Add(copy);
+
+		panel.Children.Add(Label("Wardrobe diary (newest first)"));
+		ListBox list = new ListBox { Height = 200 };
+		foreach (WardrobeEntry e in Enumerable.Reverse(diary))
+		{
+			StackPanel item = new StackPanel { Margin = new Thickness(0, 2, 0, 2) };
+			TextBlock text = Ui.Text(ContextInjector.WardrobeText(e.Wardrobe), "Type.Body");
+			text.TextWrapping = TextWrapping.Wrap;
+			text.MaxWidth = 700;
+			item.Children.Add(text);
+			item.Children.Add(Ui.Text($"{e.At.LocalDateTime:MMM d, yyyy h:mm tt} · {Who(e.Author, config.Name)} · {e.Reason}", "Type.Caption"));
+			if (highlightWardrobe.Contains(e.Id))
+			{
+				list.Items.Add(new Border { Child = item, Background = Ui.Brush("Accent.Subtle"), CornerRadius = new CornerRadius(6), Padding = new Thickness(6, 2, 6, 2) });
+				list.SelectedItem ??= list.Items[list.Items.Count - 1];
+			}
+			else
+			{
+				list.Items.Add(item);
+			}
+		}
+		panel.Children.Add(list);
+
+		StackPanel change = new StackPanel();
+		Wardrobe now = card.Wardrobe.Wardrobe;
+		TextBox outfit = Field(change, "Outfit", now.Outfit);
+		TextBox color = Field(change, "Colour", now.Color);
+		TextBox fabric = Field(change, "Fabric", now.Fabric);
+		TextBox condition = Field(change, "Condition", now.Condition);
+		TextBox reason = Field(change, "Reason (required)", "");
+		Button log = Ui.Button("Log outfit change", "Btn.Secondary", delegate
+		{
+			Wardrobe next = new Wardrobe { Outfit = outfit.Text.Trim(), Color = color.Text.Trim(), Fabric = fabric.Text.Trim(), Condition = condition.Text.Trim() };
+			Try(() => store.AppendWardrobe(next, MemoryAuthors.Operator, reason.Text, DateTimeOffset.Now), "Logged in her wardrobe diary.");
+		});
+		log.HorizontalAlignment = HorizontalAlignment.Left;
+		change.Children.Add(log);
+		panel.Children.Add(new Expander { Header = "Change her outfit yourself", Content = change, Style = Ui.Style("Expander.Quiet"), Margin = new Thickness(0, 8, 0, 0) });
+
+		StackPanel amend = new StackPanel();
+		TextBlock amendNote = Ui.Text("Only for correcting a mistake or a deliberate change to who she is. The original stays in her history with your reason.", "Type.Small");
+		amendNote.TextWrapping = TextWrapping.Wrap;
+		amend.Children.Add(amendNote);
+		ComboBox traitName = new ComboBox { IsEditable = true, ItemsSource = card.Traits.Select((TraitEntry t) => t.Name).Append(PersonaStore.AnchorTrait).ToList(), Margin = new Thickness(0, 6, 0, 6), Width = 240, HorizontalAlignment = HorizontalAlignment.Left };
+		amend.Children.Add(Ui.Text("Trait (pick one, or type a new name to add a trait)", "Type.Caption"));
+		amend.Children.Add(traitName);
+		TextBox traitText = Field(amend, "New description (empty withdraws the trait)", "");
+		TextBox traitReason = Field(amend, "Reason (required)", "");
+		traitName.SelectionChanged += delegate
+		{
+			if (traitName.SelectedItem is string n)
+			{
+				traitText.Text = n == PersonaStore.AnchorTrait ? card.IdentityAnchor : card.Traits.FirstOrDefault((TraitEntry t) => t.Name == n)?.Text ?? "";
+			}
+		};
+		Button record = Ui.Button("Record amendment", "Btn.DangerGhost", delegate
+		{
+			string n = traitName.Text.Trim();
+			if (!AquilaDialog.Confirm(this, "Amend " + config.Name + "'s permanent trait?", "'" + n + "' will read: " + (traitText.Text.Trim().Length > 0 ? traitText.Text.Trim() : "(withdrawn)") + "\n\nThe original stays in her history.", "Amend"))
+			{
+				return;
+			}
+			Try(() => store.AmendTrait(n, traitText.Text, MemoryAuthors.Operator, traitReason.Text, DateTimeOffset.Now), "Amendment recorded; the original is kept in her history.");
+		});
+		record.HorizontalAlignment = HorizontalAlignment.Left;
+		amend.Children.Add(record);
+		List<TraitEntry> replaced = traitHistory.Where((TraitEntry t) => !t.Active).ToList();
+		if (replaced.Count > 0)
+		{
+			amend.Children.Add(Label("Earlier versions"));
+			foreach (TraitEntry t in replaced)
+			{
+				TraitEntry? by = traitHistory.FirstOrDefault((TraitEntry x) => x.Id == t.SupersededBy);
+				TextBlock old = Ui.Text($"{t.Name}: {t.Text}  ·  replaced {by?.At.LocalDateTime:MMM d, yyyy} ({by?.Reason})", "Type.Small");
+				old.TextWrapping = TextWrapping.Wrap;
+				amend.Children.Add(old);
+			}
+		}
+		panel.Children.Add(new Expander { Header = "Amend a permanent trait", Content = amend, Style = Ui.Style("Expander.Quiet"), Margin = new Thickness(0, 6, 0, 0) });
+		if (list.SelectedItem != null)
+		{
+			list.Loaded += delegate
+			{
+				list.ScrollIntoView(list.SelectedItem);
+			};
+		}
+		return panel;
+	}
+
+	private static string Who(string author, string name)
+	{
+		return author switch
+		{
+			MemoryAuthors.Persona => "by " + name,
+			MemoryAuthors.Operator => "by you",
+			_ => "from her appearance card"
+		};
 	}
 
 	private static double? Num(TextBox box, string what, bool optional = false)
@@ -622,7 +893,7 @@ public sealed class CompanionWindow : AquilaWindow
 			Ok(done);
 			Build();
 		}
-		catch (Exception ex) when (ex is ArgumentException || ex is Microsoft.Data.Sqlite.SqliteException || ex is DriveStateUnavailableException)
+		catch (Exception ex) when (ex is ArgumentException || ex is Microsoft.Data.Sqlite.SqliteException || ex is DriveStateUnavailableException || ex is InvalidOperationException || ex is AppearanceCardUnavailableException)
 		{
 			Problem(ex.Message);
 		}

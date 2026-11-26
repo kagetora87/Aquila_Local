@@ -20,3 +20,18 @@ public sealed class PersonaConfigException : Exception
 {
     public PersonaConfigException(string message, Exception? inner = null) : base(message, inner) { }
 }
+
+/// <summary>
+/// Thrown when a persona's appearance card is missing, unreadable or too long. Like her drives, there is no
+/// fallback: a persona who doesn't know her own body would invent one.
+/// </summary>
+public sealed class AppearanceCardUnavailableException : Exception
+{
+    public string PersonaId { get; }
+
+    public AppearanceCardUnavailableException(string personaId, string reason, Exception? inner = null)
+        : base($"Can't read {personaId}'s appearance card: {reason} Aquila stopped instead of guessing what she looks like, so nothing was sent.", inner)
+    {
+        PersonaId = personaId;
+    }
+}

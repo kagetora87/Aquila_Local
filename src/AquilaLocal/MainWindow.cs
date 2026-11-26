@@ -1986,14 +1986,14 @@ public partial class MainWindow : AquilaWindow
 		OpenCompanions(null, null);
 	}
 
-	private void OpenCompanions(string? personaId, IEnumerable<long>? highlight)
+	private void OpenCompanions(string? personaId, IEnumerable<long>? highlight, IEnumerable<long>? highlightWardrobe = null)
 	{
 		bool started = false;
 		CompanionWindow window = new CompanionWindow(companion, delegate(string id, string name)
 		{
 			started = true;
 			NewChat(id, name);
-		}, personaId, highlight);
+		}, personaId, highlight, highlightWardrobe);
 		window.Owner = this;
 		window.ShowDialog();
 		if (!started && current != null && current.IsCompanion && !busy)
@@ -2034,6 +2034,20 @@ public partial class MainWindow : AquilaWindow
 						return;
 					}
 					OpenCompanions(personaId, ids);
+				}));
+			}
+			List<long> outfits = turn.CompanionWardrobeIds.ToList();
+			if (outfits.Count > 0)
+			{
+				string personaId = session.PersonaId;
+				items.Add(("Changed outfit", delegate
+				{
+					if (busy)
+					{
+						Notice("Wait for the reply to finish, then open her wardrobe diary.");
+						return;
+					}
+					OpenCompanions(personaId, null, outfits);
 				}));
 			}
 		}
@@ -2173,6 +2187,7 @@ public partial class MainWindow : AquilaWindow
 			SetAvatarState("idle");
 			store.SaveChat(session);
 			RenderLive(final: true);
+			RefreshNotices(session, turn);
 			if (turn.Status == "complete")
 			{
 				if (!settings.Voice.Enabled && (DateTime.UtcNow - sendStarted >= TimeSpan.FromSeconds(4.0) || !base.IsActive))

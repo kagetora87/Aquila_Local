@@ -284,6 +284,10 @@ public sealed class Agent(Engine engine, MemoryStore? memories = null, SemanticM
 						jsonArray.Add(definition.DeepClone());
 					}
 				}
+				if (persona && CompanionRuntime != null)
+				{
+					jsonArray.Add(ChangeOutfitDefinition.DeepClone());
+				}
 				if (web != null)
 				{
 					foreach (JsonNode definition2 in WebAccess.Definitions)
@@ -542,7 +546,11 @@ public sealed class Agent(Engine engine, MemoryStore? memories = null, SemanticM
 				Log(turn, call.Name + "  " + call.Arguments.ToString().Truncate(240));
 				string text3 = call.Name;
 				string text8;
-				if ((text3 == "web_search" || text3 == "web_read") ? true : false)
+				if (text3 == "change_outfit" && persona && CompanionRuntime != null)
+				{
+					text8 = ChangeOutfit(CompanionRuntime, call.Arguments.ToString(), turn);
+				}
+				else if ((text3 == "web_search" || text3 == "web_read") ? true : false)
 				{
 					string text7 = ((web != null) ? (await web.ExecuteAsync(call.Name, call.Arguments.ToString(), ct)) : "Web access is off.");
 					text8 = text7;
@@ -568,6 +576,25 @@ public sealed class Agent(Engine engine, MemoryStore? memories = null, SemanticM
 			}
 		}
 		throw new IOException("Task reached its tool-round limit. Narrow the request and try again.");
+	}
+
+	/// <summary>Her read-write interface to her appearance card: she can log a wardrobe change, never touch her permanent traits.</summary>
+	private static readonly JsonNode ChangeOutfitDefinition = JsonNode.Parse("{\"type\":\"function\",\"function\":{\"name\":\"change_outfit\",\"description\":\"Change what you are wearing. It is logged in your wardrobe diary with the time and your reason, and your appearance card updates. Give only what changes; anything left out stays the same. Your permanent traits can't be changed.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"outfit\":{\"type\":\"string\",\"description\":\"What you are wearing now, e.g. 'oversized grey hoodie and bare feet'\"},\"color\":{\"type\":\"string\"},\"fabric\":{\"type\":\"string\"},\"condition\":{\"type\":\"string\",\"description\":\"e.g. neat, rumpled, rain-soaked\"},\"reason\":{\"type\":\"string\",\"description\":\"Why you are changing, in a few words\"}},\"required\":[\"reason\"],\"additionalProperties\":false}}}")!;
+
+	private static string ChangeOutfit(AquilaLocal.Companion.CompanionRuntime runtime, string arguments, Turn turn)
+	{
+		try
+		{
+			JsonNode args = JsonNode.Parse(arguments) ?? new JsonObject();
+			string? Field(string name) => args[name] is JsonValue v && v.TryGetValue(out string? text) ? text : null;
+			AquilaLocal.Companion.WardrobeEntry entry = runtime.ChangeWardrobe(new AquilaLocal.Companion.WardrobeChange(Field("outfit"), Field("color"), Field("fabric"), Field("condition")), Field("reason") ?? "", AquilaLocal.Companion.MemoryAuthors.Persona, DateTimeOffset.Now);
+			turn.CompanionWardrobeIds.Add(entry.Id);
+			return "Logged in your wardrobe diary. You are now wearing: " + AquilaLocal.Companion.ContextInjector.WardrobeText(entry.Wardrobe);
+		}
+		catch (Exception ex) when (ex is ArgumentException || ex is JsonException || ex is InvalidOperationException || ex is AquilaLocal.Companion.AppearanceCardUnavailableException || ex is Microsoft.Data.Sqlite.SqliteException)
+		{
+			return "Not changed: " + ex.Message;
+		}
 	}
 
 	/// <summary>Puts the persona's inner state in front of the current message only. Earlier messages are replayed

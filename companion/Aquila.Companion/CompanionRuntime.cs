@@ -10,9 +10,12 @@ public sealed record PreparedTurn(
     string TopDrive,
     IReadOnlyList<string> Events,
     IReadOnlyList<DriveChange> Changes,
-    IReadOnlyList<Recalled> Recalled);
+    IReadOnlyList<Recalled> Recalled,
+    InjectedContext Context,
+    AppearanceCard Appearance);
 
-public sealed record CompletedTurn(LoopResult Loop, long ExchangeId, bool SummaryDue);
+/// <param name="SelfChanges">Wardrobe changes she made herself during this turn (also handed to the satisfaction loop).</param>
+public sealed record CompletedTurn(LoopResult Loop, long ExchangeId, bool SummaryDue, IReadOnlyList<WardrobeEntry> SelfChanges);
 
 /// <summary>
 /// The persona-agnostic pipeline for one persona: tick drives, apply message events, build her context,
@@ -31,6 +34,8 @@ public sealed class CompanionRuntime
     public VectorMemory Memory { get; }
 
     private readonly SatisfactionLoop loop;
+
+    private readonly List<WardrobeEntry> selfChanges = new();
 
     private CompanionRuntime(PersonaConfig config, PersonaStore store, IEmbedder embedder, ISatisfactionScorer scorer)
     {
@@ -51,6 +56,7 @@ public sealed class CompanionRuntime
         }
         PersonaStore store = registry.OpenStore(personaId);
         store.ReadDrives(config.Drives.Select(d => d.Name));
+        store.ReadAppearance();
         return new CompanionRuntime(config, store, embedder, scorer ?? new HeuristicScorer());
     }
 
@@ -63,6 +69,13 @@ public sealed class CompanionRuntime
     {
         string[] names = Config.Drives.Select(d => d.Name).ToArray();
         Dictionary<string, DriveValue> drives = Store.ReadDrives(names);
+        // Read (and size-check) her card before anything is changed, so a bad card stops the turn cleanly.
+        AppearanceCard card = Store.ReadAppearance();
+        ContextInjector.AppearanceBlock(Config.Name, card);
+        lock (selfChanges)
+        {
+            selfChanges.Clear();
+        }
         DateTimeOffset lastTick = Store.LastTick;
 
         List<DriveChange> changes = DriveEngine.Tick(Config, drives, lastTick, now);
@@ -91,16 +104,48 @@ public sealed class CompanionRuntime
 
         drives = Store.ReadDrives(names);
         string top = DriveEngine.TopDrive(Config, drives);
-        string inner = ContextInjector.DriveBlock(Config, drives, top);
         string achievements = ContextInjector.AchievementsBlock(Store.Achievements(ContextInjector.AchievementsShown), Store.AchievementCount());
-        if (achievements.Length > 0)
-        {
-            inner += "\n" + achievements;
-        }
+        InjectedContext context = ContextInjector.Assemble(Config, Store.ReadSummary(), drives, top, card, achievements);
         List<Recalled> recalled = Memory.Search(q, Config.Memory.RetrieveTopK, verbatimTurnIds);
-        return new PreparedTurn(Config.Id, ContextInjector.SystemPrompt(Config, Store.ReadSummary()), inner,
-            ContextInjector.RecalledBlock(recalled), top, events, changes, recalled);
+        return new PreparedTurn(Config.Id, context.SystemPrompt, context.InnerState,
+            ContextInjector.RecalledBlock(recalled), top, events, changes, recalled, context, card);
     }
+
+    /// <summary>
+    /// Logs a wardrobe change (hers through the change_outfit tool, or the operator's). Anything the change
+    /// leaves out stays as it was. Append-only: the old outfit stays in her diary.
+    /// </summary>
+    public WardrobeEntry ChangeWardrobe(WardrobeChange change, string reason, string author, DateTimeOffset now)
+    {
+        if (change.IsEmpty)
+        {
+            throw new ArgumentException("Say what changed: outfit, colour, fabric or condition.");
+        }
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            throw new ArgumentException("A wardrobe change needs a reason.");
+        }
+        Wardrobe current = Store.ReadAppearance().Wardrobe.Wardrobe;
+        var next = new Wardrobe
+        {
+            Outfit = Pick(change.Outfit, current.Outfit),
+            Color = Pick(change.Color, current.Color),
+            Fabric = Pick(change.Fabric, current.Fabric),
+            Condition = Pick(change.Condition, current.Condition)
+        };
+        long id = Store.AppendWardrobe(next, author, reason, now);
+        WardrobeEntry entry = Store.WardrobeHistory().Last(e => e.Id == id);
+        if (author == MemoryAuthors.Persona)
+        {
+            lock (selfChanges)
+            {
+                selfChanges.Add(entry);
+            }
+        }
+        return entry;
+    }
+
+    private static string Pick(string? change, string current) => string.IsNullOrWhiteSpace(change) ? current : change.Trim();
 
     public CompletedTurn Complete(PreparedTurn prepared, string chatId, string turnId, string userText, string reply, DateTimeOffset now)
     {
@@ -109,9 +154,15 @@ public sealed class CompanionRuntime
             throw new InvalidOperationException($"A turn prepared for '{prepared.PersonaId}' can't be completed by '{Config.Id}'.");
         }
         double? similarity = Memory.MaxSimilarity(Memory.Embed(reply), minimumMemories: 10);
-        LoopResult result = loop.Run(new TurnObservation(userText, reply, prepared.TopDrive, similarity), now);
+        List<WardrobeEntry> mine;
+        lock (selfChanges)
+        {
+            mine = selfChanges.ToList();
+            selfChanges.Clear();
+        }
+        LoopResult result = loop.Run(new TurnObservation(userText, reply, prepared.TopDrive, similarity, mine), now);
         long id = Memory.Add(chatId, turnId, now, userText, reply);
-        return new CompletedTurn(result, id, Store.TurnsSinceSummary >= Config.Memory.SummarizeEveryTurns);
+        return new CompletedTurn(result, id, Store.TurnsSinceSummary >= Config.Memory.SummarizeEveryTurns, mine);
     }
 
     public Summarizer Summarizer(ITextGenerator generator) => new(Config, Store, generator);

@@ -46,7 +46,7 @@ public sealed record SessionInfo(string ChatId, DateTimeOffset StartedAt, DateTi
 /// also carries the persona id and every query filters on it, so one persona's state can never be read
 /// through another's store.
 /// </summary>
-public sealed class PersonaStore
+public sealed partial class PersonaStore
 {
     public const int SchemaVersion = 1;
 
@@ -105,12 +105,14 @@ public sealed class PersonaStore
             CREATE TRIGGER drive_log_no_delete BEFORE DELETE ON drive_log BEGIN SELECT RAISE(ABORT, 'the drive log is append-only'); END;
             CREATE TABLE sessions(persona_id TEXT NOT NULL, chat_id TEXT NOT NULL, started_at TEXT NOT NULL, last_at TEXT NOT NULL, turns INTEGER NOT NULL, PRIMARY KEY(persona_id, chat_id));
             """);
+        Exec(c, tx, AppearanceSchema);
         store.SetMeta(c, tx, "schema", SchemaVersion.ToString(CultureInfo.InvariantCulture));
         store.SetMeta(c, tx, "created_at", Iso(now));
         store.SetMeta(c, tx, "last_tick", Iso(now));
         store.SetMeta(c, tx, "last_interaction", Iso(now));
         store.SetMeta(c, tx, "turns_since_summary", "0");
         store.SetMeta(c, tx, "baseline_from", config.BaselineFrom);
+        store.InsertAppearance(c, tx, config.Seed.Appearance, now, $"seed appearance card (baseline from {config.BaselineFrom})");
         foreach (DriveSpec d in config.Drives)
         {
             double v = d.Initial!.Value;
@@ -130,7 +132,7 @@ public sealed class PersonaStore
         return store;
     }
 
-    /// <summary>Opens an existing store and proves it belongs to this persona. Never creates anything.</summary>
+    /// <summary>Opens an existing store and proves it belongs to this persona. Never creates a store or any state.</summary>
     public static PersonaStore Open(string path, string personaId)
     {
         if (!File.Exists(path))
@@ -160,6 +162,9 @@ public sealed class PersonaStore
             {
                 throw new DriveStateUnavailableException(personaId, $"the state store has schema {schema ?? "none"}, expected {SchemaVersion}.");
             }
+            // Stores set up before appearance cards existed get the (empty) tables; her card is then set up
+            // once from her persona file. Adding tables never touches existing data.
+            Exec(c, null, AppearanceSchema);
         }
         catch (SqliteException ex)
         {

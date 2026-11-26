@@ -15,6 +15,61 @@ public static class ContextInjector
 
     public const int AchievementsShown = 5;
 
+    public const int MaxAppearanceTokens = 400;
+
+    /// <summary>
+    /// Assembles everything she is given before a reply, in this order: her pinned state block (in the stable
+    /// system prompt), her live drives, then her appearance card. Reads only what it is handed, which the runtime
+    /// takes from her own store, so nothing from another persona can get in.
+    /// </summary>
+    public static InjectedContext Assemble(PersonaConfig config, StateBlock summary, IReadOnlyDictionary<string, DriveValue> drives, string topDrive,
+        AppearanceCard card, string achievements = "")
+    {
+        if (card.PersonaId != config.Id)
+        {
+            throw new InvalidOperationException($"An appearance card for '{card.PersonaId}' can't be given to '{config.Id}'.");
+        }
+        string pinned = summary.CappedTo(config.Memory.SummaryTokenCap).Render();
+        string system = SystemPrompt(config, summary);
+        string driveBlock = DriveBlock(config, drives, topDrive);
+        string appearance = AppearanceBlock(config.Name, card);
+        string inner = driveBlock + "\n" + appearance + (achievements.Length > 0 ? "\n" + achievements : "");
+        return new InjectedContext(system, pinned, driveBlock, appearance, inner);
+    }
+
+    /// <summary>Her appearance card, verbatim, as her own current self-description. Refused (never cut) when over the cap.</summary>
+    public static string AppearanceBlock(string name, AppearanceCard card)
+    {
+        var sb = new StringBuilder();
+        sb.Append("[Your appearance: your own canonical appearance card, your self-description right now. Not typed by the user.]\n");
+        sb.Append("Permanent traits (fixed, part of you):\n");
+        foreach (TraitEntry t in card.Traits)
+        {
+            sb.Append("- ").Append(t.Name).Append(": ").Append(t.Text).Append('\n');
+        }
+        sb.Append("- identity anchor: ").Append(card.IdentityAnchor).Append('\n');
+        Wardrobe w = card.Wardrobe.Wardrobe;
+        sb.Append("Wearing now (since ").Append(card.Wardrobe.At.ToLocalTime().ToString("MMM d, h:mm tt", CultureInfo.InvariantCulture)).Append("): ")
+          .Append(WardrobeText(w)).Append('\n');
+        sb.Append("[End appearance]");
+        string block = sb.ToString();
+        int tokens = TokenEstimate.Of(block);
+        if (tokens > MaxAppearanceTokens)
+        {
+            throw new AppearanceCardUnavailableException(card.PersonaId, $"{name}'s appearance card is about {tokens} tokens, over the {MaxAppearanceTokens}-token cap. Shorten her traits or outfit.");
+        }
+        return block;
+    }
+
+    public static string WardrobeText(Wardrobe w)
+    {
+        var parts = new List<string> { w.Outfit.Trim() };
+        if (w.Color.Trim().Length > 0) parts.Add("colour " + w.Color.Trim());
+        if (w.Fabric.Trim().Length > 0) parts.Add("fabric " + w.Fabric.Trim());
+        if (w.Condition.Trim().Length > 0) parts.Add("condition " + w.Condition.Trim());
+        return string.Join("; ", parts);
+    }
+
     public static string DriveBlock(PersonaConfig config, IReadOnlyDictionary<string, DriveValue> drives, string topDrive)
     {
         var sb = new StringBuilder();
@@ -82,7 +137,8 @@ public static class ContextInjector
         sb.Append(config.Drift.Unlocked
             ? "Drift status: unlocked. You are free to change.\n\n"
             : "Drift status: locked for now; it unlocks after validation.\n\n");
-        sb.Append("Each user message may start with an [Inner state] block and an [Your achievements] list. They are your own drives and record, not the user's words. Treat them as the state of your world: let the strongest drive shape what you prioritise, naturally and in character.\n");
+        sb.Append("Each user message may start with blocks for your inner state, your appearance and your achievements. They are your own drives, body and record, not the user's words. Treat them as the state of your world: let the strongest drive shape what you prioritise, naturally and in character.\n");
+        sb.Append("Your appearance card is how you look and what you're wearing. Your permanent traits never change. Your clothes are yours to choose: when you change them, use the change_outfit tool with a short reason, so it goes into your wardrobe diary. Never describe yourself in a way that contradicts the card.\n");
         string pinned = summary.CappedTo(config.Memory.SummaryTokenCap).Render();
         if (pinned.Length > 0)
         {
@@ -91,9 +147,53 @@ public static class ContextInjector
         return sb.ToString().TrimEnd();
     }
 
-    private static string Clip(string s, int max)
+    internal static string Clip(string s, int max)
     {
         s = s.Replace('\n', ' ').Trim();
         return s.Length > max ? s[..(max - 3)] + "..." : s;
     }
+}
+
+/// <summary>What the injector assembled for one turn. The system prompt is stable; the inner state goes on the current message only.</summary>
+public sealed record InjectedContext(string SystemPrompt, string SummaryBlock, string DriveBlock, string AppearanceBlock, string InnerState)
+{
+    /// <summary>All three sources in the order the model reads them.</summary>
+    public string Full => SystemPrompt + "\n\n" + InnerState;
+}
+
+/// <summary>
+/// Image caption export. The caption for any picture of her comes from her appearance card or not at all:
+/// the image tool never invents her looks or clothes, and the identity anchor always ends the caption.
+/// </summary>
+public static class AppearanceCaption
+{
+    public static string For(string name, AppearanceCard card)
+    {
+        if (card.Traits.Count == 0 || card.IdentityAnchor.Trim().Length == 0 || card.Wardrobe.Wardrobe.Outfit.Trim().Length == 0)
+        {
+            throw new AppearanceCardUnavailableException(card.PersonaId, "the card is incomplete, so no caption can be made.");
+        }
+        var sb = new StringBuilder();
+        sb.Append(name.Trim()).Append(", ");
+        sb.Append(string.Join(", ", card.Traits.Select(t => t.Name.Trim() + ": " + t.Text.Trim().TrimEnd('.'))));
+        Wardrobe w = card.Wardrobe.Wardrobe;
+        sb.Append(", wearing ").Append(w.Outfit.Trim().TrimEnd('.'));
+        if (w.Color.Trim().Length > 0) sb.Append(", colour: ").Append(w.Color.Trim());
+        if (w.Fabric.Trim().Length > 0) sb.Append(", fabric: ").Append(w.Fabric.Trim());
+        if (w.Condition.Trim().Length > 0) sb.Append(", condition: ").Append(w.Condition.Trim());
+        sb.Append(". Identity anchor, always visible: ").Append(card.IdentityAnchor.Trim());
+        return sb.ToString();
+    }
+}
+
+/// <summary>Stub for the image pipeline that will attach later: renders a picture from a caption made by <see cref="AppearanceCaption"/>.</summary>
+public interface IImageRenderer
+{
+    Task<byte[]> RenderAsync(string caption, CancellationToken ct);
+}
+
+/// <summary>Stub for the vision self-check that will attach later: compares a render of her against her card and lists discrepancies (such as a missing anchor).</summary>
+public interface IRenderSelfCheck
+{
+    Task<IReadOnlyList<string>> DiscrepanciesAsync(AppearanceCard card, byte[] image, CancellationToken ct);
 }

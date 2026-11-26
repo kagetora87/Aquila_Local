@@ -62,9 +62,12 @@ Invalid values are refused and the file is left unchanged (for example, horizon'
    after the first in a chat is a *session turn* (comfort rises), hostile wording is *conflict* (comfort
    falls), something unlike anything in her memory is *novelty* (curiosity spikes), affectionate wording is
    *affection* (lust rises).
-3. **Inner state.** Her drives are put in front of your message as a short block (under 300 tokens): each
-   drive, its value and one line of guidance, strongest first, plus her latest achievements and the current
-   time. She reads it as the state of her world.
+3. **Her context, in this order.** (a) Her pinned long-term memory, in the stable system prompt (capped at
+   2,000 tokens). (b) Her drives, put in front of your message as a short block (under 300 tokens): each
+   drive, its value and one line of guidance, strongest first. (c) Her appearance card, verbatim, as her own
+   current self-description (under 400 tokens). Then her latest achievements and the current time. She reads
+   it all as the state of her world. Everything comes from her own store only, and assembly takes a few
+   milliseconds (a test holds it under 100 ms).
 4. **Her reply.**
 5. **Satisfaction loop.** Did the reply address the top drive? Keyword and sentiment heuristics decide. If
    yes, that drive drops one step. If not, it stays and weighs heavier next turn. Horizon is scored by
@@ -87,9 +90,34 @@ A correction is a new entry that replaces an old one, with a timestamp and a rea
 in her history. In Companions → Long-term memory you can add entries, correct one, or withdraw one (a
 withdrawal is also a recorded, reasoned entry). "Show replaced entries too" shows the full history.
 
+## Appearance card
+
+Her canonical appearance card has two layers, kept in her own store like her memory:
+
+- **Permanent traits**: bone structure, eyes, hair, skin, body, and the **identity anchor** (the one detail
+  every picture of her must show, such as a beauty mark). Locked: she can't change them. You can amend one
+  deliberately (Companions → Appearance → Amend a permanent trait), always with a reason, and the original
+  stays in her history. The identity anchor can be reworded but never removed.
+- **Wardrobe**: outfit, colour, fabric, condition. Hers to change. In a chat she uses the `change_outfit`
+  tool, giving only what changed and a reason; a "Changed outfit" chip appears under that reply. You can
+  also log a change in Companions. The wardrobe is **append-only**: each change is a new diary entry with the
+  time and the reason, so her wardrobe history reads like a diary.
+
+The starting card is seed data in persona.json (`seed.appearance`: `traits` as name/text pairs,
+`identityAnchor`, `wardrobe`), copied into her store when she is set up. A persona set up before appearance
+cards existed is set up once from Companions → Appearance.
+
+**Image captions.** `AppearanceCaption.For` makes the caption for any picture of her from the card only:
+her traits, what she's wearing now, and the identity anchor as the last line. Companions → Appearance shows
+it with a Copy button. The picture generator and the vision self-check (comparing a render to her card and
+flagging, say, a missing beauty mark) attach later through the `IImageRenderer` and `IRenderSelfCheck`
+interfaces. Wardrobe changes she makes herself are handed to the satisfaction loop (`TurnObservation.SelfChanges`),
+ready for scoring later.
+
 ## Fail loud
 
-If her state can't be read (file missing, damaged, belongs to another persona, a drive missing or impossible),
+If her state can't be read (file missing, damaged, belongs to another persona, a drive missing or impossible,
+her appearance card missing, unreadable or over its cap),
 the message is not sent and Aquila says exactly what's wrong. It never falls back to default drives, and it
 never creates a new store on its own: setting a persona up is always an explicit button press. If her drives
 can't be updated after a reply, the reply is kept and a warning says her drives were not updated.

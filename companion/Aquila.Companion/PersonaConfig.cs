@@ -151,6 +151,47 @@ public sealed class PersonaSeed
 {
     /// <summary>The summary block written into the persona's state the first time she is set up.</summary>
     public StateBlock Summary { get; set; } = new();
+
+    /// <summary>Her canonical appearance card, written into her state the first time she is set up.</summary>
+    public AppearanceSeed Appearance { get; set; } = new();
+}
+
+/// <summary>One permanent trait, such as eyes or hair. Locked once she is set up.</summary>
+public sealed class AppearanceTrait
+{
+    public string Name { get; set; } = "";
+    public string Text { get; set; } = "";
+}
+
+/// <summary>What she is wearing. Changes are logged, never overwritten.</summary>
+public sealed class Wardrobe
+{
+    public string Outfit { get; set; } = "";
+    public string Color { get; set; } = "";
+    public string Fabric { get; set; } = "";
+    public string Condition { get; set; } = "";
+}
+
+/// <summary>The canonical appearance card as seed data: permanent traits, the identity anchor, and her starting wardrobe.</summary>
+public sealed class AppearanceSeed
+{
+    public const int MaxTraitChars = 400;
+
+    public List<AppearanceTrait> Traits { get; set; } = new();
+
+    /// <summary>The one detail every picture of her must show (such as a beauty mark). Appended to every image caption.</summary>
+    public string IdentityAnchor { get; set; } = "";
+
+    public Wardrobe Wardrobe { get; set; } = new();
+
+    public bool IsComplete =>
+        Traits.Count > 0
+        && Traits.All(t => !string.IsNullOrWhiteSpace(t.Name) && !string.IsNullOrWhiteSpace(t.Text))
+        && !string.IsNullOrWhiteSpace(IdentityAnchor)
+        && !string.IsNullOrWhiteSpace(Wardrobe.Outfit)
+        && !Text().Contains(PersonaConfig.Placeholder);
+
+    private string Text() => string.Join("\n", Traits.Select(t => t.Name + t.Text)) + IdentityAnchor + Wardrobe.Outfit + Wardrobe.Color + Wardrobe.Fabric + Wardrobe.Condition;
 }
 
 /// <summary>A persona's config file (persona.json): personality sheet, drive profile, drift clause.</summary>
@@ -274,6 +315,23 @@ public sealed class PersonaConfig
                 }
             }
         }
+        var traitNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (AppearanceTrait t in Seed.Appearance.Traits)
+        {
+            string n = t.Name.Trim();
+            if (n.Equals(PersonaStore.AnchorTrait, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new PersonaConfigException($"{Name}'s identity anchor goes in 'identityAnchor', not in her traits list.");
+            }
+            if (n.Length > 0 && !traitNames.Add(n))
+            {
+                throw new PersonaConfigException($"{Name}'s appearance lists the trait '{n}' twice.");
+            }
+            if (t.Name.Length > 60 || t.Text.Length > AppearanceSeed.MaxTraitChars)
+            {
+                throw new PersonaConfigException($"{Name}'s appearance trait '{n}' is too long (names up to 60 characters, descriptions up to {AppearanceSeed.MaxTraitChars}).");
+            }
+        }
         if (Memory.SummarizeEveryTurns < 2 || Memory.KeepVerbatimTurns < 0 || Memory.KeepVerbatimTurns >= Memory.SummarizeEveryTurns * 4
             || Memory.SummaryTokenCap is < 200 or > 2000 || Memory.RetrieveTopK is < 0 or > 20)
         {
@@ -311,6 +369,10 @@ public sealed class PersonaConfig
         if (string.IsNullOrWhiteSpace(Drift.Text) || Drift.Text.Contains(Placeholder))
         {
             missing.Add("the drift clause");
+        }
+        if (!Seed.Appearance.IsComplete)
+        {
+            missing.Add("her appearance card (permanent traits, identity anchor and what she's wearing)");
         }
         return missing;
     }

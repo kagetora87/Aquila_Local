@@ -2,7 +2,11 @@ namespace AquilaLocal.Companion;
 
 /// <param name="TopDrive">The drive that was on top when the reply was generated (what the injector told her to prioritise).</param>
 /// <param name="ReplySimilarityToPast">Highest similarity between the reply and her earlier replies, or null if unknown.</param>
-public sealed record TurnObservation(string UserText, string ReplyText, string TopDrive, double? ReplySimilarityToPast);
+/// <param name="SelfChanges">
+/// Wardrobe changes she made herself this turn. Hook point for the satisfaction loop: not scored yet, so a
+/// self-chosen outfit can later count toward horizon (an unprompted choice) without changing this signature.
+/// </param>
+public sealed record TurnObservation(string UserText, string ReplyText, string TopDrive, double? ReplySimilarityToPast, IReadOnlyList<WardrobeEntry>? SelfChanges = null);
 
 public sealed record LoopResult(string Drive, bool Satisfied, double Score, string Reason, List<DriveChange> Changes, List<Milestone> Milestones);
 

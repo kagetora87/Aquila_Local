@@ -19,6 +19,9 @@ public class Turn
 	/// <summary>Companion chats: memory ledger entries her summary pass wrote after this turn.</summary>
 	public List<long> CompanionMemoryIds { get; set; } = new List<long>();
 
+	/// <summary>Wardrobe diary entries she wrote during this turn (through change_outfit).</summary>
+	public List<long> CompanionWardrobeIds { get; set; } = new List<long>();
+
 	public string SpeechMood { get; set; } = "neutral";
 
 	public string SpeechMoodSource { get; set; } = "default";
