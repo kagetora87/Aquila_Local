@@ -52,6 +52,11 @@ public sealed class SpriteAvatarView : Grid
 
 	private int loopsSinceVariation;
 
+	/// <summary>Gestures matched while another was playing; they play next, in order.</summary>
+	private readonly Queue<SpriteAnimation> queued = new Queue<SpriteAnimation>();
+
+	private const int MaxQueued = 2;
+
 	public string Root { get; private set; } = "";
 
 	public IReadOnlyList<SpriteAnimation> Animations => animations;
@@ -77,6 +82,7 @@ public sealed class SpriteAvatarView : Grid
 		Root = root;
 		animations = SpriteLibrary.Load(root);
 		cache.Clear();
+		queued.Clear();
 		hint.Visibility = ((animations.Count == 0) ? Visibility.Visible : Visibility.Collapsed);
 		playingGesture = false;
 		StartBase();
@@ -114,6 +120,15 @@ public sealed class SpriteAvatarView : Grid
 		if (spriteAnimation == null)
 		{
 			return false;
+		}
+		if (playingGesture && playing != null && playing.Kind == SpriteKind.Gesture)
+		{
+			// Let the current gesture finish; play this one right after it.
+			if (playing != spriteAnimation && queued.Count < MaxQueued && !queued.Contains(spriteAnimation))
+			{
+				queued.Enqueue(spriteAnimation);
+			}
+			return true;
 		}
 		playingGesture = !spriteAnimation.Loops || spriteAnimation.Kind == SpriteKind.Gesture;
 		Start(spriteAnimation);
@@ -196,6 +211,12 @@ public sealed class SpriteAvatarView : Grid
 		}
 		if (playingGesture || !playing.Loops)
 		{
+			if (queued.Count > 0)
+			{
+				playingGesture = true;
+				Start(queued.Dequeue());
+				return;
+			}
 			StartBase();
 			return;
 		}

@@ -31,14 +31,15 @@ public sealed class GestureMatcher : IDisposable
 
 	private List<Target> targets = new List<Target>();
 
-	private DateTime lastFired = DateTime.MinValue;
+	private readonly Dictionary<string, DateTime> lastFired = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
 
 	private bool disposed;
 
 	/// <summary>0 = only obvious moments, 1 = very expressive.</summary>
 	public double Sensitivity { get; set; } = 0.5;
 
-	public TimeSpan Cooldown { get; set; } = TimeSpan.FromSeconds(4.0);
+	/// <summary>How long before the same gesture may play again. Different gestures can follow each other.</summary>
+	public TimeSpan Cooldown { get; set; } = TimeSpan.FromSeconds(8.0);
 
 	public event Action<string>? Fired;
 
@@ -161,11 +162,11 @@ public sealed class GestureMatcher : IDisposable
 		{
 			lock (gate)
 			{
-				if (DateTime.UtcNow - lastFired < Cooldown)
+				if (lastFired.TryGetValue(match.Name, out DateTime last) && DateTime.UtcNow - last < Cooldown)
 				{
 					return;
 				}
-				lastFired = DateTime.UtcNow;
+				lastFired[match.Name] = DateTime.UtcNow;
 			}
 			this.Fired?.Invoke(match.Name);
 		}

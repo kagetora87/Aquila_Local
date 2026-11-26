@@ -346,19 +346,29 @@ public partial class MainWindow : Window
 	private void PlaceAvatarBesideWindow()
 	{
 		SpriteAvatarOptions options = settings.Sprite;
-		double height = Math.Clamp(options.Height, 120, 900);
-		double width = height * 0.82;
 		Rect work = SystemParameters.WorkArea;
-		double top = Math.Clamp(base.Top + base.ActualHeight - height, work.Top, work.Bottom - height);
-		if (base.WindowState != WindowState.Maximized && base.Left + base.ActualWidth + width + 8.0 <= work.Right)
+		bool maximized = base.WindowState == WindowState.Maximized;
+		double right = maximized ? 0.0 : (work.Right - (base.Left + base.ActualWidth) - 8.0);
+		double left = maximized ? 0.0 : (base.Left - work.Left - 8.0);
+		bool useRight = right >= left;
+		double room = Math.Max(right, left);
+		// Start no bigger than Medium, and shrink (down to Small) to fit the free space beside Aquila.
+		double height = Math.Min(Math.Clamp(options.Height, 120, 900), 320.0);
+		if (height * 0.82 > room)
 		{
-			options.Left = base.Left + base.ActualWidth + 8.0;
-			options.Top = top;
+			height = Math.Max(200.0, Math.Floor(room / 0.82));
 		}
-		else if (base.WindowState != WindowState.Maximized && base.Left - width - 8.0 >= work.Left)
+		options.Height = (int)height;
+		double width = height * 0.82;
+		options.Top = work.Bottom - height - 8.0;
+		if (width <= room)
 		{
-			options.Left = base.Left - width - 8.0;
-			options.Top = top;
+			options.Left = useRight ? (base.Left + base.ActualWidth + 8.0) : (base.Left - width - 8.0);
+		}
+		else
+		{
+			// No free space: tuck it into the screen corner on the roomier side, over Aquila's edge.
+			options.Left = useRight ? (work.Right - width - 8.0) : (work.Left + 8.0);
 		}
 	}
 
