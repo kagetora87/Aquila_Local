@@ -22,6 +22,21 @@ internal static class TestPersona
 {
     public static readonly DateTimeOffset T0 = new(2026, 11, 26, 20, 0, 0, TimeSpan.Zero);
 
+    public const string Anchor = "A small dark beauty mark just above the right corner of her upper lip.";
+
+    public static AppearanceSeed Appearance() => new()
+    {
+        Traits =
+        {
+            new AppearanceTrait { Name = "eyes", Text = "grey-green" },
+            new AppearanceTrait { Name = "hair", Text = "dark auburn, shoulder length, natural wave" },
+            new AppearanceTrait { Name = "skin", Text = "fair, lightly freckled" },
+            new AppearanceTrait { Name = "body", Text = "slim, 168 cm" },
+        },
+        IdentityAnchor = Anchor,
+        Wardrobe = new Wardrobe { Outfit = "black linen shirt dress", Color = "black", Fabric = "linen", Condition = "neat" }
+    };
+
     public static PersonaConfig Config(string id = "vicki", string name = "Vicki") => new()
     {
         Id = id,
@@ -37,7 +52,7 @@ internal static class TestPersona
             Spec(Drives.Loneliness, weight: 1.0, initial: 5, rise: 0.35, events: new() { [DriveEvents.Interaction] = -0.8 }),
             Spec(Drives.Horizon, weight: 1.0, initial: 6, rise: 0.03, floor: Drives.HorizonFloor, step: 0.5),
         },
-        Seed = new PersonaSeed { Summary = new StateBlock { Facts = { "Takeru lives in Japan." }, Feelings = { "Fond of Takeru." }, Hooks = { "Ask about the cello." } } }
+        Seed = new PersonaSeed { Summary = new StateBlock { Facts = { "Takeru lives in Japan." }, Feelings = { "Fond of Takeru." }, Hooks = { "Ask about the cello." } }, Appearance = Appearance() }
     };
 
     public static DriveSpec Spec(string name, double weight, double initial, double decay = 0, double resting = 0, double rise = 0,
