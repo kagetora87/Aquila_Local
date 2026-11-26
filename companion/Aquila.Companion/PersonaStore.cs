@@ -12,7 +12,8 @@ public sealed record DriveLogEntry(long Id, DateTimeOffset At, string Drive, dou
 
 public sealed record Achievement(long Id, DateTimeOffset At, string Kind, string Note, double Reward);
 
-public sealed record Exchange(long Id, string ChatId, string TurnId, DateTimeOffset At, string User, string Reply, bool Folded);
+/// <param name="Spoken">True when the user said it aloud (transcribed from speech) rather than typed it.</param>
+public sealed record Exchange(long Id, string ChatId, string TurnId, DateTimeOffset At, string User, string Reply, bool Folded, bool Spoken = false);
 
 public static class MemoryLayers
 {
@@ -89,7 +90,7 @@ public sealed partial class PersonaStore
             CREATE TABLE drives(persona_id TEXT NOT NULL, name TEXT NOT NULL, value REAL NOT NULL, unmet_streak INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL, PRIMARY KEY(persona_id, name));
             CREATE TABLE drive_log(id INTEGER PRIMARY KEY AUTOINCREMENT, persona_id TEXT NOT NULL, at TEXT NOT NULL, drive TEXT NOT NULL, old REAL NOT NULL, new REAL NOT NULL, reason TEXT NOT NULL);
             CREATE INDEX drive_log_by_persona ON drive_log(persona_id, id);
-            CREATE TABLE exchanges(id INTEGER PRIMARY KEY AUTOINCREMENT, persona_id TEXT NOT NULL, chat_id TEXT NOT NULL, turn_id TEXT NOT NULL, at TEXT NOT NULL, user_text TEXT NOT NULL, reply_text TEXT NOT NULL, vector BLOB, folded INTEGER NOT NULL DEFAULT 0, UNIQUE(persona_id, turn_id));
+            CREATE TABLE exchanges(id INTEGER PRIMARY KEY AUTOINCREMENT, persona_id TEXT NOT NULL, chat_id TEXT NOT NULL, turn_id TEXT NOT NULL, at TEXT NOT NULL, user_text TEXT NOT NULL, reply_text TEXT NOT NULL, vector BLOB, folded INTEGER NOT NULL DEFAULT 0, spoken INTEGER NOT NULL DEFAULT 0, UNIQUE(persona_id, turn_id));
             CREATE INDEX exchanges_by_persona ON exchanges(persona_id, id);
             CREATE TABLE achievements(id INTEGER PRIMARY KEY AUTOINCREMENT, persona_id TEXT NOT NULL, at TEXT NOT NULL, kind TEXT NOT NULL, note TEXT NOT NULL, reward REAL NOT NULL);
             CREATE TABLE memory_entries(id INTEGER PRIMARY KEY AUTOINCREMENT, persona_id TEXT NOT NULL, at TEXT NOT NULL, layer TEXT NOT NULL CHECK(layer IN ('facts','feelings','hooks')), text TEXT NOT NULL, author TEXT NOT NULL, supersedes INTEGER REFERENCES memory_entries(id), reason TEXT NOT NULL DEFAULT '');
@@ -98,7 +99,7 @@ public sealed partial class PersonaStore
             CREATE TRIGGER memory_entries_no_update BEFORE UPDATE ON memory_entries BEGIN SELECT RAISE(ABORT, 'memory entries are append-only; add a superseding entry instead'); END;
             CREATE TRIGGER memory_entries_no_delete BEFORE DELETE ON memory_entries BEGIN SELECT RAISE(ABORT, 'memory entries are append-only; add a superseding entry instead'); END;
             CREATE TRIGGER exchanges_no_delete BEFORE DELETE ON exchanges BEGIN SELECT RAISE(ABORT, 'exchanges are append-only'); END;
-            CREATE TRIGGER exchanges_immutable BEFORE UPDATE OF persona_id, chat_id, turn_id, at, user_text, reply_text, vector ON exchanges BEGIN SELECT RAISE(ABORT, 'exchanges are append-only'); END;
+            CREATE TRIGGER exchanges_immutable BEFORE UPDATE OF persona_id, chat_id, turn_id, at, user_text, reply_text, vector, spoken ON exchanges BEGIN SELECT RAISE(ABORT, 'exchanges are append-only'); END;
             CREATE TRIGGER achievements_no_update BEFORE UPDATE ON achievements BEGIN SELECT RAISE(ABORT, 'achievements are append-only'); END;
             CREATE TRIGGER achievements_no_delete BEFORE DELETE ON achievements BEGIN SELECT RAISE(ABORT, 'achievements are append-only'); END;
             CREATE TRIGGER drive_log_no_update BEFORE UPDATE ON drive_log BEGIN SELECT RAISE(ABORT, 'the drive log is append-only'); END;
@@ -165,6 +166,11 @@ public sealed partial class PersonaStore
             // Stores set up before appearance cards existed get the (empty) tables; her card is then set up
             // once from her persona file. Adding tables never touches existing data.
             Exec(c, null, AppearanceSchema);
+            // Stores made before spoken exchanges were tracked: everything in them was typed.
+            if (Scalar<long>(c, null, "SELECT COUNT(*) FROM pragma_table_info('exchanges') WHERE name='spoken'") == 0)
+            {
+                Exec(c, null, "ALTER TABLE exchanges ADD COLUMN spoken INTEGER NOT NULL DEFAULT 0; CREATE TRIGGER IF NOT EXISTS exchanges_spoken_immutable BEFORE UPDATE OF spoken ON exchanges BEGIN SELECT RAISE(ABORT, 'exchanges are append-only'); END;");
+            }
         }
         catch (SqliteException ex)
         {
@@ -414,14 +420,14 @@ public sealed partial class PersonaStore
 
     // ---- exchanges and vectors ----------------------------------------------------------------------
 
-    public long AddExchange(string chatId, string turnId, DateTimeOffset at, string user, string reply, float[]? vector)
+    public long AddExchange(string chatId, string turnId, DateTimeOffset at, string user, string reply, float[]? vector, bool spoken = false)
     {
         using SqliteConnection c = Connect();
         using SqliteTransaction tx = c.BeginTransaction();
         int inserted = Exec(c, tx, """
-            INSERT OR IGNORE INTO exchanges(persona_id,chat_id,turn_id,at,user_text,reply_text,vector) VALUES($p,$c,$tu,$t,$u,$r,$v)
+            INSERT OR IGNORE INTO exchanges(persona_id,chat_id,turn_id,at,user_text,reply_text,vector,spoken) VALUES($p,$c,$tu,$t,$u,$r,$v,$s)
             """,
-            ("$p", PersonaId), ("$c", chatId), ("$tu", turnId), ("$t", Iso(at)), ("$u", user), ("$r", reply), ("$v", vector == null ? DBNull.Value : ToBytes(vector)));
+            ("$p", PersonaId), ("$c", chatId), ("$tu", turnId), ("$t", Iso(at)), ("$u", user), ("$r", reply), ("$v", vector == null ? DBNull.Value : ToBytes(vector)), ("$s", spoken ? 1 : 0));
         if (inserted == 0)
         {
             // Already remembered (exchanges are append-only), so nothing changes and nothing is counted twice.
@@ -465,7 +471,7 @@ public sealed partial class PersonaStore
         }
         using SqliteConnection c = Connect();
         using SqliteCommand cmd = c.CreateCommand();
-        cmd.CommandText = $"SELECT id,chat_id,turn_id,at,user_text,reply_text,folded FROM exchanges WHERE persona_id=$p AND id IN ({string.Join(",", wanted.Select((_, i) => "$i" + i))})";
+        cmd.CommandText = $"SELECT id,chat_id,turn_id,at,user_text,reply_text,folded,spoken FROM exchanges WHERE persona_id=$p AND id IN ({string.Join(",", wanted.Select((_, i) => "$i" + i))})";
         cmd.Parameters.AddWithValue("$p", PersonaId);
         for (int i = 0; i < wanted.Length; i++)
         {
@@ -478,7 +484,7 @@ public sealed partial class PersonaStore
     {
         using SqliteConnection c = Connect();
         using SqliteCommand cmd = c.CreateCommand();
-        cmd.CommandText = "SELECT id,chat_id,turn_id,at,user_text,reply_text,folded FROM exchanges WHERE persona_id=$p AND folded=0 ORDER BY id";
+        cmd.CommandText = "SELECT id,chat_id,turn_id,at,user_text,reply_text,folded,spoken FROM exchanges WHERE persona_id=$p AND folded=0 ORDER BY id";
         cmd.Parameters.AddWithValue("$p", PersonaId);
         return ReadExchanges(cmd);
     }
@@ -487,7 +493,7 @@ public sealed partial class PersonaStore
     {
         using SqliteConnection c = Connect();
         using SqliteCommand cmd = c.CreateCommand();
-        cmd.CommandText = "SELECT id,chat_id,turn_id,at,user_text,reply_text,folded FROM exchanges WHERE persona_id=$p ORDER BY id DESC LIMIT $l";
+        cmd.CommandText = "SELECT id,chat_id,turn_id,at,user_text,reply_text,folded,spoken FROM exchanges WHERE persona_id=$p ORDER BY id DESC LIMIT $l";
         cmd.Parameters.AddWithValue("$p", PersonaId);
         cmd.Parameters.AddWithValue("$l", count);
         List<Exchange> list = ReadExchanges(cmd);
@@ -523,7 +529,7 @@ public sealed partial class PersonaStore
         using SqliteDataReader r = cmd.ExecuteReader();
         while (r.Read())
         {
-            list.Add(new Exchange(r.GetInt64(0), r.GetString(1), r.GetString(2), ParseIso(r.GetString(3)), r.GetString(4), r.GetString(5), r.GetInt32(6) != 0));
+            list.Add(new Exchange(r.GetInt64(0), r.GetString(1), r.GetString(2), ParseIso(r.GetString(3)), r.GetString(4), r.GetString(5), r.GetInt32(6) != 0, r.GetInt32(7) != 0));
         }
         return list;
     }

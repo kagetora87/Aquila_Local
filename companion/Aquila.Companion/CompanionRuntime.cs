@@ -163,7 +163,8 @@ public sealed class CompanionRuntime
 
     private static string Pick(string? change, string current) => string.IsNullOrWhiteSpace(change) ? current : change.Trim();
 
-    public CompletedTurn Complete(PreparedTurn prepared, string chatId, string turnId, string userText, string reply, DateTimeOffset now)
+    /// <param name="spoken">True when the user said this aloud (it reached her as a transcript), so she can later tell hearing from reading.</param>
+    public CompletedTurn Complete(PreparedTurn prepared, string chatId, string turnId, string userText, string reply, DateTimeOffset now, bool spoken = false)
     {
         if (prepared.PersonaId != Config.Id)
         {
@@ -178,7 +179,7 @@ public sealed class CompanionRuntime
             selfChanges.Clear();
         }
         LoopResult result = loop.Run(new TurnObservation(userText, reply, prepared.TopDrive, similarity, mine), now);
-        long id = Memory.Add(chatId, turnId, now, userText, reply);
+        long id = Memory.Add(chatId, turnId, now, userText, reply, spoken);
         return new CompletedTurn(result, id, Store.TurnsSinceSummary >= Config.Memory.SummarizeEveryTurns, mine);
     }
 

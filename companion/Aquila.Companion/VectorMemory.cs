@@ -29,10 +29,10 @@ public sealed class VectorMemory(PersonaStore store, IEmbedder embedder)
 
     public float[] Embed(string text) => embedder.Embed(text);
 
-    public long Add(string chatId, string turnId, DateTimeOffset at, string user, string reply)
+    public long Add(string chatId, string turnId, DateTimeOffset at, string user, string reply, bool spoken = false)
     {
         float[] v = embedder.Embed(TextOf(user, reply));
-        long id = store.AddExchange(chatId, turnId, at, user, reply, v);
+        long id = store.AddExchange(chatId, turnId, at, user, reply, v, spoken);
         lock (gate)
         {
             if (loaded)

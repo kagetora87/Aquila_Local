@@ -122,7 +122,7 @@ public static class ContextInjector
         foreach (Recalled r in recalled.OrderBy(r => r.Exchange.At))
         {
             sb.Append("- ").Append(r.Exchange.At.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture))
-              .Append(" they said: \"").Append(Clip(r.Exchange.User, 400)).Append("\" / you said: \"").Append(Clip(r.Exchange.Reply, 500)).Append("\"\n");
+              .Append(r.Exchange.Spoken ? " you heard them say aloud: \"" : " they wrote: \"").Append(Clip(r.Exchange.User, 400)).Append("\" / you said: \"").Append(Clip(r.Exchange.Reply, 500)).Append("\"\n");
         }
         return sb.ToString().TrimEnd();
     }
