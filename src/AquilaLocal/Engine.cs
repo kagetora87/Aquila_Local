@@ -292,6 +292,9 @@ public sealed class Engine : IDisposable
 			"--parallel",
 			"2",
 			"--kv-unified",
+			// Without this, a request on slot 1 parks the idle conversation in the RAM prompt cache and
+			// clears it; hybrid (recurrent) models then fail to restore it and re-read the whole chat.
+			"--no-cache-idle-slots",
 			"--batch-size",
 			inferenceLaunch.Batch.ToString(),
 			"--ubatch-size",

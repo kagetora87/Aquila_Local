@@ -1,9 +1,11 @@
 name: build
 on:
   push:
-    branches: ['claude/**', 'main']
+    branches: ['claude/project-thread-g009h2', 'main']
     paths: ['src/**', '.github/workflows/**']
   workflow_dispatch:
+permissions:
+  contents: write
 jobs:
   build:
     runs-on: windows-latest
@@ -13,9 +15,29 @@ jobs:
         with:
           dotnet-version: '8.0.x'
       - name: Publish
-        run: dotnet publish src/AquilaLocal.csproj -c Release -r win-x64 -o out -p:PublishSingleFile=true -p:SelfContained=true -clp:ErrorsOnly -nologo
+        run: dotnet publish src/AquilaLocal.csproj -c Release -r win-x64 -o out -p:PublishSingleFile=true -p:SelfContained=true -p:EnableCompressionInSingleFile=true -clp:ErrorsOnly -nologo
       - uses: actions/upload-artifact@v4
         with:
           name: aquila-local-exe
           path: out/
           retention-days: 14
+      - name: Deliver to build branch (fetchable with plain git)
+        shell: pwsh
+        run: |
+          $sha = "${{ github.sha }}".Substring(0,7)
+          New-Item -ItemType Directory -Force deliver | Out-Null
+          $exe = Get-Item "out/Aquila Local.exe"
+          $bytes = [IO.File]::ReadAllBytes($exe.FullName)
+          $part = 45MB; $n = 0
+          for ($i = 0; $i -lt $bytes.Length; $i += $part) {
+            $len = [Math]::Min($part, $bytes.Length - $i)
+            [IO.File]::WriteAllBytes("deliver/AquilaLocal.exe.part$n", $bytes[$i..($i+$len-1)]); $n++
+          }
+          (Get-FileHash $exe.FullName -Algorithm SHA256).Hash | Out-File -Encoding ascii deliver/SHA256.txt
+          "commit $sha`nparts $n`nJoin: cmd /c copy /b AquilaLocal.exe.part0+AquilaLocal.exe.part1+... `"Aquila Local.exe`"" | Out-File -Encoding ascii deliver/README.txt
+          Get-ChildItem out -Exclude "Aquila Local.exe","*.pdb" | Copy-Item -Destination deliver -Recurse
+          cd deliver
+          git init -q -b build
+          git config user.name "github-actions"; git config user.email "github-actions@users.noreply.github.com"
+          git add -A; git commit -qm "Aquila Local build $sha"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" build:refs/heads/claude/project-thread-g009h2-build
