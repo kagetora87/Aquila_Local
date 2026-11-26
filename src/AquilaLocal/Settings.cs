@@ -79,6 +79,9 @@ public class Settings
 
 	public AvatarPresentation Avatar { get; set; } = new AvatarPresentation();
 
+	/// <summary>The picture-based avatar (replaces the 3D avatar).</summary>
+	public SpriteAvatarOptions Sprite { get; set; } = new SpriteAvatarOptions();
+
 	/// <summary>Version of the settings layout. 3 = automatic hardware setup (Aquila 2.1).</summary>
 	public int SettingsVersion { get; set; }
 
@@ -107,6 +110,7 @@ public class Settings
 
 	public void Validate()
 	{
+		Sprite ??= new SpriteAvatarOptions();
 		Inference?.Validate();
 		if (Voice == null)
 		{

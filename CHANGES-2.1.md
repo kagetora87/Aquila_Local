@@ -20,3 +20,21 @@ Windows exe on every push.
   integrated GPU on many laptops), re-detection right before loading, and a `Data/logs/hardware.log`.
 - **Honest speed readout:** writing speed and prompt-reading time come from the engine's own timings.
 - Pre-load memory check only requires the whole model in RAM when it actually runs on the CPU.
+
+## Picture avatar (replaces the 3D avatar)
+
+- The avatar is now made from your own pictures. Each animation is a folder of pictures in
+  `Data\avatar` (e.g. `idle`, `talking`, `thinking`, `listening`, `waving hello`, `eating`).
+  Pictures play in file-name order.
+- Folders whose names start with idle / talk / think / listen are used automatically for those
+  moments. Any other folder is a gesture: it plays once when what Aquila says matches its name
+  (or its "When should it play?" text). Matching uses the small meaning model already used for
+  memory search, so it costs nothing in the chat model's prompt or speed.
+- Placeholder pictures (clearly labelled) are created on first run so everything works before real
+  art exists. Replace any of them from the Animations window (drag pictures onto an animation, or
+  Replace pictures…).
+- The avatar sits in a panel on the left. "Pop out ↗" floats it on the desktop (drag to move,
+  right-click for size and always-on-top, double-click to put it back).
+- Animations… opens the editor: preview, rename, reorder pictures, speed, repeat, delete, import a
+  whole folder, an "How expressive" slider and a "Try a sentence" box that shows which gesture
+  would play.

@@ -19,8 +19,18 @@
           <Button Name="NewButton" Content="＋  New conversation" HorizontalContentAlignment="Left" Background="#263F48" BorderBrush="#3D6266" Margin="0,0,0,12" Click="New_Click" />
           <TextBlock Text="CONVERSATIONS" FontSize="10" Foreground="{StaticResource Muted}" Margin="6,0,0,12" />
         </StackPanel>
-        <ScrollViewer DockPanel.Dock="Bottom" MaxHeight="400" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,10,0,0">
+        <ScrollViewer DockPanel.Dock="Bottom" MaxHeight="640" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,10,0,0">
           <StackPanel>
+            <Border Name="AvatarPanel" Background="#101923" CornerRadius="7" Padding="10" Margin="0,0,0,14">
+              <StackPanel>
+                <DockPanel Margin="0,0,0,6">
+                  <Button DockPanel.Dock="Right" Content="Pop out ↗" FontSize="10" Padding="6,2" ToolTip="Float the avatar on your desktop" Click="AvatarPop_Click" />
+                  <TextBlock Text="AVATAR" Foreground="#80DEC5" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center" />
+                </DockPanel>
+                <ContentControl Name="AvatarSlot" Height="200" />
+                <TextBlock Name="AvatarPoppedText" Text="Floating on your desktop. Double-click it to bring it back." Visibility="Collapsed" FontSize="10" Foreground="{StaticResource Muted}" TextWrapping="Wrap" />
+              </StackPanel>
+            </Border>
             <Border Background="#101923" CornerRadius="7" Padding="10" Margin="0,0,0,14">
               <StackPanel>
                 <TextBlock Text="LIVE GPU ACTIVITY" Foreground="#80DEC5" FontSize="10" FontWeight="SemiBold" Margin="0,0,0,8" />
@@ -73,12 +83,12 @@
             <TextBlock Name="VoiceStatusText" Text="Voice off" FontSize="10" Foreground="{StaticResource Muted}" TextWrapping="Wrap" MaxHeight="55" Margin="3,0,3,10" />
             <UniformGrid Columns="2">
               <Button Content="Internet…" Margin="0,0,3,6" Padding="6" FontSize="11" Click="Internet_Click" />
-              <Button Content="Avatar…" Margin="3,0,0,6" Padding="6" FontSize="11" Click="Avatar_Click" />
+              <Button Content="Animations…" Margin="3,0,0,6" Padding="6" FontSize="11" Click="Avatar_Click" />
               <Button Name="MemoriesButton" Content="Memories" Margin="0,0,3,6" Padding="6" FontSize="11" Click="Memories_Click" />
               <Button Content="Export chat" Margin="3,0,0,6" Padding="6" FontSize="11" Click="Export_Click" />
             </UniformGrid>
             <Button Content="Open data folder" Background="#00FFFFFF" Padding="6" FontSize="11" Click="Data_Click" />
-            <TextBlock Text="2.0.1  ·  On this device" Foreground="{StaticResource Muted}" FontSize="11" HorizontalAlignment="Center" Margin="0,15,0,0" />
+            <TextBlock Text="2.1  ·  On this device" Foreground="{StaticResource Muted}" FontSize="11" HorizontalAlignment="Center" Margin="0,15,0,0" />
           </StackPanel>
         </ScrollViewer>
         <ListBox Name="ChatsList" AutomationProperties.Name="Saved conversations" SelectionChanged="Chats_Changed">

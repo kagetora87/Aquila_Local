@@ -37,6 +37,18 @@ public partial class MainWindow : Window
 
 	private int avatarTransition;
 
+	private SpriteAvatarView? spriteView;
+
+	private GestureMatcher? gestures;
+
+	private AvatarPopoutWindow? avatarPopout;
+
+	private AnimationsWindow? animationsWindow;
+
+	private string spriteRoot = "";
+
+	private DispatcherTimer? listeningTimer;
+
 	internal Func<ChatSession, bool>? ConfirmDeleteForVerification;
 
 	private bool uiReady;
@@ -189,11 +201,174 @@ public partial class MainWindow : Window
 
 	internal SpeechService SpeechForVerification => speech;
 
+	/// <summary>
+	/// Sets up the picture avatar: a folder of animations (Data\avatar by default), placeholder
+	/// pictures on first run, and the gesture matcher that reacts to what the assistant says.
+	/// The old 3D avatar is no longer started.
+	/// </summary>
 	private void InitializeAvatar()
 	{
-		if (settings.AvatarEnabled)
+		SpriteAvatarOptions options = settings.Sprite;
+		spriteRoot = string.IsNullOrWhiteSpace(options.Folder) ? Path.Combine(store.Root, "avatar") : options.Folder;
+		spriteView = new SpriteAvatarView();
+		gestures = new GestureMatcher(Path.Combine(AppContext.BaseDirectory, "embeddings"))
 		{
-			StartSavedAvatar();
+			Sensitivity = options.Sensitivity
+		};
+		gestures.Fired += delegate(string name)
+		{
+			base.Dispatcher.InvokeAsync(delegate
+			{
+				if (!featuresClosing)
+				{
+					spriteView?.PlayGesture(name);
+				}
+			});
+		};
+		try
+		{
+			if (!Directory.Exists(spriteRoot) || SpriteLibrary.Load(spriteRoot).Count == 0)
+			{
+				AvatarPlaceholders.EnsureIn(spriteRoot);
+			}
+		}
+		catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is ArgumentException)
+		{
+			Notice("Avatar: could not create placeholder pictures (" + ex.Message + ").");
+		}
+		ReloadSpriteAvatar();
+		Composer.TextChanged += delegate
+		{
+			ComposerTyping();
+		};
+		if (options.Enabled && options.PoppedOut)
+		{
+			PopOutAvatar();
+		}
+		else
+		{
+			DockAvatar();
+		}
+	}
+
+	private void ReloadSpriteAvatar()
+	{
+		if (spriteView != null && gestures != null)
+		{
+			spriteView.Load(spriteRoot);
+			spriteView.SetState(SpriteStateFor(avatarState));
+			gestures.SetAnimations(spriteView.Animations);
+			gestures.Sensitivity = settings.Sprite.Sensitivity;
+		}
+	}
+
+	private static string SpriteStateFor(string state)
+	{
+		if (!(state == "interrupted"))
+		{
+			return state;
+		}
+		return "idle";
+	}
+
+	private void ComposerTyping()
+	{
+		if (spriteView == null || busy || featuresClosing || avatarState != "idle" || string.IsNullOrEmpty(Composer.Text))
+		{
+			return;
+		}
+		spriteView.SetState("listening");
+		if (listeningTimer == null)
+		{
+			listeningTimer = new DispatcherTimer
+			{
+				Interval = TimeSpan.FromSeconds(2.5)
+			};
+			listeningTimer.Tick += delegate
+			{
+				listeningTimer.Stop();
+				if (avatarState == "idle")
+				{
+					spriteView?.SetState("idle");
+				}
+			};
+		}
+		listeningTimer.Stop();
+		listeningTimer.Start();
+	}
+
+	private void AvatarPop_Click(object sender, RoutedEventArgs e)
+	{
+		if (avatarPopout != null)
+		{
+			DockAvatar();
+		}
+		else
+		{
+			PopOutAvatar();
+		}
+	}
+
+	private void PopOutAvatar()
+	{
+		if (spriteView == null || avatarPopout != null)
+		{
+			return;
+		}
+		AvatarSlot.Content = null;
+		AvatarSlot.Visibility = Visibility.Collapsed;
+		AvatarPoppedText.Visibility = Visibility.Visible;
+		avatarPopout = new AvatarPopoutWindow(spriteView, settings.Sprite);
+		avatarPopout.DockRequested += DockAvatar;
+		avatarPopout.Closed += delegate
+		{
+			// Closed by Windows (e.g. Alt+F4): treat as "put back".
+			if (avatarPopout != null)
+			{
+				avatarPopout = null;
+				if (!featuresClosing)
+				{
+					DockAvatar();
+				}
+			}
+		};
+		settings.Sprite.PoppedOut = true;
+		avatarPopout.Show();
+		SaveAvatarSettings();
+	}
+
+	private void DockAvatar()
+	{
+		if (spriteView == null)
+		{
+			return;
+		}
+		AvatarPopoutWindow? window = avatarPopout;
+		avatarPopout = null;
+		if (window != null)
+		{
+			window.Content = null;
+			window.Close();
+		}
+		AvatarSlot.Content = spriteView;
+		AvatarSlot.Visibility = Visibility.Visible;
+		AvatarPoppedText.Visibility = Visibility.Collapsed;
+		if (settings.Sprite.PoppedOut)
+		{
+			settings.Sprite.PoppedOut = false;
+			SaveAvatarSettings();
+		}
+	}
+
+	private void SaveAvatarSettings()
+	{
+		try
+		{
+			store.SaveSettings(settings);
+		}
+		catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+		{
+			Notice("Avatar: settings were not saved (" + ex.Message + ").");
 		}
 	}
 
@@ -233,20 +408,29 @@ public partial class MainWindow : Window
 
 	private void Avatar_Click(object sender, RoutedEventArgs e)
 	{
-		if (avatarWindow != null)
+		if (gestures == null)
 		{
-			avatarWindow.Activate();
 			return;
 		}
-		avatarWindow = new AvatarWindow(settings, avatar, ApplyAvatar, PreviewAvatar)
+		if (animationsWindow != null)
+		{
+			animationsWindow.Activate();
+			return;
+		}
+		animationsWindow = new AnimationsWindow(settings.Sprite, spriteRoot, gestures, delegate
+		{
+			ReloadSpriteAvatar();
+			SaveAvatarSettings();
+		})
 		{
 			Owner = this
 		};
-		avatarWindow.Closed += delegate
+		animationsWindow.Closed += delegate
 		{
-			avatarWindow = null;
+			animationsWindow = null;
+			SaveAvatarSettings();
 		};
-		avatarWindow.Show();
+		animationsWindow.Show();
 	}
 
 	private void SetAvatarState(string state, string utterance = "")
@@ -254,6 +438,8 @@ public partial class MainWindow : Window
 		avatarTransition++;
 		avatarState = state;
 		avatarUtterance = utterance;
+		listeningTimer?.Stop();
+		spriteView?.SetState(SpriteStateFor(state));
 		avatar.SetStateAsync(state, preview: false, "none", utterance);
 	}
 
@@ -1248,6 +1434,7 @@ public partial class MainWindow : Window
 					{
 						avatarState = "speaking";
 						avatarUtterance = frame.Utterance;
+						spriteView?.SetState("speaking");
 						avatar.SetSpeechFrameAsync(frame.Utterance, frame.Mood, frame.Mouth);
 					}
 					else if (!frame.Playing && avatarUtterance == frame.Utterance)
@@ -1492,6 +1679,7 @@ public partial class MainWindow : Window
 				Avatar = this.settings.Avatar,
 				AvatarFolder = this.settings.AvatarFolder,
 				AvatarModelPath = this.settings.AvatarModelPath,
+				Sprite = this.settings.Sprite,
 				WebMode = this.settings.WebMode,
 				WebKeyProtected = this.settings.WebKeyProtected,
 				Thinking = (ThinkingCheck.IsChecked == true),
@@ -1678,9 +1866,21 @@ public partial class MainWindow : Window
 		{
 			SetAvatarState("thinking", turn.Id);
 		};
-		agent.Token += delegate
+		gestures?.Reset();
+		agent.Token += delegate(string text, bool reasoning)
 		{
 			dirtyRender = true;
+			if (!reasoning)
+			{
+				gestures?.Feed(text);
+				base.Dispatcher.InvokeAsync(delegate
+				{
+					if (busy && avatarState == "thinking")
+					{
+						spriteView?.SetState("talking");
+					}
+				});
+			}
 		};
 		agent.Activity += delegate(string text)
 		{
@@ -1690,6 +1890,7 @@ public partial class MainWindow : Window
 		try
 		{
 			await agent.RunAsync(settings, session, turn, operation.Token);
+			gestures?.Flush();
 			SetAvatarState("idle");
 			store.SaveChat(session);
 			RenderLive(final: true);
@@ -2063,6 +2264,14 @@ public partial class MainWindow : Window
 			semantic.Dispose();
 			await speech.DisposeAsync();
 			await avatar.DisposeAsync();
+			if (avatarPopout != null)
+			{
+				AvatarPopoutWindow window = avatarPopout;
+				avatarPopout = null;
+				window.Close();
+			}
+			animationsWindow?.Close();
+			gestures?.Dispose();
 			base.Dispatcher.BeginInvoke(new Action(base.Close));
 		}
 	}

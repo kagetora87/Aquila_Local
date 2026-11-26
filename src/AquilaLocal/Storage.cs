@@ -10,7 +10,8 @@ public sealed class Storage
 {
 	private static readonly JsonSerializerOptions Json = new JsonSerializerOptions
 	{
-		WriteIndented = true
+		WriteIndented = true,
+		NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals
 	};
 
 	public string Root { get; }
@@ -87,7 +88,7 @@ public sealed class Storage
 		}
 		try
 		{
-			return JsonSerializer.Deserialize<T>(File.ReadAllText(path));
+			return JsonSerializer.Deserialize<T>(File.ReadAllText(path), Json);
 		}
 		catch (JsonException)
 		{
