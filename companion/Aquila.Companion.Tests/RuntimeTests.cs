@@ -334,7 +334,7 @@ public sealed class RuntimeFlowTests
             Assert.Equal(i == 19, last.SummaryDue);
         }
 
-        var gen = new FakeGenerator("""{"facts":["They talked twenty times."],"feelings":["Content."],"hooks":["Ask about message 5."]}""");
+        var gen = new FakeGenerator("""{"add":[{"layer":"facts","text":"They talked twenty times."},{"layer":"hooks","text":"Ask about message 5."}],"supersede":[{"id":3,"text":"Ask about the cello recital date.","reason":"he booked the recital"}]}""");
         SummaryResult? r = rt.Summarizer(gen).RunAsync(TestPersona.T0.AddMinutes(30), CancellationToken.None).GetAwaiter().GetResult();
 
         Assert.NotNull(r);
@@ -344,6 +344,16 @@ public sealed class RuntimeFlowTests
         Assert.Equal(10, store.FoldedTurnIds("chat").Count);
         Assert.Contains("They talked twenty times.", ContextInjector.SystemPrompt(c, store.ReadSummary()));
         Assert.Contains("Takeru lives in Japan.", gen.LastUser);
+        Assert.Equal(2, r.Added);
+        Assert.Equal(1, r.Corrected);
+        List<MemoryEntry> history = store.MemoryHistory();
+        MemoryEntry original = history.Single(e => e.Id == 3);
+        Assert.Equal("Ask about the cello.", original.Text);             // the original is untouched...
+        Assert.False(original.Active);                                    // ...but no longer in force
+        MemoryEntry fix = history.Single(e => e.Supersedes == 3);
+        Assert.Equal("he booked the recital", fix.Reason);
+        Assert.Equal(TestPersona.T0.AddMinutes(30), fix.At);
+        Assert.Equal(new[] { "Ask about the cello recital date.", "Ask about message 5." }, store.ReadSummary().Hooks);
     }
 
     [Fact]

@@ -14,6 +14,30 @@ public sealed record Achievement(long Id, DateTimeOffset At, string Kind, string
 
 public sealed record Exchange(long Id, string ChatId, string TurnId, DateTimeOffset At, string User, string Reply, bool Folded);
 
+public static class MemoryLayers
+{
+    public const string Facts = "facts";
+    public const string Feelings = "feelings";
+    public const string Hooks = "hooks";
+    public static readonly IReadOnlyList<string> All = new[] { Facts, Feelings, Hooks };
+}
+
+public static class MemoryAuthors
+{
+    public const string Seed = "seed";
+    /// <summary>Written by the persona's own summary pass.</summary>
+    public const string Persona = "persona";
+    public const string Operator = "operator";
+}
+
+/// <param name="Supersedes">The entry this one corrects, if any.</param>
+/// <param name="SupersededBy">The newer entry that corrects this one, if any.</param>
+public sealed record MemoryEntry(long Id, DateTimeOffset At, string Layer, string Text, string Author, long? Supersedes, string Reason, long? SupersededBy)
+{
+    /// <summary>In force: not corrected by a newer entry, and not a withdrawal.</summary>
+    public bool Active => SupersededBy == null && Text.Length > 0;
+}
+
 public sealed record SessionInfo(string ChatId, DateTimeOffset StartedAt, DateTimeOffset LastAt, int Turns);
 
 /// <summary>
@@ -68,7 +92,17 @@ public sealed class PersonaStore
             CREATE TABLE exchanges(id INTEGER PRIMARY KEY AUTOINCREMENT, persona_id TEXT NOT NULL, chat_id TEXT NOT NULL, turn_id TEXT NOT NULL, at TEXT NOT NULL, user_text TEXT NOT NULL, reply_text TEXT NOT NULL, vector BLOB, folded INTEGER NOT NULL DEFAULT 0, UNIQUE(persona_id, turn_id));
             CREATE INDEX exchanges_by_persona ON exchanges(persona_id, id);
             CREATE TABLE achievements(id INTEGER PRIMARY KEY AUTOINCREMENT, persona_id TEXT NOT NULL, at TEXT NOT NULL, kind TEXT NOT NULL, note TEXT NOT NULL, reward REAL NOT NULL);
-            CREATE TABLE summary(persona_id TEXT PRIMARY KEY, block TEXT NOT NULL, updated_at TEXT NOT NULL, folded_count INTEGER NOT NULL);
+            CREATE TABLE memory_entries(id INTEGER PRIMARY KEY AUTOINCREMENT, persona_id TEXT NOT NULL, at TEXT NOT NULL, layer TEXT NOT NULL CHECK(layer IN ('facts','feelings','hooks')), text TEXT NOT NULL, author TEXT NOT NULL, supersedes INTEGER REFERENCES memory_entries(id), reason TEXT NOT NULL DEFAULT '');
+            CREATE UNIQUE INDEX memory_supersedes_once ON memory_entries(supersedes) WHERE supersedes IS NOT NULL;
+            CREATE TABLE memory_folds(id INTEGER PRIMARY KEY AUTOINCREMENT, persona_id TEXT NOT NULL, at TEXT NOT NULL, exchanges INTEGER NOT NULL, added INTEGER NOT NULL, superseded INTEGER NOT NULL);
+            CREATE TRIGGER memory_entries_no_update BEFORE UPDATE ON memory_entries BEGIN SELECT RAISE(ABORT, 'memory entries are append-only; add a superseding entry instead'); END;
+            CREATE TRIGGER memory_entries_no_delete BEFORE DELETE ON memory_entries BEGIN SELECT RAISE(ABORT, 'memory entries are append-only; add a superseding entry instead'); END;
+            CREATE TRIGGER exchanges_no_delete BEFORE DELETE ON exchanges BEGIN SELECT RAISE(ABORT, 'exchanges are append-only'); END;
+            CREATE TRIGGER exchanges_immutable BEFORE UPDATE OF persona_id, chat_id, turn_id, at, user_text, reply_text, vector ON exchanges BEGIN SELECT RAISE(ABORT, 'exchanges are append-only'); END;
+            CREATE TRIGGER achievements_no_update BEFORE UPDATE ON achievements BEGIN SELECT RAISE(ABORT, 'achievements are append-only'); END;
+            CREATE TRIGGER achievements_no_delete BEFORE DELETE ON achievements BEGIN SELECT RAISE(ABORT, 'achievements are append-only'); END;
+            CREATE TRIGGER drive_log_no_update BEFORE UPDATE ON drive_log BEGIN SELECT RAISE(ABORT, 'the drive log is append-only'); END;
+            CREATE TRIGGER drive_log_no_delete BEFORE DELETE ON drive_log BEGIN SELECT RAISE(ABORT, 'the drive log is append-only'); END;
             CREATE TABLE sessions(persona_id TEXT NOT NULL, chat_id TEXT NOT NULL, started_at TEXT NOT NULL, last_at TEXT NOT NULL, turns INTEGER NOT NULL, PRIMARY KEY(persona_id, chat_id));
             """);
         store.SetMeta(c, tx, "schema", SchemaVersion.ToString(CultureInfo.InvariantCulture));
@@ -85,9 +119,13 @@ public sealed class PersonaStore
             Exec(c, tx, "INSERT INTO drive_log(persona_id,at,drive,old,new,reason) VALUES($p,$t,$n,$v,$v,$r)",
                 ("$p", config.Id), ("$t", Iso(now)), ("$n", d.Name), ("$v", v), ("$r", $"initial value (baseline from {config.BaselineFrom})"));
         }
-        StateBlock seed = config.Seed.Summary.CappedTo(config.Memory.SummaryTokenCap);
-        Exec(c, tx, "INSERT INTO summary(persona_id,block,updated_at,folded_count) VALUES($p,$b,$t,0)",
-            ("$p", config.Id), ("$b", System.Text.Json.JsonSerializer.Serialize(seed, PersonaConfig.Json)), ("$t", Iso(now)));
+        foreach ((string layer, List<string> items) in new[] { (MemoryLayers.Facts, config.Seed.Summary.Facts), (MemoryLayers.Feelings, config.Seed.Summary.Feelings), (MemoryLayers.Hooks, config.Seed.Summary.Hooks) })
+        {
+            foreach (string text in items.Where(t => !string.IsNullOrWhiteSpace(t)))
+            {
+                store.InsertMemory(c, tx, now, layer, text, MemoryAuthors.Seed, null, $"seed summary block (baseline from {config.BaselineFrom})");
+            }
+        }
         tx.Commit();
         return store;
     }
@@ -317,11 +355,17 @@ public sealed class PersonaStore
     {
         using SqliteConnection c = Connect();
         using SqliteTransaction tx = c.BeginTransaction();
-        Exec(c, tx, """
-            INSERT INTO exchanges(persona_id,chat_id,turn_id,at,user_text,reply_text,vector) VALUES($p,$c,$tu,$t,$u,$r,$v)
-            ON CONFLICT(persona_id,turn_id) DO UPDATE SET user_text=excluded.user_text, reply_text=excluded.reply_text, vector=excluded.vector, at=excluded.at
+        int inserted = Exec(c, tx, """
+            INSERT OR IGNORE INTO exchanges(persona_id,chat_id,turn_id,at,user_text,reply_text,vector) VALUES($p,$c,$tu,$t,$u,$r,$v)
             """,
             ("$p", PersonaId), ("$c", chatId), ("$tu", turnId), ("$t", Iso(at)), ("$u", user), ("$r", reply), ("$v", vector == null ? DBNull.Value : ToBytes(vector)));
+        if (inserted == 0)
+        {
+            // Already remembered (exchanges are append-only), so nothing changes and nothing is counted twice.
+            tx.Rollback();
+            using SqliteConnection c2 = Connect();
+            return Scalar<long>(c2, null, "SELECT id FROM exchanges WHERE persona_id=$p AND turn_id=$tu", ("$p", PersonaId), ("$tu", turnId));
+        }
         long id = Scalar<long>(c, tx, "SELECT id FROM exchanges WHERE persona_id=$p AND turn_id=$tu", ("$p", PersonaId), ("$tu", turnId));
         Exec(c, tx, """
             INSERT INTO sessions(persona_id,chat_id,started_at,last_at,turns) VALUES($p,$c,$t,$t,1)
@@ -421,41 +465,131 @@ public sealed class PersonaStore
         return list;
     }
 
-    // ---- summary ------------------------------------------------------------------------------------
+    // ---- append-only memory ledger ------------------------------------------------------------------
 
-    public StateBlock ReadSummary()
+    /// <summary>Every memory entry ever written, oldest first, including superseded ones.</summary>
+    public List<MemoryEntry> MemoryHistory()
     {
         try
         {
             using SqliteConnection c = Connect();
-            string? json = Scalar<string>(c, null, "SELECT block FROM summary WHERE persona_id=$p", ("$p", PersonaId));
-            if (json == null)
+            using SqliteCommand cmd = c.CreateCommand();
+            cmd.CommandText = """
+                SELECT e.id,e.at,e.layer,e.text,e.author,e.supersedes,e.reason,(SELECT s.id FROM memory_entries s WHERE s.supersedes=e.id AND s.persona_id=$p)
+                FROM memory_entries e WHERE e.persona_id=$p ORDER BY e.id
+                """;
+            cmd.Parameters.AddWithValue("$p", PersonaId);
+            var list = new List<MemoryEntry>();
+            using SqliteDataReader r = cmd.ExecuteReader();
+            while (r.Read())
             {
-                throw new DriveStateUnavailableException(PersonaId, "the summary block is missing from the state store.");
+                list.Add(new MemoryEntry(r.GetInt64(0), ParseIso(r.GetString(1)), r.GetString(2), r.GetString(3), r.GetString(4),
+                    r.IsDBNull(5) ? null : r.GetInt64(5), r.GetString(6), r.IsDBNull(7) ? null : r.GetInt64(7)));
             }
-            return System.Text.Json.JsonSerializer.Deserialize<StateBlock>(json, PersonaConfig.Json)
-                ?? throw new DriveStateUnavailableException(PersonaId, "the summary block is empty.");
+            return list;
         }
-        catch (System.Text.Json.JsonException ex)
+        catch (SqliteException ex)
         {
-            throw new DriveStateUnavailableException(PersonaId, "the summary block is unreadable.", ex);
+            throw new DriveStateUnavailableException(PersonaId, $"her memory could not be read ({ex.Message}).", ex);
         }
     }
 
-    /// <summary>Replaces the summary block, marks the folded exchanges and resets the summary counter, atomically.</summary>
-    public void WriteSummary(StateBlock block, IEnumerable<long> foldedExchangeIds, DateTimeOffset at)
+    /// <summary>Entries in force: not superseded and not withdrawn.</summary>
+    public List<MemoryEntry> ActiveMemory() => MemoryHistory().Where(e => e.Active).ToList();
+
+    /// <summary>The pinned state block built from the entries in force (oldest first in each layer).</summary>
+    public StateBlock ReadSummary()
+    {
+        List<MemoryEntry> active = ActiveMemory();
+        return new StateBlock
+        {
+            Facts = active.Where(e => e.Layer == MemoryLayers.Facts).Select(e => e.Text).ToList(),
+            Feelings = active.Where(e => e.Layer == MemoryLayers.Feelings).Select(e => e.Text).ToList(),
+            Hooks = active.Where(e => e.Layer == MemoryLayers.Hooks).Select(e => e.Text).ToList()
+        };
+    }
+
+    /// <summary>Appends a new memory entry. Author is "persona" (her own summary pass) or "operator".</summary>
+    public long AddMemory(string layer, string text, string author, string reason, DateTimeOffset at)
     {
         using SqliteConnection c = Connect();
         using SqliteTransaction tx = c.BeginTransaction();
-        int folded = 0;
+        long id = InsertMemory(c, tx, at, layer, text, author, null, reason);
+        tx.Commit();
+        return id;
+    }
+
+    /// <summary>
+    /// Corrects an entry by appending a superseding one; the original is never changed. An empty
+    /// <paramref name="newText"/> withdraws the entry. A reason is required.
+    /// </summary>
+    public long Supersede(long entryId, string newText, string author, string reason, DateTimeOffset at)
+    {
+        using SqliteConnection c = Connect();
+        using SqliteTransaction tx = c.BeginTransaction();
+        long id = SupersedeIn(c, tx, entryId, newText, author, reason, at);
+        tx.Commit();
+        return id;
+    }
+
+    /// <summary>One summary pass, atomically: new entries, superseding entries, folded exchanges, counter reset.</summary>
+    public void ApplySummaryPass(IEnumerable<(string Layer, string Text)> additions, IEnumerable<(long Id, string Text, string Reason)> corrections,
+        IEnumerable<long> foldedExchangeIds, DateTimeOffset at)
+    {
+        using SqliteConnection c = Connect();
+        using SqliteTransaction tx = c.BeginTransaction();
+        int added = 0, superseded = 0, folded = 0;
+        foreach ((long id, string text, string reason) in corrections)
+        {
+            SupersedeIn(c, tx, id, text, MemoryAuthors.Persona, reason, at);
+            superseded++;
+        }
+        foreach ((string layer, string text) in additions)
+        {
+            InsertMemory(c, tx, at, layer, text, MemoryAuthors.Persona, null, "summary pass");
+            added++;
+        }
         foreach (long id in foldedExchangeIds)
         {
             folded += Exec(c, tx, "UPDATE exchanges SET folded=1 WHERE persona_id=$p AND id=$i", ("$p", PersonaId), ("$i", id));
         }
-        Exec(c, tx, "UPDATE summary SET block=$b, updated_at=$t, folded_count=folded_count+$f WHERE persona_id=$p",
-            ("$b", System.Text.Json.JsonSerializer.Serialize(block, PersonaConfig.Json)), ("$t", Iso(at)), ("$f", folded), ("$p", PersonaId));
+        Exec(c, tx, "INSERT INTO memory_folds(persona_id,at,exchanges,added,superseded) VALUES($p,$t,$f,$a,$s)",
+            ("$p", PersonaId), ("$t", Iso(at)), ("$f", folded), ("$a", added), ("$s", superseded));
         SetMeta(c, tx, "turns_since_summary", "0");
         tx.Commit();
+    }
+
+    private long SupersedeIn(SqliteConnection c, SqliteTransaction tx, long entryId, string newText, string author, string reason, DateTimeOffset at)
+    {
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            throw new ArgumentException("A correction needs a reason.");
+        }
+        string? layer = Scalar<string>(c, tx, "SELECT layer FROM memory_entries WHERE persona_id=$p AND id=$i", ("$p", PersonaId), ("$i", entryId));
+        if (layer == null)
+        {
+            throw new ArgumentException($"Memory entry {entryId} doesn't exist.");
+        }
+        if (Scalar<long>(c, tx, "SELECT COUNT(*) FROM memory_entries WHERE persona_id=$p AND supersedes=$i", ("$p", PersonaId), ("$i", entryId)) > 0)
+        {
+            throw new ArgumentException($"Memory entry {entryId} was already superseded; correct the newer entry instead.");
+        }
+        return InsertMemory(c, tx, at, layer, newText.Trim(), author, entryId, reason.Trim());
+    }
+
+    private long InsertMemory(SqliteConnection c, SqliteTransaction? tx, DateTimeOffset at, string layer, string text, string author, long? supersedes, string reason)
+    {
+        if (!MemoryLayers.All.Contains(layer))
+        {
+            throw new ArgumentException($"Unknown memory layer '{layer}'.");
+        }
+        if (supersedes == null && string.IsNullOrWhiteSpace(text))
+        {
+            throw new ArgumentException("A memory entry needs text.");
+        }
+        Exec(c, tx, "INSERT INTO memory_entries(persona_id,at,layer,text,author,supersedes,reason) VALUES($p,$t,$l,$x,$a,$s,$r)",
+            ("$p", PersonaId), ("$t", Iso(at)), ("$l", layer), ("$x", text.Trim()), ("$a", author), ("$s", supersedes.HasValue ? supersedes.Value : DBNull.Value), ("$r", reason));
+        return Scalar<long>(c, tx, "SELECT last_insert_rowid()");
     }
 
     public List<SessionInfo> Sessions()
