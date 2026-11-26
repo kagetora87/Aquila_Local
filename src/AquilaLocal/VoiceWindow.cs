@@ -333,13 +333,7 @@ public sealed class VoiceWindow : AquilaWindow
 
 	private static void Label(Panel p, string text)
 	{
-		p.Children.Add(new TextBlock
-		{
-			Text = text,
-			FontSize = 12.0,
-			Foreground = Ui.Brush("Text.Secondary"),
-			Margin = new Thickness(0.0, 14.0, 0.0, 7.0)
-		});
+		p.Children.Add(Ui.Section(text));
 	}
 
 	private new static void Name(DependencyObject element, string name)

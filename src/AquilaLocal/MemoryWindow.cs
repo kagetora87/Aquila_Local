@@ -255,13 +255,7 @@ public sealed class MemoryWindow : AquilaWindow
 
 	private static void Label(Panel panel, string text)
 	{
-		panel.Children.Add(new TextBlock
-		{
-			Text = text,
-			FontSize = 12.0,
-			Foreground = Ui.Brush("Text.Secondary"),
-			Margin = new Thickness(0.0, 14.0, 0.0, 7.0)
-		});
+		panel.Children.Add(Ui.Section(text));
 	}
 
 	private void Button(Panel panel, string text, Action action)

@@ -41,6 +41,13 @@ public class AquilaWindow : Window
 		};
 	}
 
+	protected override void OnClosed(EventArgs e)
+	{
+		base.OnClosed(e);
+		// Give keyboard focus back to the window underneath (Esc, shortcuts).
+		Owner?.Activate();
+	}
+
 	protected override void OnSourceInitialized(EventArgs e)
 	{
 		base.OnSourceInitialized(e);

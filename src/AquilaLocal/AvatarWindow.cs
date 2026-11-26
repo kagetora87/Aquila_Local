@@ -313,13 +313,7 @@ public sealed class AvatarWindow : AquilaWindow
 
 	private static void Label(Panel panel, string value)
 	{
-		panel.Children.Add(new TextBlock
-		{
-			Text = value,
-			Foreground = Ui.Brush("Text.Secondary"),
-			FontSize = 12.0,
-			Margin = new Thickness(0.0, 14.0, 0.0, 5.0)
-		});
+		panel.Children.Add(Ui.Section(value));
 	}
 
 	private static void AddButton(Panel panel, string title, Func<Task> action)

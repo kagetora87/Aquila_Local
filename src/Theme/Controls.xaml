@@ -895,7 +895,7 @@
       <Setter.Value>
         <ControlTemplate TargetType="{x:Type Expander}">
           <DockPanel>
-            <ToggleButton x:Name="Header" DockPanel.Dock="Top" FocusVisualStyle="{StaticResource Focus.Ring}" Cursor="Hand" IsChecked="{Binding IsExpanded, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+            <ToggleButton x:Name="Header" DockPanel.Dock="Top" Foreground="{StaticResource Text.Secondary}" FontWeight="Medium" FocusVisualStyle="{StaticResource Focus.Ring}" Cursor="Hand" IsChecked="{Binding IsExpanded, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
               <ToggleButton.Template>
                 <ControlTemplate TargetType="{x:Type ToggleButton}">
                   <Border Background="Transparent" MinHeight="36">
@@ -905,12 +905,12 @@
                           <RotateTransform Angle="0" />
                         </TextBlock.RenderTransform>
                       </TextBlock>
-                      <ContentPresenter x:Name="HeaderText" TextElement.Foreground="{StaticResource Text.Secondary}" TextElement.FontWeight="Medium" VerticalAlignment="Center" />
+                      <ContentPresenter x:Name="HeaderText" VerticalAlignment="Center" />
                     </StackPanel>
                   </Border>
                   <ControlTemplate.Triggers>
                     <Trigger Property="IsMouseOver" Value="True">
-                      <Setter TargetName="HeaderText" Property="TextElement.Foreground" Value="{StaticResource Text.Primary}" />
+                      <Setter Property="Foreground" Value="{StaticResource Text.Primary}" />
                     </Trigger>
                     <Trigger Property="IsChecked" Value="True">
                       <Setter TargetName="Chev" Property="RenderTransform">
@@ -945,7 +945,7 @@
         <ControlTemplate TargetType="{x:Type Expander}">
           <Border Background="{StaticResource Surface.1}" BorderBrush="{StaticResource Stroke.Subtle}" BorderThickness="1" CornerRadius="12">
             <DockPanel>
-              <ToggleButton DockPanel.Dock="Top" FocusVisualStyle="{StaticResource Focus.Ring}" Cursor="Hand" IsChecked="{Binding IsExpanded, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+              <ToggleButton DockPanel.Dock="Top" Foreground="{StaticResource Text.Primary}" FontWeight="Medium" FontSize="14" FocusVisualStyle="{StaticResource Focus.Ring}" Cursor="Hand" IsChecked="{Binding IsExpanded, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
                 <ToggleButton.Template>
                   <ControlTemplate TargetType="{x:Type ToggleButton}">
                     <Border Background="Transparent" Height="48" Padding="16,0">
@@ -991,7 +991,7 @@
       <Setter.Value>
         <ControlTemplate TargetType="{x:Type Expander}">
           <DockPanel>
-            <ToggleButton DockPanel.Dock="Top" HorizontalAlignment="Left" FocusVisualStyle="{StaticResource Focus.Ring}" Cursor="Hand" IsChecked="{Binding IsExpanded, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+            <ToggleButton DockPanel.Dock="Top" HorizontalAlignment="Left" Foreground="{StaticResource Text.Tertiary}" FontSize="12" FocusVisualStyle="{StaticResource Focus.Ring}" Cursor="Hand" IsChecked="{Binding IsExpanded, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
               <ToggleButton.Template>
                 <ControlTemplate TargetType="{x:Type ToggleButton}">
                   <Border Background="Transparent" Height="24">
@@ -1001,12 +1001,12 @@
                           <RotateTransform Angle="0" />
                         </TextBlock.RenderTransform>
                       </TextBlock>
-                      <ContentPresenter x:Name="HeaderText" TextElement.Foreground="{StaticResource Text.Tertiary}" TextElement.FontSize="12" VerticalAlignment="Center" />
+                      <ContentPresenter x:Name="HeaderText" VerticalAlignment="Center" />
                     </StackPanel>
                   </Border>
                   <ControlTemplate.Triggers>
                     <Trigger Property="IsMouseOver" Value="True">
-                      <Setter TargetName="HeaderText" Property="TextElement.Foreground" Value="{StaticResource Text.Secondary}" />
+                      <Setter Property="Foreground" Value="{StaticResource Text.Secondary}" />
                     </Trigger>
                     <Trigger Property="IsChecked" Value="True">
                       <Setter TargetName="ChevIcon3" Property="RenderTransform">
@@ -1138,6 +1138,22 @@
     <Setter Property="Foreground" Value="{StaticResource Text.Primary}" />
     <Setter Property="BorderThickness" Value="0" />
     <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="{x:Type ListBox}">
+          <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}">
+            <ScrollViewer Focusable="False" HorizontalScrollBarVisibility="{TemplateBinding ScrollViewer.HorizontalScrollBarVisibility}" VerticalScrollBarVisibility="{TemplateBinding ScrollViewer.VerticalScrollBarVisibility}">
+              <ItemsPresenter />
+            </ScrollViewer>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsEnabled" Value="False">
+              <Setter TargetName="Bd" Property="Opacity" Value="0.55" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
   </Style>
 
   <Style TargetType="{x:Type ListBoxItem}">

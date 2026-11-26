@@ -123,12 +123,14 @@
         <DockPanel>
           <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
             <Button Name="VoiceReplayButton" Style="{StaticResource Btn.Icon}" Width="36" Height="36" Content="&#xE767;" ToolTip="Read the last reply aloud" Click="ReplayVoice_Click" />
-            <Button Name="VoiceStopButton" Style="{StaticResource Btn.Icon}" Width="36" Height="36" Margin="4,0,0,0" Content="&#xE71A;" ToolTip="Stop speaking" Click="StopVoice_Click" Visibility="{Binding IsEnabled, RelativeSource={RelativeSource Self}, Converter={StaticResource BoolToVisibility}}" />
-            <Button Name="MoreButton" Style="{StaticResource Btn.Icon}" Width="36" Height="36" Margin="4,0,0,0" Content="&#xE712;" ToolTip="More" Click="More_Click" />
+            <Button Name="VoiceStopButton" Style="{StaticResource Btn.Icon}" Width="36" Height="36" Margin="4,0,0,0" ToolTip="Stop speaking" Click="StopVoice_Click" Visibility="{Binding IsEnabled, RelativeSource={RelativeSource Self}, Converter={StaticResource BoolToVisibility}}" >
+              <Border Width="10" Height="10" CornerRadius="2" Background="{StaticResource Text.Secondary}" />
+            </Button>
+            <Button Name="MoreButton" Style="{StaticResource Btn.Icon}" Width="36" Height="36" Margin="4,0,0,0" Content="&#xE712;" ToolTip="More options" ToolTipService.Placement="Left" Click="More_Click" />
             <Button Name="SettingsButton" Style="{StaticResource Btn.Icon}" Width="36" Height="36" Margin="4,0,0,0" Content="&#xE713;" ToolTip="Settings (Ctrl+,)" Click="Settings_Click" />
           </StackPanel>
-          <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-            <TextBlock Name="ChatTitle" Text="New conversation" Style="{StaticResource Type.Subtitle}" TextTrimming="CharacterEllipsis" MaxWidth="420" VerticalAlignment="Center" />
+          <StackPanel Orientation="Horizontal" VerticalAlignment="Center" ClipToBounds="True">
+            <TextBlock Name="ChatTitle" Text="New conversation" Style="{StaticResource Type.Subtitle}" TextTrimming="CharacterEllipsis" MaxWidth="340" VerticalAlignment="Center" />
             <Border Name="StatusChip" Style="{StaticResource Chip}" Margin="12,0,0,0" VerticalAlignment="Center">
               <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                 <Ellipse Name="StatusDot" Width="8" Height="8" Fill="{StaticResource Text.Tertiary}" VerticalAlignment="Center" Margin="0,0,8,0" />
@@ -136,7 +138,7 @@
               </StackPanel>
             </Border>
             <Button Name="ModelChip" Style="{StaticResource Btn.HeaderChip}" Margin="8,0,0,0" VerticalAlignment="Center" Click="ModelChip_Click">
-              <TextBlock Name="ModelChipText" Text="No model" TextTrimming="CharacterEllipsis" MaxWidth="200" />
+              <TextBlock Name="ModelChipText" Text="No model" TextTrimming="CharacterEllipsis" MaxWidth="170" />
             </Button>
             <Button Name="WebChip" Style="{StaticResource Btn.HeaderChip}" Margin="8,0,0,0" VerticalAlignment="Center" Visibility="Collapsed" Click="Internet_Click" ToolTip="Aquila may contact the internet. Click to change.">
               <StackPanel Orientation="Horizontal">

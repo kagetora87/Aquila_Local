@@ -83,8 +83,25 @@ public static class Ui
 		return new TextBlock
 		{
 			Text = text,
-			Style = Style(style)
+			Style = Style(style),
+			TextWrapping = TextWrapping.Wrap
 		};
+	}
+
+	/// <summary>A small section heading in sentence case ("VOLUME" becomes "Volume").</summary>
+	public static TextBlock Section(string text, double top = 18.0)
+	{
+		string value = text;
+		if (value.Length > 1 && value == value.ToUpperInvariant())
+		{
+			value = value.Substring(0, 1) + value.Substring(1).ToLowerInvariant();
+		}
+		TextBlock textBlock = Text(value, "Type.BodyStrong");
+		textBlock.Foreground = Brush("Text.Secondary");
+		textBlock.FontSize = 13.0;
+		textBlock.TextWrapping = TextWrapping.Wrap;
+		textBlock.Margin = new Thickness(0.0, top, 0.0, 8.0);
+		return textBlock;
 	}
 
 	/// <summary>A Segoe Fluent Icons glyph.</summary>
