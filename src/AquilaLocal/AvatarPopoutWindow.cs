@@ -63,7 +63,13 @@ public sealed class AvatarPopoutWindow : Window
 			options.Left = base.Left;
 			options.Top = base.Top;
 		};
-		ContextMenu contextMenu = new ContextMenu();
+		// Explicit dark text on a light menu: the app's default text colour is light, which made the
+		// menu unreadable on Windows' white menu background.
+		ContextMenu contextMenu = new ContextMenu
+		{
+			Background = new SolidColorBrush(Color.FromRgb(245, 245, 245)),
+			Foreground = MenuInk
+		};
 		contextMenu.Items.Add(Item("Put back in Aquila", delegate
 		{
 			this.DockRequested?.Invoke();
@@ -83,10 +89,10 @@ public sealed class AvatarPopoutWindow : Window
 		}));
 		MenuItem top = new MenuItem
 		{
-			Header = "Always on top",
+			Header = MenuText("Always on top"),
 			IsCheckable = true,
 			IsChecked = options.Topmost,
-			Foreground = Brushes.Black
+			Foreground = MenuInk
 		};
 		top.Click += delegate
 		{
@@ -101,14 +107,25 @@ public sealed class AvatarPopoutWindow : Window
 	{
 		MenuItem menuItem = new MenuItem
 		{
-			Header = header,
-			Foreground = Brushes.Black
+			Header = MenuText(header),
+			Foreground = MenuInk
 		};
 		menuItem.Click += delegate
 		{
 			action();
 		};
 		return menuItem;
+	}
+
+	private static readonly Brush MenuInk = new SolidColorBrush(Color.FromRgb(17, 17, 17));
+
+	private static TextBlock MenuText(string text)
+	{
+		return new TextBlock
+		{
+			Text = text,
+			Foreground = MenuInk
+		};
 	}
 
 	private void Resize(int height)

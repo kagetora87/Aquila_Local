@@ -231,6 +231,7 @@ public partial class MainWindow : Window
 			{
 				AvatarPlaceholders.EnsureIn(spriteRoot);
 			}
+			AvatarPlaceholders.UpgradeDescriptions(spriteRoot);
 		}
 		catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is ArgumentException)
 		{
@@ -315,6 +316,10 @@ public partial class MainWindow : Window
 		{
 			return;
 		}
+		if (double.IsNaN(settings.Sprite.Left) || double.IsNaN(settings.Sprite.Top))
+		{
+			PlaceAvatarBesideWindow();
+		}
 		AvatarSlot.Content = null;
 		AvatarSlot.Visibility = Visibility.Collapsed;
 		AvatarPoppedText.Visibility = Visibility.Visible;
@@ -335,6 +340,26 @@ public partial class MainWindow : Window
 		settings.Sprite.PoppedOut = true;
 		avatarPopout.Show();
 		SaveAvatarSettings();
+	}
+
+	/// <summary>First pop-out: stand next to Aquila rather than on top of it, when there is room.</summary>
+	private void PlaceAvatarBesideWindow()
+	{
+		SpriteAvatarOptions options = settings.Sprite;
+		double height = Math.Clamp(options.Height, 120, 900);
+		double width = height * 0.82;
+		Rect work = SystemParameters.WorkArea;
+		double top = Math.Clamp(base.Top + base.ActualHeight - height, work.Top, work.Bottom - height);
+		if (base.WindowState != WindowState.Maximized && base.Left + base.ActualWidth + width + 8.0 <= work.Right)
+		{
+			options.Left = base.Left + base.ActualWidth + 8.0;
+			options.Top = top;
+		}
+		else if (base.WindowState != WindowState.Maximized && base.Left - width - 8.0 >= work.Left)
+		{
+			options.Left = base.Left - width - 8.0;
+			options.Top = top;
+		}
 	}
 
 	private void DockAvatar()

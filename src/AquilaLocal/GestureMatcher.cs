@@ -27,7 +27,9 @@ public sealed class GestureMatcher : IDisposable
 
 	private EmbeddingModel? model;
 
-	private List<(SpriteAnimation Animation, float[]? Vector, string[] Stems)> targets = new List<(SpriteAnimation, float[], string[])>();
+	private sealed record Target(SpriteAnimation Animation, List<float[]> Vectors, string[] NameStems, string[] DescriptionStems);
+
+	private List<Target> targets = new List<Target>();
 
 	private DateTime lastFired = DateTime.MinValue;
 
@@ -45,20 +47,51 @@ public sealed class GestureMatcher : IDisposable
 		this.modelDirectory = modelDirectory;
 	}
 
-	/// <summary>Similarity needed to fire: 0.62 at the lowest sensitivity, 0.38 at the highest.</summary>
-	public double Threshold => 0.62 - 0.24 * Math.Clamp(Sensitivity, 0.0, 1.0);
+	/// <summary>Similarity needed to fire: 0.62 at the lowest sensitivity, 0.44 in the middle, 0.26 at the highest.</summary>
+	public double Threshold => 0.62 - 0.36 * Math.Clamp(Sensitivity, 0.0, 1.0);
+
+	/// <summary>Score for a sentence that literally uses the gesture's name ("eating").</summary>
+	private const double NameWordScore = 0.75;
+
+	/// <summary>Score for a sentence that uses a word from "when should it play" ("breakfast").</summary>
+	private const double DescriptionWordScore = 0.6;
 
 	public void SetAnimations(IEnumerable<SpriteAnimation> animations)
 	{
 		List<SpriteAnimation> list = animations.Where((SpriteAnimation a) => a.Kind == SpriteKind.Gesture).ToList();
 		Task.Run(delegate
 		{
-			List<(SpriteAnimation, float[], string[])> value = list.Select((SpriteAnimation a) => (a, Encode(a.MatchText), Stems(a.Name))).ToList();
+			List<Target> value = list.Select(BuildTarget).ToList();
 			lock (gate)
 			{
 				targets = value;
 			}
 		});
+	}
+
+	/// <summary>
+	/// Each phrase of the description ("saying hi, hello, welcome or goodbye") is compared on its
+	/// own, because one long list blurs the meaning of every item in it.
+	/// </summary>
+	private Target BuildTarget(SpriteAnimation animation)
+	{
+		List<string> phrases = new List<string> { animation.Name };
+		string description = animation.Meta.Description ?? "";
+		if (!string.IsNullOrWhiteSpace(description))
+		{
+			phrases.Add(animation.Name + ". " + description);
+			phrases.AddRange(from p in Regex.Split(description, "[,;/\\n]|\\bor\\b|\\band\\b", RegexOptions.IgnoreCase)
+				select p.Trim() into p
+				where p.Length >= 3
+				select p);
+		}
+		List<float[]> vectors = (from p in phrases.Distinct(StringComparer.OrdinalIgnoreCase)
+			select Encode(p) into v
+			where v != null
+			select v).ToList();
+		string[] nameStems = Stems(animation.Name);
+		string[] descriptionStems = Stems(description).Except(nameStems).ToArray();
+		return new Target(animation, vectors, nameStems, descriptionStems);
 	}
 
 	/// <summary>Call at the start of each reply.</summary>
@@ -141,7 +174,7 @@ public sealed class GestureMatcher : IDisposable
 	/// <summary>The best-matching gesture and its score, for the Test box. Null when there are none.</summary>
 	public GestureMatch? Best(string sentence)
 	{
-		List<(SpriteAnimation Animation, float[] Vector, string[] Stems)> list;
+		List<Target> list;
 		lock (gate)
 		{
 			list = targets;
@@ -153,12 +186,23 @@ public sealed class GestureMatcher : IDisposable
 		float[] array = Encode(sentence);
 		HashSet<string> words = Stems(sentence).ToHashSet();
 		GestureMatch match = null;
-		foreach (var item in list)
+		foreach (Target item in list)
 		{
-			double num = ((array != null && item.Vector != null) ? ((double)EmbeddingModel.Similarity(array, item.Vector)) : 0.0);
-			if (item.Stems.Length != 0 && item.Stems.Any(words.Contains))
+			double num = 0.0;
+			if (array != null)
 			{
-				num = Math.Max(num, 0.75);
+				foreach (float[] vector in item.Vectors)
+				{
+					num = Math.Max(num, EmbeddingModel.Similarity(array, vector));
+				}
+			}
+			if (item.NameStems.Any(words.Contains))
+			{
+				num = Math.Max(num, NameWordScore);
+			}
+			else if (item.DescriptionStems.Any(words.Contains))
+			{
+				num = Math.Max(num, DescriptionWordScore);
 			}
 			if (match == null || num > match.Score)
 			{
@@ -217,7 +261,11 @@ public sealed class GestureMatcher : IDisposable
 	{
 		"the", "and", "you", "your", "for", "with", "that", "this", "are", "was",
 		"but", "not", "have", "has", "can", "will", "just", "from", "what", "when",
-		"some", "something", "someone", "saying", "say", "being", "having", "use"
+		"some", "something", "someone", "saying", "say", "being", "having", "use",
+		"like", "about", "them", "they", "then", "there", "here", "really", "very", "much",
+		"want", "would", "could", "should", "time", "thing", "things", "one", "all", "out",
+		"get", "got", "make", "made", "know", "think", "good", "great", "well", "now", "how",
+		"who", "why", "where", "which", "its", "it's", "our", "ours", "his", "her", "him", "she"
 	};
 
 	public void Dispose()

@@ -28,10 +28,36 @@ public static class AvatarPlaceholders
 		("talking", "", 1.4),
 		("thinking", "", 0.6),
 		("listening", "", 0.6),
-		("waving hello", "greeting someone, saying hi, hello, welcome or goodbye", 1.0),
-		("eating", "food, eating, having a meal, a snack, tasting something delicious", 0.9),
-		("nodding", "agreeing, saying yes, of course, sure, understood, exactly", 1.0)
+		("waving hello", "greeting someone, hi, hello, welcome, bye, goodbye, see you later, farewell", 1.0),
+		("eating", "food, eating, a meal, breakfast, lunch, dinner, a snack, hungry, tasty, delicious", 0.9),
+		("nodding", "agreeing, yes, of course, sure, exactly, absolutely, right, understood, agree", 1.0)
 	};
+
+	/// <summary>Descriptions written by the first version; upgraded when found unchanged.</summary>
+	private static readonly Dictionary<string, string> OldDescriptions = new Dictionary<string, string>
+	{
+		["waving hello"] = "greeting someone, saying hi, hello, welcome or goodbye",
+		["eating"] = "food, eating, having a meal, a snack, tasting something delicious",
+		["nodding"] = "agreeing, saying yes, of course, sure, understood, exactly"
+	};
+
+	/// <summary>Gives placeholder sets the better "when should it play" text, unless the user changed it.</summary>
+	public static void UpgradeDescriptions(string root)
+	{
+		foreach (var (name, description, _) in Sets)
+		{
+			string folder = Path.Combine(root, name);
+			if (OldDescriptions.TryGetValue(name, out string old) && Directory.Exists(folder))
+			{
+				SpriteMeta meta = SpriteLibrary.ReadMeta(folder);
+				if (meta.Description == old)
+				{
+					meta.Description = description;
+					SpriteLibrary.WriteMeta(folder, meta);
+				}
+			}
+		}
+	}
 
 	/// <summary>Creates any placeholder set that is missing from the folder. Returns how many were made.</summary>
 	public static int EnsureIn(string root)

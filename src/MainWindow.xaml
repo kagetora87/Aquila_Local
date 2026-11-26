@@ -25,9 +25,10 @@
               <StackPanel>
                 <DockPanel Margin="0,0,0,6">
                   <Button DockPanel.Dock="Right" Content="Pop out ↗" FontSize="10" Padding="6,2" ToolTip="Float the avatar on your desktop" Click="AvatarPop_Click" />
+                  <Button DockPanel.Dock="Right" Content="Edit…" FontSize="10" Padding="6,2" Margin="0,0,4,0" ToolTip="Change the avatar's pictures and gestures" Click="Avatar_Click" />
                   <TextBlock Text="AVATAR" Foreground="#80DEC5" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center" />
                 </DockPanel>
-                <ContentControl Name="AvatarSlot" Height="200" />
+                <ContentControl Name="AvatarSlot" Height="180" />
                 <TextBlock Name="AvatarPoppedText" Text="Floating on your desktop. Double-click it to bring it back." Visibility="Collapsed" FontSize="10" Foreground="{StaticResource Muted}" TextWrapping="Wrap" />
               </StackPanel>
             </Border>
