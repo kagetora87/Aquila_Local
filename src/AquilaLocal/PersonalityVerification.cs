@@ -98,7 +98,7 @@ public static class PersonalityVerification
 				Status = "complete"
 			};
 			Check((object)(await new MemoryLearner(engine, memories, profiles).LearnAsync(settings, new ChatSession(), fiction, timeout.Token)) == null && fiction.MemoryPromptTokens == 0L && !engine.Ready, "Creative profile can pause learning before any model request");
-			MemoryChange memoryChange = memories.Apply(new global::_003C_003Ez__ReadOnlySingleElementList<MemoryCandidate>(new MemoryCandidate("captain", "Seventeen Seas", "Seventeen Seas", "fact", "personal", 1.0, Array.Empty<string>())), "", new ChatSession(), new Turn
+			MemoryChange memoryChange = memories.Apply(new MemoryCandidate[] { new MemoryCandidate("captain", "Seventeen Seas", "Seventeen Seas", "fact", "personal", 1.0, Array.Empty<string>()) }, "", new ChatSession(), new Turn
 			{
 				User = "I prefer practical answers in this conversation."
 			});

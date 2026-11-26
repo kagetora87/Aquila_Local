@@ -4,44 +4,15 @@ public sealed record InferenceProfile(string Key, string Label, int Maximum, int
 {
 	public static InferenceProfile Resolve(InferencePreferences? preferences, HardwareInventory? hardware)
 	{
-		string text = preferences?.Profile ?? "Custom";
-		object obj;
-		if (text == "Auto")
+		// "Auto" is now a real mode (see InferenceLaunch.PlanAuto): it sizes the context to the
+		// graphics card instead of mapping onto one of the fixed profiles.
+		return (preferences?.Profile ?? "Auto") switch
 		{
-			long valueOrDefault = (hardware?.Gpu?.DedicatedBytes).GetValueOrDefault();
-			if (valueOrDefault < 21474836480L)
-			{
-				if (valueOrDefault > 0 && valueOrDefault <= 10737418240L)
-				{
-					long ramBytes = hardware.RamBytes;
-					if (ramBytes > 0 && ramBytes <= 21474836480L)
-					{
-						obj = "Laptop";
-						goto IL_00a1;
-					}
-				}
-				obj = "Custom";
-			}
-			else
-			{
-				obj = "High";
-			}
-			goto IL_00a1;
-		}
-		goto IL_00a2;
-		IL_00a2:
-		if (!(text == "High"))
-		{
-			if (text == "Laptop")
-			{
-				return new InferenceProfile(text, "B · Constrained laptop", 24576, 16384);
-			}
-			return new InferenceProfile("Custom", "Custom", 262144, 8192);
-		}
-		return new InferenceProfile(text, "A · High VRAM", 65536, 32768);
-		IL_00a1:
-		text = (string)obj;
-		goto IL_00a2;
+			"Auto" => new InferenceProfile("Auto", "Automatic (recommended)", 262144, 32768),
+			"High" => new InferenceProfile("High", "A · High VRAM", 262144, 32768),
+			"Laptop" => new InferenceProfile("Laptop", "B · Constrained laptop", 24576, 16384),
+			_ => new InferenceProfile("Custom", "Custom", 262144, 8192),
+		};
 	}
 
 	public int Requested(InferencePreferences options)

@@ -1,3 +1,4 @@
+using System.IO;
 using System;
 using System.Globalization;
 
@@ -5,17 +6,37 @@ namespace AquilaLocal;
 
 public sealed record InferenceLaunch(string Device, string Layers, string Cache, int ExpertCpuLayers, bool UseMmap, bool FullOffload)
 {
+	public const long GiB = 1073741824L;
+
 	public bool CpuOnly => Device == "none";
 
-	public string Flash
+	/// <summary>Context chosen by Automatic mode, or 0 when the user's own setting applies.</summary>
+	public int AutoContext { get; init; }
+
+	/// <summary>Plain-language description of what Automatic mode decided.</summary>
+	public string Summary { get; init; } = "";
+
+	public string Flash => CpuOnly ? "auto" : "on";
+
+	/// <summary>Prompt-reading batch sizes. llama.cpp's defaults (2048/512) read prompts several times
+	/// faster on a GPU than the 256/128 this app used to hard-code.</summary>
+	public int Batch => CpuOnly ? 512 : 2048;
+
+	public int MicroBatch => 512;
+
+	/// <summary>CPU threads to use when the setting is 0 (automatic). With every layer on the GPU the
+	/// CPU only feeds the GPU, so a few threads are enough; otherwise use the physical cores but leave
+	/// a little headroom so the computer stays responsive.</summary>
+	public int AutoThreads
 	{
 		get
 		{
-			if (!(Cache == "f16"))
+			int physical = Math.Max(1, Environment.ProcessorCount / 2);
+			if (!CpuOnly && FullOffload)
 			{
-				return "on";
+				return Math.Clamp(physical / 2, 2, 8);
 			}
-			return "auto";
+			return Math.Max(1, physical - Math.Max(1, physical / 8));
 		}
 	}
 
@@ -23,51 +44,77 @@ public sealed record InferenceLaunch(string Device, string Layers, string Cache,
 	{
 		InferenceProfile inferenceProfile = InferenceProfile.Resolve(settings.Inference, settings.Hardware);
 		string key = inferenceProfile.Key;
-		string text = ((key == "High") ? "q8_0" : ((!(key == "Laptop")) ? (settings.Inference?.CustomCache ?? "f16") : (settings.Inference.LaptopQ4 ? "q4_0" : "q8_0")));
-		string cache = text;
-		bool flag = inferenceProfile.Key != "Custom";
-		int num;
-		if (!flag)
+		if (key == "Auto")
 		{
-			if (settings.GpuLayers == 0)
+			long projector = ((settings.ProjectorPath.Length > 0 && File.Exists(settings.ProjectorPath)) ? new FileInfo(settings.ProjectorPath).Length : 0);
+			return PlanAuto(settings.Hardware, model, projector);
+		}
+		string cache = ((key == "High") ? "q8_0" : ((key == "Laptop") ? (settings.Inference.LaptopQ4 ? "q4_0" : "q8_0") : (settings.Inference?.CustomCache ?? "f16")));
+		// Use the GPU only when detection actually found one. The old code fell back to "Vulkan0",
+		// which on many laptops is the weak integrated GPU.
+		string gpuDevice = settings.Hardware?.Gpu?.Device;
+		bool useGpu = gpuDevice != null && (key != "Custom" || settings.GpuLayers != 0);
+		string device = (useGpu ? gpuDevice : "none");
+		int expertCpuLayers = ((useGpu && key != "High" && model.ExpertCount > 1) ? Math.Clamp(settings.Inference?.ExpertCpuLayers ?? 0, 0, model.BlockCount) : 0);
+		bool fullOffload = useGpu && (key == "High" || expertCpuLayers > 0);
+		string layers = ((!useGpu) ? "0" : (fullOffload ? "all" : ((key != "Custom" || settings.GpuLayers < 0) ? "auto" : settings.GpuLayers.ToString(CultureInfo.InvariantCulture))));
+		return new InferenceLaunch(device, layers, cache, expertCpuLayers, key == "Laptop" || expertCpuLayers > 0, fullOffload);
+	}
+
+	/// <summary>
+	/// Automatic mode. With a graphics card that can hold the whole model, put every layer on it with
+	/// an 8-bit context cache and make the context as large as the remaining video memory allows,
+	/// keeping a safety margin for Windows and other apps. Otherwise split the model between GPU and
+	/// CPU with a moderate context, or run on the CPU.
+	/// </summary>
+	public static InferenceLaunch PlanAuto(HardwareInventory? hardware, ModelInfo model, long projectorBytes)
+	{
+		InferenceGpu gpu = hardware?.Gpu;
+		int native = Math.Clamp(model.NativeContext, 2048, 262144);
+		if (gpu == null)
+		{
+			int ctx = Math.Min(8192, native);
+			return new InferenceLaunch("none", "0", "q8_0", 0, UseMmap: false, FullOffload: false)
 			{
-				num = 0;
-				goto IL_00ff;
-			}
-			if ((object)settings.Hardware == null)
+				AutoContext = ctx,
+				Summary = $"No graphics card found, so the processor runs the model (slower). Conversations up to {Describe(ctx)}."
+			};
+		}
+		long usable = Math.Min(gpu.FreeBytes > 0 ? gpu.FreeBytes : gpu.DedicatedBytes, gpu.DedicatedBytes);
+		long reserve = Math.Max(3 * GiB / 2, gpu.DedicatedBytes / 16);
+		long workspace = GiB + projectorBytes;
+		long weights = model.FileBytes;
+		long kvBudget = usable - reserve - workspace - weights;
+		double kvPerToken = Math.Max(1024.0, model.KvBytesPerToken) * (17.0 / 32.0);
+		if (kvBudget >= (long)(kvPerToken * 8192))
+		{
+			int ctx = (int)Math.Clamp(kvBudget / kvPerToken, 8192.0, native);
+			ctx = Math.Max(8192, ctx / 4096 * 4096);
+			return new InferenceLaunch(gpu.Device, "auto", "q8_0", 0, UseMmap: false, FullOffload: true)
 			{
-				num = 1;
-				goto IL_00d6;
-			}
-			num = (((object)settings.Hardware.Gpu != null) ? 1 : 0);
+				AutoContext = ctx,
+				Summary = $"Running fully on {gpu.Name}. Conversations up to {Describe(ctx)}."
+			};
 		}
-		else
+		int partial = Math.Min(16384, native);
+		return new InferenceLaunch(gpu.Device, "auto", "q8_0", 0, UseMmap: false, FullOffload: false)
 		{
-			num = (((object)settings.Hardware?.Gpu != null) ? 1 : 0);
-		}
-		if (num != 0)
-		{
-			goto IL_00d6;
-		}
-		goto IL_00ff;
-		IL_00ff:
-		object obj = "none";
-		goto IL_0104;
-		IL_0104:
-		string device = (string)obj;
-		int num2 = ((num != 0 && inferenceProfile.Key != "High" && model.ExpertCount > 1) ? Math.Clamp(settings.Inference?.ExpertCpuLayers ?? 0, 0, model.BlockCount) : 0);
-		bool flag2 = num != 0 && (inferenceProfile.Key == "High" || num2 > 0);
-		string layers = ((num == 0) ? "0" : (flag2 ? "all" : ((flag || settings.GpuLayers < 0) ? "auto" : settings.GpuLayers.ToString(CultureInfo.InvariantCulture))));
-		return new InferenceLaunch(device, layers, cache, num2, inferenceProfile.Key == "Laptop" || num2 > 0, flag2);
-		IL_00d6:
-		obj = settings.Hardware?.Gpu?.Device ?? "Vulkan0";
-		goto IL_0104;
+			AutoContext = partial,
+			Summary = $"This model is bigger than {gpu.Name}'s memory, so part of it runs on the processor (slower). Conversations up to {Describe(partial)}."
+		};
+	}
+
+	/// <summary>Tokens in plain words: roughly 0.75 words per token, about 400 words per page.</summary>
+	public static string Describe(int tokens)
+	{
+		int pages = Math.Max(1, (int)Math.Round(tokens * 0.75 / 400.0 / 10.0) * 10);
+		return $"{tokens / 1024:N0}K tokens (about {pages:N0} pages)";
 	}
 
 	public void AddArguments(Action<string[]> add)
 	{
 		add(new string[10] { "--device", Device, "--gpu-layers", Layers, "--flash-attn", Flash, "--cache-type-k", Cache, "--cache-type-v", Cache });
-		if (FullOffload)
+		if (FullOffload && Layers == "all")
 		{
 			add(new string[2] { "--fit", "off" });
 		}

@@ -20,7 +20,7 @@ public class Settings
 
 	public int Context { get; set; } = 8192;
 
-	public int MaxTokens { get; set; } = 2048;
+	public int MaxTokens { get; set; } = 4096;
 
 	public double Temperature { get; set; } = 0.7;
 
@@ -31,11 +31,12 @@ public class Settings
 	[JsonIgnore]
 	public HardwareInventory? Hardware { get; set; }
 
-	public int CpuThreads { get; set; } = 2;
+	/// <summary>0 = automatic (recommended).</summary>
+	public int CpuThreads { get; set; }
 
 	public bool Thinking { get; set; }
 
-	public int ThinkingBudget { get; set; } = 512;
+	public int ThinkingBudget { get; set; } = 1024;
 
 	[JsonIgnore]
 	public int EffectiveThinkingBudget
@@ -78,6 +79,32 @@ public class Settings
 
 	public AvatarPresentation Avatar { get; set; } = new AvatarPresentation();
 
+	/// <summary>Version of the settings layout. 3 = automatic hardware setup (Aquila 2.1).</summary>
+	public int SettingsVersion { get; set; }
+
+	/// <summary>Moves settings saved by older versions onto the automatic setup. The old defaults kept
+	/// the model on the processor with two threads, which is what made 2.0 slow.</summary>
+	public bool Migrate()
+	{
+		if (SettingsVersion >= 3)
+		{
+			return false;
+		}
+		Inference ??= new InferencePreferences();
+		Inference.Profile = "Auto";
+		CpuThreads = 0;
+		if (MaxTokens < 4096)
+		{
+			MaxTokens = 4096;
+		}
+		if (ThinkingBudget < 1024)
+		{
+			ThinkingBudget = 1024;
+		}
+		SettingsVersion = 3;
+		return true;
+	}
+
 	public void Validate()
 	{
 		Inference?.Validate();
@@ -118,9 +145,9 @@ public class Settings
 		{
 			throw new ArgumentException("GPU layers must be -1 (automatic), 0 (CPU), or a positive number up to 999.");
 		}
-		if (CpuThreads < 1 || CpuThreads > Math.Max(2, Environment.ProcessorCount))
+		if (CpuThreads < 0 || CpuThreads > Math.Max(2, Environment.ProcessorCount))
 		{
-			throw new ArgumentException("CPU threads must be at least 1 and no more than the processor's logical core count.");
+			throw new ArgumentException("CPU threads must be 0 (automatic) or between 1 and the processor's logical core count.");
 		}
 		if (ThinkingBudget < 0 || ThinkingBudget > 16384)
 		{

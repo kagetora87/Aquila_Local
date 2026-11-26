@@ -63,7 +63,7 @@ public static class ConversationVerification
 		new MemoryStore(uiStore.Root).Apply(turn: new Turn
 		{
 			User = "I prefer centimeters."
-		}, candidates: new global::_003C_003Ez__ReadOnlySingleElementList<MemoryCandidate>(new MemoryCandidate("units", "centimeters", "centimeters", "preference", "personal", 1.0, Array.Empty<string>())), workspace: "", session: a);
+		}, candidates: new MemoryCandidate[] { new MemoryCandidate("units", "centimeters", "centimeters", "preference", "personal", 1.0, Array.Empty<string>()) }, workspace: "", session: a);
 		MainWindow mainWindow = new MainWindow(uiStore.Root);
 		mainWindow.Show();
 		ChatSession selectedItem = ((IEnumerable<ChatSession>)mainWindow.ChatsList.ItemsSource).Single((ChatSession c) => c.Id == a.Id);

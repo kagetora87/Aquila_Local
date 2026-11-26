@@ -219,7 +219,7 @@ internal static class InferenceVerification
 			{
 				throw new InvalidOperationException(label);
 			}
-			File.AppendAllLines(Path.Combine(folder, "checks.txt"), new global::_003C_003Ez__ReadOnlySingleElementList<string>("PASS " + label));
+			File.AppendAllLines(Path.Combine(folder, "checks.txt"), new string[] { "PASS " + label });
 			checks++;
 		}
 	}

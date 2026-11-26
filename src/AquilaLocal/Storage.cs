@@ -28,9 +28,15 @@ public sealed class Storage
 	public Settings LoadSettings()
 	{
 		Settings settings = Read<Settings>(Path.Combine(Root, "settings.json")) ?? new Settings();
+		bool migrated = settings.Migrate();
 		try
 		{
 			settings.Validate();
+			if (migrated && File.Exists(Path.Combine(Root, "settings.json")))
+			{
+				File.Copy(Path.Combine(Root, "settings.json"), Path.Combine(Root, "settings.json.before-2.1"), overwrite: true);
+				SaveSettings(settings);
+			}
 		}
 		catch
 		{

@@ -82,6 +82,7 @@ public sealed class MemoryLearner(Engine engine, MemoryStore store, PersonalityS
 			JsonObject payload = new JsonObject
 			{
 				["model"] = engine.Alias,
+				["id_slot"] = 1,
 				["messages"] = messages,
 				["stream"] = false,
 				["temperature"] = 0,

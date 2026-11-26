@@ -645,7 +645,7 @@ public partial class MainWindow : Window
 		{
 			this.modelInfo = modelInfo;
 			modelInfoReady = true;
-			SetContext(SelectedProfile.Requested(settings.Inference));
+			SetContext(RequestedContext());
 		}
 	}
 
@@ -799,6 +799,15 @@ public partial class MainWindow : Window
 
 	private void RenderContextAdvice(InferenceLaunch launch, long available)
 	{
+		InferenceLaunch plan = AutoPlan;
+		if (plan != null)
+		{
+			ThresholdCanvas.Visibility = Visibility.Collapsed;
+			ContextThresholds.Text = "Set automatically: " + InferenceLaunch.Describe(plan.AutoContext) + ".";
+			ContextRisk.Text = "Longer conversations are remembered in full up to this length. Older parts are left out after that.";
+			ContextRisk.Foreground = (Brush)FindResource("Muted");
+			return;
+		}
 		long projectorBytes = (File.Exists(settings.ProjectorPath) ? new FileInfo(settings.ProjectorPath).Length : 0);
 		int num = Math.Min(SelectedProfile.Target, modelInfo.NativeContext);
 		advice = modelInfo.Advice(available, projectorBytes, launch.Cache)with
@@ -1076,11 +1085,12 @@ public partial class MainWindow : Window
 
 	private async Task DetectHardwareAsync()
 	{
+		HardwareInventory.LogPath = Path.Combine(store.Root, "logs", "hardware.log");
 		HardwareInventory hardware = await Task.Run(() => HardwareInventory.DetectAsync(Engine.Executable));
 		if (!featuresClosing)
 		{
 			settings.Hardware = hardware;
-			SetContext(SelectedProfile.Requested(settings.Inference));
+			SetContext(RequestedContext());
 		}
 	}
 
@@ -1092,7 +1102,7 @@ public partial class MainWindow : Window
 			if (inference != null && ProfileCombo.SelectedValue is string profile)
 			{
 				inference.Profile = profile;
-				SetContext(SelectedProfile.Requested(inference));
+				SetContext(RequestedContext());
 			}
 		}
 	}
@@ -1150,9 +1160,42 @@ public partial class MainWindow : Window
 		}, modelInfo);
 	}
 
+	/// <summary>The automatic plan for the selected model and detected hardware, or null when the user
+	/// picked a manual profile or detection hasn't finished.</summary>
+	private InferenceLaunch? AutoPlan
+	{
+		get
+		{
+			if (SelectedProfile.Key != "Auto" || !modelInfoReady || (object)settings.Hardware == null)
+			{
+				return null;
+			}
+			long projector = ((settings.ProjectorPath.Length > 0 && File.Exists(settings.ProjectorPath)) ? new FileInfo(settings.ProjectorPath).Length : 0);
+			return InferenceLaunch.PlanAuto(settings.Hardware, modelInfo, projector);
+		}
+	}
+
+	private int RequestedContext()
+	{
+		return AutoPlan?.AutoContext ?? SelectedProfile.Requested(settings.Inference);
+	}
+
 	private void RenderProfile(InferenceLaunch launch, long freeSystem, long? freeGpu)
 	{
 		string label = SelectedProfile.Label;
+		bool automatic = SelectedProfile.Key == "Auto";
+		ContextSlider.IsEnabled = !automatic;
+		ContextCombo.IsEnabled = !automatic;
+		InferenceLaunch plan = AutoPlan;
+		if (plan != null)
+		{
+			HardwareText.Text = plan.Summary + "\nAquila picks the best setup for your computer. Choose a manual profile only if you want to tune it yourself.";
+			if (contextTokens != plan.AutoContext)
+			{
+				SetContext(plan.AutoContext);
+			}
+			return;
+		}
 		LaptopQ4Check.Visibility = ((!(SelectedProfile.Key == "Laptop")) ? Visibility.Collapsed : Visibility.Visible);
 		CustomCachePanel.Visibility = ((!(SelectedProfile.Key == "Custom")) ? Visibility.Collapsed : Visibility.Visible);
 		GpuBox.IsEnabled = SelectedProfile.Key == "Custom";
@@ -1539,9 +1582,44 @@ public partial class MainWindow : Window
 		await SendAsync();
 	}
 
+	private Task? pendingLearning;
+
+	private async Task LearnInBackgroundAsync(ChatSession session, Turn turn)
+	{
+		try
+		{
+			if ((object)(await new MemoryLearner(engine, memories, personalities).LearnAsync(settings, session, turn, monitorCancellation.Token)) != null)
+			{
+				turn.Activity.Add("Memory: " + turn.MemoryLearningStatus + $" · {turn.MemoryPromptTokens + turn.MemoryCompletionTokens:N0} tokens included in session usage.");
+			}
+		}
+		catch (OperationCanceledException)
+		{
+			turn.MemoryLearningStatus = "stopped";
+		}
+		catch (Exception ex)
+		{
+			turn.MemoryLearningStatus = "failed";
+			turn.Activity.Add("Memory update failed: " + ex.Message + ". Your completed answer is saved.");
+		}
+		try
+		{
+			store.SaveChat(session);
+		}
+		catch (Exception ex2) when (ex2 is IOException || ex2 is UnauthorizedAccessException)
+		{
+		}
+	}
+
 	private async Task SendAsync()
 	{
 		await inferenceStartup;
+		if (pendingLearning != null)
+		{
+			Task learning = pendingLearning;
+			pendingLearning = null;
+			await learning;
+		}
 		if (busy || attaching || (string.IsNullOrWhiteSpace(Composer.Text) && pendingAttachments.Count == 0) || current == null || !ReadSettings())
 		{
 			return;
@@ -1621,24 +1699,9 @@ public partial class MainWindow : Window
 			}
 			if (settings.LearnMemories && turn.Status == "complete" && MemoryLearner.Eligible(turn.User))
 			{
-				StatusText.Text = "Updating memory…";
-				try
-				{
-					if ((object)(await new MemoryLearner(engine, memories, personalities).LearnAsync(settings, session, turn, operation.Token)) != null)
-					{
-						turn.Activity.Add("Memory: " + turn.MemoryLearningStatus + $" · {turn.MemoryPromptTokens + turn.MemoryCompletionTokens:N0} tokens included in session usage.");
-					}
-				}
-				catch (OperationCanceledException)
-				{
-					turn.MemoryLearningStatus = "stopped";
-					turn.Activity.Add("Memory update stopped. Your completed answer is saved.");
-				}
-				catch (Exception ex2)
-				{
-					turn.MemoryLearningStatus = "failed";
-					turn.Activity.Add("Memory update failed: " + ex2.Message + ". Your completed answer is saved.");
-				}
+				// Learn in the background on the engine's second slot, so the chat stays usable and its
+				// prompt cache is untouched. The next send waits for it only if it is still running.
+				pendingLearning = LearnInBackgroundAsync(session, turn);
 			}
 			MetricsText.Text = turn.Metrics;
 			StatusText.Text = "Model ready · on this device";

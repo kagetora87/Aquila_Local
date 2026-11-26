@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Window x:Class="AquilaLocal.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:AquilaLocal" Title="Aquila Local" Width="1420" Height="920" MinWidth="1100" MinHeight="700" WindowStartupLocation="CenterScreen" Background="#101720" Foreground="{StaticResource Ink}" FontFamily="Segoe UI" FontSize="14" AllowDrop="True" Closing="Window_Closing" PreviewDragOver="Files_DragOver" PreviewDrop="Files_Drop">
   <Grid>
     <Grid.ColumnDefinitions>
@@ -218,12 +218,12 @@
                 <Button Content="Choose vision projector…" Padding="6" FontSize="11" Click="Projector_Click" />
                 <Button Content="Clear" Grid.Column="2" Padding="6" FontSize="11" Click="ClearProjector_Click" />
               </Grid>
-              <TextBlock Text="INFERENCE PROFILE" Style="{StaticResource Label}" Margin="0,23,0,7" />
+              <TextBlock Text="PERFORMANCE" Style="{StaticResource Label}" Margin="0,23,0,7" />
               <ComboBox Name="ProfileCombo" AutomationProperties.Name="Inference profile" SelectedValuePath="Tag" SelectionChanged="Profile_Changed">
-                <ComboBoxItem Tag="Auto" Content="Automatic (detect hardware)" />
-                <ComboBoxItem Tag="High" Content="A · High VRAM" />
-                <ComboBoxItem Tag="Laptop" Content="B · Constrained laptop" />
-                <ComboBoxItem Tag="Custom" Content="Custom" />
+                <ComboBoxItem Tag="Auto" Content="Automatic (recommended)" />
+                <ComboBoxItem Tag="High" Content="Manual: large graphics card" />
+                <ComboBoxItem Tag="Laptop" Content="Manual: small laptop" />
+                <ComboBoxItem Tag="Custom" Content="Manual: custom (expert)" />
               </ComboBox>
               <TextBlock Name="HardwareText" Text="Detecting hardware…" TextWrapping="Wrap" Foreground="{StaticResource Muted}" FontSize="11" Margin="0,7,0,0" />
               <CheckBox Name="LaptopQ4Check" Content="Use 4-bit KV cache (experimental)" ToolTip="Uses less cache memory. Switch back to 8-bit if replies become repetitive or incoherent." Checked="Cache_Changed" Unchecked="Cache_Changed" />
@@ -238,7 +238,7 @@
               <TextBlock Name="ExpertsLabel" Text="MoE expert layers on CPU (0 = off)" Style="{StaticResource Label}" />
               <TextBox Name="ExpertLayersBox" AutomationProperties.Name="MoE expert layers on CPU" TextChanged="Compute_Changed" />
               <TextBlock Name="ExpertsHint" TextWrapping="Wrap" Foreground="{StaticResource Muted}" FontSize="11" Margin="0,7,0,0" />
-              <TextBlock Text="CONTEXT ALLOWANCE" Style="{StaticResource Label}" Margin="0,23,0,7" />
+              <TextBlock Text="CONVERSATION LENGTH" Style="{StaticResource Label}" Margin="0,23,0,7" />
               <ComboBox Name="ContextCombo" AutomationProperties.Name="Context window" SelectionChanged="ContextCombo_Changed">
                 <ComboBoxItem Content="2048" />
                 <ComboBoxItem Content="4096" />
@@ -284,7 +284,7 @@
               <TextBlock Text="Learns after completed replies. Project facts stay with the selected folder. Review sources and corrections in Memories." Foreground="{StaticResource Muted}" FontSize="11" TextWrapping="Wrap" Margin="0,7,0,12" />
               <TextBox Name="MemoryBox" AutomationProperties.Name="Persistent memory" AcceptsReturn="True" TextWrapping="Wrap" Height="95" VerticalScrollBarVisibility="Auto" MaxLength="16000" />
               <TextBlock Text="Notes you want included in every conversation. Edit these yourself." Foreground="{StaticResource Muted}" FontSize="11" TextWrapping="Wrap" Margin="0,7,0,0" />
-              <Expander Header="Generation settings" Margin="0,22,0,0">
+              <Expander Header="Advanced settings" Margin="0,22,0,0">
                 <StackPanel>
                   <TextBlock Text="Response limit (tokens)" Style="{StaticResource Label}" />
                   <TextBox Name="MaxTokensBox" AutomationProperties.Name="Response limit" TextChanged="Reasoning_Changed" />
@@ -305,9 +305,9 @@
                     <TextBlock Text="DRY allowed repetition (tokens)" Style="{StaticResource Label}" />
                     <TextBox Name="DryLengthBox" AutomationProperties.Name="DRY allowed length" />
                   </StackPanel>
-                  <TextBlock Text="Custom GPU layers: -1 auto · 0 CPU" Style="{StaticResource Label}" />
+                  <TextBlock Text="GPU layers for Custom (-1 = automatic, 0 = processor only)" Style="{StaticResource Label}" />
                   <TextBox Name="GpuBox" AutomationProperties.Name="GPU layers" TextChanged="Compute_Changed" />
-                  <TextBlock Text="CPU threads (default: 2)" Style="{StaticResource Label}" />
+                  <TextBlock Text="CPU threads (0 = automatic)" Style="{StaticResource Label}" />
                   <TextBox Name="CpuBox" AutomationProperties.Name="CPU threads" />
                   <TextBlock Text="Automatic mode keeps a video-memory margin. Lower layers if other apps need the GPU." Foreground="{StaticResource Muted}" FontSize="11" TextWrapping="Wrap" Margin="0,7,0,0" />
                   <CheckBox Name="ThinkingCheck" Content="Enable model thinking" Checked="Reasoning_Changed" Unchecked="Reasoning_Changed" />

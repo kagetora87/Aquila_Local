@@ -26,24 +26,24 @@ public static class MemoryVerification
 		};
 		chatSession.Turns.Add(turn);
 		MemoryCandidate memoryCandidate = new MemoryCandidate("preferred_units", "metric units", turn.User, "preference", "personal", 0.99, Array.Empty<string>());
-		MemoryChange memoryChange = store.Apply(new global::_003C_003Ez__ReadOnlySingleElementList<MemoryCandidate>(memoryCandidate), "", chatSession, turn);
+		MemoryChange memoryChange = store.Apply(new MemoryCandidate[] { memoryCandidate }, "", chatSession, turn);
 		Check(memoryChange.Saved == 1 && store.Snapshot().Single().Sources.Single().TurnId == turn.Id, "Automatic entries preserve exact supporting user quote and chat/turn provenance");
-		store.Apply(new global::_003C_003Ez__ReadOnlySingleElementList<MemoryCandidate>(memoryCandidate), "", chatSession, turn);
+		store.Apply(new MemoryCandidate[] { memoryCandidate }, "", chatSession, turn);
 		Check(store.Snapshot().Single().Confirmations == 1, "Repeated processing of one turn does not duplicate evidence");
 		Turn turn2 = new Turn
 		{
 			User = "Actually my preferred units are imperial units."
 		};
 		chatSession.Turns.Add(turn2);
-		memoryChange = store.Apply(new global::_003C_003Ez__ReadOnlySingleElementList<MemoryCandidate>(memoryCandidate with
+		memoryChange = store.Apply(new MemoryCandidate[] { memoryCandidate with
 		{
 			Value = "imperial units",
 			Quote = turn2.User
-		}), "", chatSession, turn2);
+		} }, "", chatSession, turn2);
 		Check(memoryChange.Updated == 1 && store.Snapshot().Count((MemoryEntry e) => e.State == "active") == 1 && store.Retrieve("", "units").Single().Value == "imperial units", "Corrections supersede old facts without retrieving stale values");
 		MemoryEntry active = store.Snapshot().Single((MemoryEntry e) => e.State == "active");
 		store.SaveManual(active.Id, "", personal: true, active.Topic, active.Value, active.Kind, pinned: true);
-		memoryChange = store.Apply(new global::_003C_003Ez__ReadOnlySingleElementList<MemoryCandidate>(memoryCandidate), "", chatSession, turn);
+		memoryChange = store.Apply(new MemoryCandidate[] { memoryCandidate }, "", chatSession, turn);
 		Check(memoryChange.Review == 1 && store.Retrieve("", "units").All((MemoryEntry e) => e.Value != "metric units"), "Pinned conflict waits for review and cannot replace active memory automatically");
 		store.SaveManual(null, projectA, personal: false, "project_code", "RIVER-A", "fact", pinned: false);
 		store.SaveManual(null, text, personal: false, "project_code", "RIVER-B", "fact", pinned: false);
@@ -52,33 +52,33 @@ public static class MemoryVerification
 		{
 			User = "Our project renderer uses Vulkan for every scene."
 		};
-		store.Apply(new global::_003C_003Ez__ReadOnlySingleElementList<MemoryCandidate>(new MemoryCandidate("renderer", "Vulkan", turn3.User, "decision", "personal", 0.99, Array.Empty<string>())), projectA, chatSession, turn3);
+		store.Apply(new MemoryCandidate[] { new MemoryCandidate("renderer", "Vulkan", turn3.User, "decision", "personal", 0.99, Array.Empty<string>()) }, projectA, chatSession, turn3);
 		Check(store.Snapshot().Single((MemoryEntry e) => e.Topic == "renderer").Scope == MemoryStore.ScopeFor(projectA), "Automatic project facts cannot become personal without explicit global wording");
 		Turn turn4 = new Turn
 		{
 			User = "Across all projects my preferred editor is Aquila."
 		};
-		store.Apply(new global::_003C_003Ez__ReadOnlySingleElementList<MemoryCandidate>(new MemoryCandidate("preferred_editor", "Aquila", turn4.User, "preference", "personal", 0.99, Array.Empty<string>())), projectA, chatSession, turn4);
+		store.Apply(new MemoryCandidate[] { new MemoryCandidate("preferred_editor", "Aquila", turn4.User, "preference", "personal", 0.99, Array.Empty<string>()) }, projectA, chatSession, turn4);
 		Check(store.Retrieve(text, "preferred editor").Any((MemoryEntry e) => e.Value == "Aquila" && e.Scope == "personal"), "Explicit across-project preferences can be personal and recalled in another workspace");
-		MemoryChange memoryChange2 = store.Apply(new global::_003C_003Ez__ReadOnlySingleElementList<MemoryCandidate>(memoryCandidate with
+		MemoryChange memoryChange2 = store.Apply(new MemoryCandidate[] { memoryCandidate with
 		{
 			Topic = "hallucinated",
 			Value = "invented",
 			Quote = "Invented quote"
-		}), "", chatSession, turn);
+		} }, "", chatSession, turn);
 		Check(memoryChange2.Rejected == 1, "Fabricated source quotes cannot enter the memory catalog");
-		MemoryChange memoryChange3 = store.Apply(new global::_003C_003Ez__ReadOnlySingleElementList<MemoryCandidate>(memoryCandidate with
+		MemoryChange memoryChange3 = store.Apply(new MemoryCandidate[] { memoryCandidate with
 		{
 			Topic = "hallucinated",
 			Value = "not stated"
-		}), "", chatSession, turn);
+		} }, "", chatSession, turn);
 		Check(memoryChange3.Rejected == 1, "Values must be directly supported by their quoted user text");
 		store.Forget(active.Id);
 		Check((from e in store.Snapshot()
 			where e.Topic == active.Topic
-			select e).All((MemoryEntry e) => e.State == "forgotten" && e.Value == "" && e.Sources.Count == 0) && store.Apply(new global::_003C_003Ez__ReadOnlySingleElementList<MemoryCandidate>(memoryCandidate), "", chatSession, turn).Rejected == 1, "Forgetting clears all topic versions and evidence, blocks automatic relearning");
+			select e).All((MemoryEntry e) => e.State == "forgotten" && e.Value == "" && e.Sources.Count == 0) && store.Apply(new MemoryCandidate[] { memoryCandidate }, "", chatSession, turn).Rejected == 1, "Forgetting clears all topic versions and evidence, blocks automatic relearning");
 		store.AllowRelearning(active.Id);
-		Check(store.Apply(new global::_003C_003Ez__ReadOnlySingleElementList<MemoryCandidate>(memoryCandidate), "", chatSession, turn).Saved == 1, "Explicit relearning control removes the forgotten-topic block");
+		Check(store.Apply(new MemoryCandidate[] { memoryCandidate }, "", chatSession, turn).Saved == 1, "Explicit relearning control removes the forgotten-topic block");
 		Check(new MemoryStore(root).Retrieve(text, "project code").Any((MemoryEntry e) => e.Value == "RIVER-B"), "Catalog and scope survive a fresh store instance");
 		await Task.WhenAll(from i in Enumerable.Range(0, 6)
 			select Task.Run(() => new MemoryStore(root).SaveManual(null, "", personal: true, "parallel_" + i, "value " + i, "fact", pinned: false)));

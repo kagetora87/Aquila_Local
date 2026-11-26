@@ -95,6 +95,7 @@ public sealed class ChatCompactor(Engine engine, Action<string>? status = null)
 			JsonObject payload = new JsonObject
 			{
 				["model"] = engine.Alias,
+				["id_slot"] = 1,
 				["messages"] = Prompt(previous, candidates.Take(best)),
 				["stream"] = false,
 				["temperature"] = (thinking ? 0.6 : 0.2),

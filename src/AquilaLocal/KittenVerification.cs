@@ -162,7 +162,7 @@ public static class KittenVerification
 			{
 				throw new InvalidOperationException("Failed: " + description);
 			}
-			File.AppendAllLines(checks, new global::_003C_003Ez__ReadOnlySingleElementList<string>("PASS " + description));
+			File.AppendAllLines(checks, new string[] { "PASS " + description });
 		}
 		void Seen(string status)
 		{

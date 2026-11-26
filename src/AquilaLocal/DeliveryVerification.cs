@@ -151,7 +151,7 @@ public static class DeliveryVerification
 			{
 				throw new InvalidOperationException("Failed: " + description);
 			}
-			File.AppendAllLines(checks, new global::_003C_003Ez__ReadOnlySingleElementList<string>("PASS " + description));
+			File.AppendAllLines(checks, new string[] { "PASS " + description });
 		}
 		async Task<double> Generate(string pace)
 		{

@@ -178,8 +178,25 @@ public sealed class Engine : IDisposable
 	{
 		settings.Validate();
 		ModelInfo modelInfo = ModelInfo.Read(settings.ModelPath);
+		if (settings.Hardware?.Gpu == null && File.Exists(Executable))
+		{
+			// Startup detection can miss a graphics card that was asleep or switching modes. Try again
+			// right before loading rather than silently falling back to the processor.
+			this.Status?.Invoke("Looking for your graphics card…");
+			HardwareInventory again = await HardwareInventory.DetectAsync(Executable);
+			if (again.Gpu != null || settings.Hardware == null)
+			{
+				settings.Hardware = again;
+			}
+		}
 		InferenceLaunch inferenceLaunch = InferenceLaunch.Resolve(settings, modelInfo);
-		string next = $"{settings.ModelPath}|{settings.ProjectorPath}|{settings.Context}|{inferenceLaunch}|{settings.CpuThreads}|{settings.EffectiveThinkingBudget}";
+		if (inferenceLaunch.AutoContext > 0)
+		{
+			settings.Context = inferenceLaunch.AutoContext;
+			settings.MaxTokens = Math.Min(settings.MaxTokens, settings.Context / 2);
+		}
+		int threads = ((settings.CpuThreads > 0) ? settings.CpuThreads : inferenceLaunch.AutoThreads);
+		string next = $"{settings.ModelPath}|{settings.ProjectorPath}|{settings.Context}|{inferenceLaunch}|{threads}|{settings.EffectiveThinkingBudget}";
 		if (Ready && next == fingerprint)
 		{
 			return;
@@ -216,7 +233,13 @@ public sealed class Engine : IDisposable
 		MemoryStatus memoryStatus = new MemoryStatus();
 		if (GlobalMemoryStatusEx(memoryStatus))
 		{
-			ulong num = (ulong)(inferenceLaunch.CpuOnly ? (new FileInfo(settings.ModelPath).Length + ((settings.ProjectorPath.Length > 0) ? new FileInfo(settings.ProjectorPath).Length : 0) + 805306368) : 1610612736);
+			// Only a CPU load needs the whole model in system RAM. With GPU offload most of it goes to
+			// video memory, so just make sure Windows has some breathing room.
+			ulong num = (ulong)((inferenceLaunch.CpuOnly || !inferenceLaunch.FullOffload) ? (new FileInfo(settings.ModelPath).Length + ((settings.ProjectorPath.Length > 0) ? new FileInfo(settings.ProjectorPath).Length : 0) + 805306368) : 1610612736);
+			if (!inferenceLaunch.CpuOnly && !inferenceLaunch.FullOffload)
+			{
+				num /= 2uL;
+			}
 			if (memoryStatus.Available < num)
 			{
 				throw new IOException($"Not enough free system memory to load this model comfortably. Available: {(double)memoryStatus.Available / 1073741824.0:0.0} GB; estimated minimum: {(double)num / 1073741824.0:0.0} GB. Close other work before loading, choose a smaller model, or use GPU offload when the GPU is free. Nothing has been loaded.");
@@ -252,7 +275,7 @@ public sealed class Engine : IDisposable
 			StandardOutputEncoding = Encoding.UTF8,
 			StandardErrorEncoding = Encoding.UTF8
 		};
-		Arg(new string[23]
+		Arg(new string[]
 		{
 			"--model",
 			settings.ModelPath,
@@ -263,13 +286,16 @@ public sealed class Engine : IDisposable
 			"--port",
 			Port.ToString(),
 			"--ctx-size",
-			settings.Context.ToString(),
+			(settings.Context + 4096).ToString(),
+			// Two slots sharing one cache pool: slot 0 holds the conversation, slot 1 serves short
+			// background jobs (memory learning, summaries) without evicting the conversation.
 			"--parallel",
-			"1",
+			"2",
+			"--kv-unified",
 			"--batch-size",
-			"256",
+			inferenceLaunch.Batch.ToString(),
 			"--ubatch-size",
-			"128",
+			inferenceLaunch.MicroBatch.ToString(),
 			"--no-webui",
 			"--no-slots",
 			"--jinja",
@@ -281,9 +307,9 @@ public sealed class Engine : IDisposable
 		Arg(new string[10]
 		{
 			"--threads",
-			settings.CpuThreads.ToString(),
+			threads.ToString(),
 			"--threads-batch",
-			settings.CpuThreads.ToString(),
+			threads.ToString(),
 			"--threads-http",
 			"2",
 			"--poll",
@@ -330,7 +356,8 @@ public sealed class Engine : IDisposable
 			{
 				throw new IOException("Could not start the bundled engine.");
 			}
-			process.PriorityClass = ProcessPriorityClass.BelowNormal;
+			// Normal priority: BelowNormal let any background task starve the thread that feeds the GPU.
+			process.PriorityClass = ProcessPriorityClass.Normal;
 			if (!AssignProcessToJobObject(job, process.Handle))
 			{
 				throw new Win32Exception(Marshal.GetLastWin32Error());

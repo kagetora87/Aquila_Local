@@ -51,7 +51,7 @@ public sealed class InferencePreferences
 		if (!flag2)
 		{
 			int highContext = HighContext;
-			bool flag3 = ((highContext < 2048 || highContext > 65536) ? true : false);
+			bool flag3 = ((highContext < 2048 || highContext > 262144) ? true : false);
 			flag2 = flag3;
 		}
 		bool flag4 = flag2;

@@ -162,7 +162,7 @@ public sealed class GpuMonitor : IDisposable
 			List<(string Name, double Value)> list = Read(engines);
 			List<(string, double)> list2 = Read(memory);
 			List<(string, double)> list3 = Read(adapterMemory);
-			Dictionary<(int, string), (Dictionary<string, double>, long)> dictionary = new Dictionary<(int, string), (Dictionary<string, double>, long)>();
+			Dictionary<(int Pid, string Adapter), (Dictionary<string, double> Engines, long Memory)> dictionary = new Dictionary<(int Pid, string Adapter), (Dictionary<string, double> Engines, long Memory)>();
 			foreach (var item7 in list)
 			{
 				string item = item7.Name;
