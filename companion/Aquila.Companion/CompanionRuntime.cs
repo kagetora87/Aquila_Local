@@ -103,13 +103,25 @@ public sealed class CompanionRuntime
             ["last_interaction"] = PersonaStore.Iso(now)
         });
 
-        drives = Store.ReadDrives(names);
-        string top = DriveEngine.TopDrive(Config, drives);
-        string achievements = ContextInjector.AchievementsBlock(Store.Achievements(ContextInjector.AchievementsShown), Store.AchievementCount());
-        InjectedContext context = ContextInjector.Assemble(Config, Store.ReadSummary(), drives, top, card, achievements);
+        (InjectedContext context, string top, card) = Assemble();
         List<Recalled> recalled = Memory.Search(q, Config.Memory.RetrieveTopK, verbatimTurnIds);
         return new PreparedTurn(Config.Id, context.SystemPrompt, context.InnerState,
             ContextInjector.RecalledBlock(recalled), top, events, changes, recalled, context, card);
+    }
+
+    /// <summary>
+    /// Reads her current state from her own store and assembles her context: pinned summary, drives, appearance
+    /// card. Reads only; throws (naming the file) if anything is missing. This is the part that runs every turn
+    /// and is held under 100 ms.
+    /// </summary>
+    public (InjectedContext Context, string TopDrive, AppearanceCard Card) Assemble()
+    {
+        using IDisposable connection = Store.Hold();
+        Dictionary<string, DriveValue> drives = Store.ReadDrives(Config.Drives.Select(d => d.Name));
+        AppearanceCard card = Store.ReadAppearance();
+        string top = DriveEngine.TopDrive(Config, drives);
+        string achievements = ContextInjector.AchievementsBlock(Store.Achievements(ContextInjector.AchievementsShown), Store.AchievementCount());
+        return (ContextInjector.Assemble(Config, Store.ReadSummary(), drives, top, card, achievements), top, card);
     }
 
     /// <summary>

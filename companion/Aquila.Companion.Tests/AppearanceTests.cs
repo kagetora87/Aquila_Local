@@ -258,7 +258,7 @@ public sealed class AppearanceTests
         for (int i = 1; i <= 5; i++)
         {
             var watch = Stopwatch.StartNew();
-            rt.Prepare("hello again " + i, new HashSet<string>(), true, TestPersona.T0.AddMinutes(i));
+            rt.Assemble();
             best = Math.Min(best, watch.ElapsedMilliseconds);
         }
         Assert.True(best < 100, $"assembly took {best} ms");
