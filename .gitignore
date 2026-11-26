@@ -30,3 +30,6 @@ Data/memory-vectors.bin
 .env
 *.pfx
 *.key
+src/bin/
+src/obj/
+out/

@@ -1,0 +1,333 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Window x:Class="AquilaLocal.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:AquilaLocal" Title="Aquila Local" Width="1420" Height="920" MinWidth="1100" MinHeight="700" WindowStartupLocation="CenterScreen" Background="#101720" Foreground="{StaticResource Ink}" FontFamily="Segoe UI" FontSize="14" AllowDrop="True" Closing="Window_Closing" PreviewDragOver="Files_DragOver" PreviewDrop="Files_Drop">
+  <Grid>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="245" />
+      <ColumnDefinition Width="*" />
+      <ColumnDefinition Name="SettingsColumn" Width="320" />
+    </Grid.ColumnDefinitions>
+    <Border Grid.Column="0" Background="#141F2B" BorderBrush="#283746" BorderThickness="0,0,1,0">
+      <DockPanel Margin="16,18,16,16">
+        <StackPanel DockPanel.Dock="Top">
+          <StackPanel Orientation="Horizontal" Margin="3,0,0,5">
+            <Border Background="#80DEC5" CornerRadius="8" Width="32" Height="32">
+              <TextBlock Text="A" Foreground="#102A27" FontSize="21" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <TextBlock Text="AQUILA" FontWeight="SemiBold" FontSize="18" Margin="10,3,0,0" />
+          </StackPanel>
+          <TextBlock Text="LOCAL WORKSPACE" Foreground="#80DEC5" FontSize="10" Margin="46,0,0,12" />
+          <Button Name="NewButton" Content="＋  New conversation" HorizontalContentAlignment="Left" Background="#263F48" BorderBrush="#3D6266" Margin="0,0,0,12" Click="New_Click" />
+          <TextBlock Text="CONVERSATIONS" FontSize="10" Foreground="{StaticResource Muted}" Margin="6,0,0,12" />
+        </StackPanel>
+        <ScrollViewer DockPanel.Dock="Bottom" MaxHeight="400" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,10,0,0">
+          <StackPanel>
+            <Border Background="#101923" CornerRadius="7" Padding="10" Margin="0,0,0,14">
+              <StackPanel>
+                <TextBlock Text="LIVE GPU ACTIVITY" Foreground="#80DEC5" FontSize="10" FontWeight="SemiBold" Margin="0,0,0,8" />
+                <ComboBox Name="GpuAdapterCombo" AutomationProperties.Name="GPU to monitor" DisplayMemberPath="Name" FontSize="10" SelectionChanged="GpuAdapter_Changed" />
+                <TextBlock Name="GpuSummary" Text="Starting Windows counters…" FontSize="10" Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,7,0,7" />
+                <Grid Margin="0,0,0,5">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition />
+                    <ColumnDefinition Width="39" />
+                    <ColumnDefinition Width="53" />
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Text="Application" FontSize="10" Foreground="{StaticResource Muted}" />
+                  <TextBlock Text="GPU" Grid.Column="1" FontSize="10" Foreground="{StaticResource Muted}" TextAlignment="Right" />
+                  <TextBlock Text="Local" Grid.Column="2" FontSize="10" Foreground="{StaticResource Muted}" TextAlignment="Right" />
+                </Grid>
+                <ScrollViewer MaxHeight="90" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                  <ItemsControl Name="GpuAppsList">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate>
+                        <Grid Margin="0,4">
+                          <FrameworkElement.ToolTip>
+                            <TextBlock Text="{Binding Pids}" />
+                          </FrameworkElement.ToolTip>
+                          <Grid.ColumnDefinitions>
+                            <ColumnDefinition />
+                            <ColumnDefinition Width="39" />
+                            <ColumnDefinition Width="53" />
+                          </Grid.ColumnDefinitions>
+                          <TextBlock FontSize="10" TextTrimming="CharacterEllipsis" Text="{Binding Name}" ToolTip="{Binding Name}" />
+                          <TextBlock Grid.Column="1" FontSize="10" TextAlignment="Right" Text="{Binding UsageLabel}" />
+                          <TextBlock Grid.Column="2" FontSize="10" TextAlignment="Right" Text="{Binding MemoryLabel}" />
+                        </Grid>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </ScrollViewer>
+                <TextBlock Name="GpuFootnote" Text="Every 2s · busiest engine per app" Foreground="{StaticResource Muted}" FontSize="9" TextWrapping="Wrap" Margin="0,7,0,0" ToolTip="Windows WDDM counters. App percentage is the busiest engine after grouping same-name processes. Percentages are not additive. Local resident memory attribution can include allocations shared by apps; row totals are not additive." />
+              </StackPanel>
+            </Border>
+            <Button Name="VoiceButton" Content="Voice…" Margin="0,0,0,8" Click="Voice_Click" />
+            <Grid Margin="0,0,0,8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition />
+                <ColumnDefinition Width="6" />
+                <ColumnDefinition />
+              </Grid.ColumnDefinitions>
+              <Button Name="VoiceReplayButton" Content="Replay" FontSize="11" Padding="7" Click="ReplayVoice_Click" />
+              <Button Name="VoiceStopButton" Grid.Column="2" Content="Stop voice" FontSize="11" Padding="7" Click="StopVoice_Click" />
+            </Grid>
+            <TextBlock Name="VoiceStatusText" Text="Voice off" FontSize="10" Foreground="{StaticResource Muted}" TextWrapping="Wrap" MaxHeight="55" Margin="3,0,3,10" />
+            <UniformGrid Columns="2">
+              <Button Content="Internet…" Margin="0,0,3,6" Padding="6" FontSize="11" Click="Internet_Click" />
+              <Button Content="Avatar…" Margin="3,0,0,6" Padding="6" FontSize="11" Click="Avatar_Click" />
+              <Button Name="MemoriesButton" Content="Memories" Margin="0,0,3,6" Padding="6" FontSize="11" Click="Memories_Click" />
+              <Button Content="Export chat" Margin="3,0,0,6" Padding="6" FontSize="11" Click="Export_Click" />
+            </UniformGrid>
+            <Button Content="Open data folder" Background="#00FFFFFF" Padding="6" FontSize="11" Click="Data_Click" />
+            <TextBlock Text="2.0.1  ·  On this device" Foreground="{StaticResource Muted}" FontSize="11" HorizontalAlignment="Center" Margin="0,15,0,0" />
+          </StackPanel>
+        </ScrollViewer>
+        <ListBox Name="ChatsList" AutomationProperties.Name="Saved conversations" SelectionChanged="Chats_Changed">
+          <UIElement.InputBindings>
+            <KeyBinding Key="Delete" Command="{x:Static local:MainWindow.DeleteChatCommand}" />
+          </UIElement.InputBindings>
+          <ItemsControl.ItemContainerStyle>
+            <Style BasedOn="{StaticResource {x:Type ListBoxItem}}" TargetType="{x:Type ListBoxItem}">
+              <Setter Property="FrameworkElement.ContextMenu">
+                <Setter.Value>
+                  <ContextMenu Background="#F5F5F5" Foreground="#111111" DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                    <MenuItem Foreground="#111111" Command="{x:Static local:MainWindow.DeleteChatCommand}" CommandParameter="{Binding}" CommandTarget="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType={x:Type ContextMenu}}}">
+                      <HeaderedItemsControl.Header>
+                        <TextBlock Text="Delete chat…" Foreground="#111111" />
+                      </HeaderedItemsControl.Header>
+                    </MenuItem>
+                  </ContextMenu>
+                </Setter.Value>
+              </Setter>
+              <EventSetter Event="PreviewMouseRightButtonDown" Handler="Chat_RightClick" />
+            </Style>
+          </ItemsControl.ItemContainerStyle>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <StackPanel>
+                <TextBlock TextTrimming="CharacterEllipsis" FontSize="13" Text="{Binding Title}" />
+                <TextBlock Foreground="{StaticResource Muted}" FontSize="10" Margin="0,6,0,0" Text="{Binding Subtitle}" />
+              </StackPanel>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ListBox>
+      </DockPanel>
+    </Border>
+    <Grid Column="1">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="106" />
+        <RowDefinition Height="*" />
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+      </Grid.RowDefinitions>
+      <Border BorderBrush="#283746" BorderThickness="0,0,0,1" Padding="24,16">
+        <DockPanel>
+          <StackPanel DockPanel.Dock="Right" VerticalAlignment="Center" Margin="12,0,0,0">
+            <StackPanel Orientation="Horizontal">
+              <Button Content="Settings" Padding="10,5" Margin="0,0,6,0" Click="Settings_Click" />
+              <Button Name="CompactButton" Content="Compact context…" Padding="10,5" FontSize="12" ToolTip="Summarize earlier turns for future requests; keep full visible history and the four most recent complete turns." Click="Compact_Click" />
+            </StackPanel>
+            <Button Name="SummaryButton" Content="View summary…" Padding="8,2" Margin="0,3,0,0" FontSize="10" Visibility="Collapsed" Click="Summary_Click" />
+          </StackPanel>
+          <StackPanel VerticalAlignment="Center">
+            <TextBlock Name="ChatTitle" Text="New conversation" FontSize="19" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+            <StackPanel Orientation="Horizontal" Margin="0,7,0,0">
+              <Ellipse Width="6" Height="6" Fill="#80DEC5" Margin="0,0,7,0" />
+              <TextBlock Name="StatusText" Text="Ready to load a model" Foreground="{StaticResource Muted}" FontSize="12" TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+            <TextBlock Name="SessionUsageText" Text="Session · 0 tokens" Foreground="#80DEC5" FontSize="10" Margin="0,7,0,0" TextWrapping="Wrap" ToolTip="Cumulative server-reported input + output tokens across every request and tool round in this conversation. Includes repeated history, cached input, and thinking tokens. This is not context occupancy. Cancelled/interrupted streams may have incomplete counts." />
+          </StackPanel>
+        </DockPanel>
+      </Border>
+      <ScrollViewer Name="ChatScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="25,20" ScrollChanged="Chat_ScrollChanged">
+        <Grid>
+          <StackPanel Name="Messages" />
+          <StackPanel Name="Welcome" VerticalAlignment="Center" Margin="0,65,0,40" MaxWidth="490">
+            <Border Width="68" Height="68" CornerRadius="20" Background="#1E393C" HorizontalAlignment="Center">
+              <TextBlock Text="A" Foreground="#80DEC5" FontSize="38" FontWeight="Light" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <TextBlock Text="A space for your ideas." FontSize="28" FontWeight="Light" HorizontalAlignment="Center" Margin="0,24,0,12" />
+            <TextBlock Text="Chat with a model running on your computer.&#xA;Choose a project folder when you want help with your files." TextAlignment="Center" Foreground="{StaticResource Muted}" TextWrapping="Wrap" LineHeight="23" />
+            <Border Background="#182530" CornerRadius="9" Padding="18" Margin="0,28,0,0">
+              <StackPanel>
+                <TextBlock Text="Start here" Foreground="#80DEC5" FontWeight="SemiBold" Margin="0,0,0,8" />
+                <TextBlock Text="1. Load the bundled model in the right panel.&#xA;2. Type a message below.&#xA;3. Add instructions or memory to make it yours." Foreground="{StaticResource Muted}" TextWrapping="Wrap" LineHeight="24" />
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </Grid>
+      </ScrollViewer>
+      <Border Name="NoticeBox" Grid.Row="2" Background="#392F24" BorderBrush="#756044" BorderThickness="1" CornerRadius="6" Margin="25,0,25,8" Padding="12" Visibility="Collapsed">
+        <DockPanel>
+          <Button DockPanel.Dock="Right" Content="×" Padding="6,0" Background="#00FFFFFF" BorderThickness="0" Click="Dismiss_Click" />
+          <TextBlock Name="NoticeText" Foreground="#F2D7AB" TextWrapping="Wrap" FontSize="12" MaxHeight="110" />
+        </DockPanel>
+      </Border>
+      <StackPanel Grid.Row="3" Margin="25,8,25,17">
+        <WrapPanel Name="AttachmentChips" Margin="0,0,0,7" />
+        <Border Background="#1A2734" BorderBrush="#35485B" BorderThickness="1" CornerRadius="10" Padding="12">
+          <DockPanel LastChildFill="True">
+            <StackPanel DockPanel.Dock="Right" VerticalAlignment="Bottom" Margin="12,0,0,0">
+              <Button Name="SendButton" Content="Send ↑" Background="#80DEC5" Foreground="#102A27" BorderThickness="0" FontWeight="SemiBold" Click="Send_Click" />
+              <Button Name="StopButton" Content="Stop ■" Background="#69413D" Visibility="Collapsed" Click="Stop_Click" />
+            </StackPanel>
+            <TextBox Name="Composer" AutomationProperties.Name="Message" Background="#00FFFFFF" BorderThickness="0" Padding="2,4" MinHeight="55" MaxHeight="170" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" PreviewKeyDown="Composer_KeyDown" />
+          </DockPanel>
+        </Border>
+        <DockPanel Margin="3,8,3,0">
+          <Button Name="AttachButton" Content="＋ Attach files" Padding="8,4" FontSize="11" DockPanel.Dock="Left" Click="Attach_Click" />
+          <TextBlock Text="  Drop files here · Enter sends" Foreground="{StaticResource Muted}" FontSize="10" VerticalAlignment="Center" />
+          <TextBlock Name="MetricsText" Foreground="{StaticResource Muted}" FontSize="10" HorizontalAlignment="Right" TextAlignment="Right" VerticalAlignment="Center" />
+        </DockPanel>
+      </StackPanel>
+    </Grid>
+    <Border Grid.Column="2" Background="#151F2B" BorderBrush="#283746" BorderThickness="1,0,0,0">
+      <DockPanel>
+        <Border DockPanel.Dock="Top" BorderBrush="#283746" BorderThickness="0,0,0,1" Height="86" Padding="20,18">
+          <StackPanel>
+            <TextBlock Text="YOUR SETUP" FontSize="11" Foreground="#80DEC5" FontWeight="SemiBold" />
+            <TextBlock Text="Everything runs here." Foreground="{StaticResource Muted}" FontSize="12" Margin="0,8,0,0" />
+          </StackPanel>
+        </Border>
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+          <StackPanel Margin="19,5,19,22">
+            <StackPanel Name="SetupControls">
+              <TextBlock Text="PERSONALITY" Style="{StaticResource Label}" />
+              <ComboBox Name="PersonalityCombo" AutomationProperties.Name="Active personality" DisplayMemberPath="Name" FontSize="12" SelectionChanged="Personality_Changed" />
+              <Button Content="Manage personalities…" Margin="0,8,0,0" FontSize="12" Click="Personalities_Click" />
+              <TextBlock Name="PersonalitySummary" TextWrapping="Wrap" Foreground="{StaticResource Muted}" FontSize="11" Margin="0,8,0,6" />
+              <TextBlock Text="MODEL" Style="{StaticResource Label}" />
+              <TextBlock Name="ModelName" Text="No model selected" TextWrapping="Wrap" FontWeight="SemiBold" FontSize="13" MaxHeight="60" />
+              <ComboBox Name="InstalledModelsCombo" AutomationProperties.Name="Installed models" DisplayMemberPath="Name" Margin="0,9,0,0" FontSize="11" SelectionChanged="InstalledModels_Changed" />
+              <Button Content="Choose GGUF file…" Margin="0,10,0,8" Click="Model_Click" />
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition />
+                  <ColumnDefinition Width="8" />
+                  <ColumnDefinition />
+                </Grid.ColumnDefinitions>
+                <Button Name="LoadButton" Content="Load model" Background="#263F48" Click="Load_Click" />
+                <Button Name="UnloadButton" Grid.Column="2" Content="Unload" Click="Unload_Click" />
+              </Grid>
+              <TextBlock Name="VisionStatus" Text="Vision: no projector selected" Foreground="{StaticResource Muted}" FontSize="11" TextWrapping="Wrap" Margin="0,9,0,0" />
+              <Grid Margin="0,7,0,0">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition />
+                  <ColumnDefinition Width="7" />
+                  <ColumnDefinition Width="55" />
+                </Grid.ColumnDefinitions>
+                <Button Content="Choose vision projector…" Padding="6" FontSize="11" Click="Projector_Click" />
+                <Button Content="Clear" Grid.Column="2" Padding="6" FontSize="11" Click="ClearProjector_Click" />
+              </Grid>
+              <TextBlock Text="INFERENCE PROFILE" Style="{StaticResource Label}" Margin="0,23,0,7" />
+              <ComboBox Name="ProfileCombo" AutomationProperties.Name="Inference profile" SelectedValuePath="Tag" SelectionChanged="Profile_Changed">
+                <ComboBoxItem Tag="Auto" Content="Automatic (detect hardware)" />
+                <ComboBoxItem Tag="High" Content="A · High VRAM" />
+                <ComboBoxItem Tag="Laptop" Content="B · Constrained laptop" />
+                <ComboBoxItem Tag="Custom" Content="Custom" />
+              </ComboBox>
+              <TextBlock Name="HardwareText" Text="Detecting hardware…" TextWrapping="Wrap" Foreground="{StaticResource Muted}" FontSize="11" Margin="0,7,0,0" />
+              <CheckBox Name="LaptopQ4Check" Content="Use 4-bit KV cache (experimental)" ToolTip="Uses less cache memory. Switch back to 8-bit if replies become repetitive or incoherent." Checked="Cache_Changed" Unchecked="Cache_Changed" />
+              <StackPanel Name="CustomCachePanel">
+                <TextBlock Text="Custom KV cache" Style="{StaticResource Label}" />
+                <ComboBox Name="CustomCacheCombo" AutomationProperties.Name="Custom KV cache" SelectedValuePath="Content" SelectionChanged="Cache_Changed">
+                  <ComboBoxItem Content="f16" />
+                  <ComboBoxItem Content="q8_0" />
+                  <ComboBoxItem Content="q4_0" />
+                </ComboBox>
+              </StackPanel>
+              <TextBlock Name="ExpertsLabel" Text="MoE expert layers on CPU (0 = off)" Style="{StaticResource Label}" />
+              <TextBox Name="ExpertLayersBox" AutomationProperties.Name="MoE expert layers on CPU" TextChanged="Compute_Changed" />
+              <TextBlock Name="ExpertsHint" TextWrapping="Wrap" Foreground="{StaticResource Muted}" FontSize="11" Margin="0,7,0,0" />
+              <TextBlock Text="CONTEXT ALLOWANCE" Style="{StaticResource Label}" Margin="0,23,0,7" />
+              <ComboBox Name="ContextCombo" AutomationProperties.Name="Context window" SelectionChanged="ContextCombo_Changed">
+                <ComboBoxItem Content="2048" />
+                <ComboBoxItem Content="4096" />
+                <ComboBoxItem Content="8192" />
+                <ComboBoxItem Content="16384" />
+                <ComboBoxItem Content="24576" />
+                <ComboBoxItem Content="32768" />
+                <ComboBoxItem Content="65536" />
+                <ComboBoxItem Content="131072" />
+                <ComboBoxItem Content="262144" />
+              </ComboBox>
+              <TextBlock Name="ContextValue" Text="8,192 tokens" FontSize="12" Margin="0,10,0,0" />
+              <Slider Name="ContextSlider" AutomationProperties.Name="Allowed context" Style="{StaticResource ContextSliderStyle}" Minimum="11" Maximum="18" Value="13" TickFrequency="0.25" IsSnapToTickEnabled="False" Margin="0,5,0,0" ValueChanged="ContextSlider_Changed" />
+              <Canvas Name="ThresholdCanvas" Height="16" Margin="2,0" SizeChanged="Thresholds_SizeChanged">
+                <Border Name="ProfileTargetMarker" Width="12" Height="14" Background="#00FFFFFF" ToolTip="Profile target">
+                  <Border Width="2" Background="{StaticResource ContextTargetInk}" />
+                </Border>
+                <Border Name="MemoryEstimateMarker" Width="12" Height="14" Background="#00FFFFFF" ToolTip="{Binding ElementName=ContextRisk, Path=ToolTip}">
+                  <Border Name="MemoryEstimateLine" Width="2" Background="{StaticResource ContextAdvisoryInk}" />
+                </Border>
+              </Canvas>
+              <TextBlock Name="ContextThresholds" Text="Reading model metadata…" FontSize="11" Foreground="{StaticResource ContextTargetInk}" TextWrapping="Wrap" LineHeight="17" />
+              <TextBlock Name="ContextRisk" FontSize="11" Foreground="{StaticResource Muted}" TextWrapping="Wrap" LineHeight="17" Margin="0,5,0,0" />
+              <TextBlock Text="PROJECT FOLDER" Style="{StaticResource Label}" Margin="0,24,0,7" />
+              <TextBlock Name="WorkspaceName" Text="No folder selected" Foreground="{StaticResource Muted}" TextWrapping="Wrap" FontSize="12" MaxHeight="55" />
+              <Grid Margin="0,9,0,0">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition />
+                  <ColumnDefinition Width="8" />
+                  <ColumnDefinition Width="60" />
+                </Grid.ColumnDefinitions>
+                <Button Content="Choose folder…" Click="Workspace_Click" />
+                <Button Grid.Column="2" Content="Clear" Click="ClearWorkspace_Click" />
+              </Grid>
+              <CheckBox Name="ToolsCheck" Content="Allow file search and reading" IsChecked="True" />
+              <CheckBox Name="LookupCheck" Content="Require a file lookup each message" FontSize="12" />
+              <TextBlock Text="Tools use only the selected folder. Activity appears below each response." Foreground="{StaticResource Muted}" TextWrapping="Wrap" FontSize="11" Margin="0,8,0,0" LineHeight="17" />
+              <TextBlock Text="MEMORY" Style="{StaticResource Label}" Margin="0,24,0,7" />
+              <CheckBox Name="LearnMemoryCheck" Content="Learn from new messages" />
+              <CheckBox Name="UseMemoryCheck" Content="Recall saved memories" />
+              <CheckBox Name="SemanticMemoryCheck" Content="Match memories by meaning" />
+              <TextBlock Text="MiniLM on CPU · 1 thread · cached locally. Keyword fallback remains available." Foreground="{StaticResource Muted}" FontSize="10" TextWrapping="Wrap" Margin="0,5,0,0" />
+              <TextBlock Text="Learns after completed replies. Project facts stay with the selected folder. Review sources and corrections in Memories." Foreground="{StaticResource Muted}" FontSize="11" TextWrapping="Wrap" Margin="0,7,0,12" />
+              <TextBox Name="MemoryBox" AutomationProperties.Name="Persistent memory" AcceptsReturn="True" TextWrapping="Wrap" Height="95" VerticalScrollBarVisibility="Auto" MaxLength="16000" />
+              <TextBlock Text="Notes you want included in every conversation. Edit these yourself." Foreground="{StaticResource Muted}" FontSize="11" TextWrapping="Wrap" Margin="0,7,0,0" />
+              <Expander Header="Generation settings" Margin="0,22,0,0">
+                <StackPanel>
+                  <TextBlock Text="Response limit (tokens)" Style="{StaticResource Label}" />
+                  <TextBox Name="MaxTokensBox" AutomationProperties.Name="Response limit" TextChanged="Reasoning_Changed" />
+                  <TextBlock Text="Standard temperature (0–2)" Style="{StaticResource Label}" />
+                  <TextBox Name="TempBox" AutomationProperties.Name="Temperature" />
+                  <CheckBox Name="CreativeCheck" Content="Use creative writing samplers" Checked="Creative_Changed" Unchecked="Creative_Changed" />
+                  <StackPanel Name="CreativeControls">
+                    <TextBlock Text="Creative temperature (0–2)" Style="{StaticResource Label}" />
+                    <TextBox Name="CreativeTempBox" AutomationProperties.Name="Creative temperature" />
+                    <TextBlock Text="Min-p (0–1)" Style="{StaticResource Label}" />
+                    <TextBox Name="MinPBox" AutomationProperties.Name="Min-p" />
+                    <TextBlock Text="Top-p (1 disables)" Style="{StaticResource Label}" />
+                    <TextBox Name="TopPBox" AutomationProperties.Name="Top-p" />
+                    <TextBlock Text="DRY multiplier (0 disables)" Style="{StaticResource Label}" />
+                    <TextBox Name="DryMultiplierBox" AutomationProperties.Name="DRY multiplier" />
+                    <TextBlock Text="DRY base" Style="{StaticResource Label}" />
+                    <TextBox Name="DryBaseBox" AutomationProperties.Name="DRY base" />
+                    <TextBlock Text="DRY allowed repetition (tokens)" Style="{StaticResource Label}" />
+                    <TextBox Name="DryLengthBox" AutomationProperties.Name="DRY allowed length" />
+                  </StackPanel>
+                  <TextBlock Text="Custom GPU layers: -1 auto · 0 CPU" Style="{StaticResource Label}" />
+                  <TextBox Name="GpuBox" AutomationProperties.Name="GPU layers" TextChanged="Compute_Changed" />
+                  <TextBlock Text="CPU threads (default: 2)" Style="{StaticResource Label}" />
+                  <TextBox Name="CpuBox" AutomationProperties.Name="CPU threads" />
+                  <TextBlock Text="Automatic mode keeps a video-memory margin. Lower layers if other apps need the GPU." Foreground="{StaticResource Muted}" FontSize="11" TextWrapping="Wrap" Margin="0,7,0,0" />
+                  <CheckBox Name="ThinkingCheck" Content="Enable model thinking" Checked="Reasoning_Changed" Unchecked="Reasoning_Changed" />
+                  <TextBlock Text="Thinking budget (tokens)" Style="{StaticResource Label}" />
+                  <TextBox Name="ThinkingBudgetBox" AutomationProperties.Name="Thinking budget" TextChanged="Reasoning_Changed" />
+                  <TextBlock Name="ThinkingSummary" Foreground="#80DEC5" FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0" />
+                  <TextBlock Text="Thinking shares the response limit and session usage. A final-answer allowance is reserved. More thinking takes longer and may not improve every answer." Foreground="{StaticResource Muted}" FontSize="10" TextWrapping="Wrap" Margin="0,6,0,0" />
+                  <CheckBox Name="ReplyEmojiCheck" Content="Use occasional emoji in replies" />
+                  <TextBlock Text="Instructions" Style="{StaticResource Label}" />
+                  <TextBox Name="InstructionsBox" AutomationProperties.Name="System instructions" Height="140" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MaxLength="16000" />
+                </StackPanel>
+              </Expander>
+              <Button Content="Save settings" Margin="0,18,0,0" Click="SaveSettings_Click" />
+            </StackPanel>
+            <Border BorderBrush="#2B3949" BorderThickness="0,1,0,0" Margin="0,23,0,0" Padding="0,16,0,0">
+              <TextBlock Text="LOCAL BY DESIGN&#xA;Inference stays local. Optional internet access contacts search providers and websites." Foreground="{StaticResource Muted}" FontSize="11" TextWrapping="Wrap" LineHeight="19" />
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+      </DockPanel>
+    </Border>
+  </Grid>
+</Window>

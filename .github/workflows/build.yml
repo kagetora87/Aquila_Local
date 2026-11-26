@@ -1,0 +1,21 @@
+name: build
+on:
+  push:
+    branches: ['claude/**', 'main']
+    paths: ['src/**', '.github/workflows/**']
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Publish
+        run: dotnet publish src/AquilaLocal.csproj -c Release -r win-x64 -o out -p:PublishSingleFile=true -p:SelfContained=true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aquila-local-exe
+          path: out/
+          retention-days: 14
