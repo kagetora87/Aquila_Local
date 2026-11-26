@@ -178,7 +178,7 @@ public sealed class PersonaStore
     }
 
     /// <summary>Writes drive changes and their log lines in one transaction. Unchanged values are not logged.</summary>
-    public void Apply(IEnumerable<DriveChange> changes, DateTimeOffset at, IReadOnlyDictionary<string, int>? streaks = null)
+    public void Apply(IEnumerable<DriveChange> changes, DateTimeOffset at, IReadOnlyDictionary<string, int>? streaks = null, IEnumerable<Milestone>? achievements = null, IReadOnlyDictionary<string, string>? meta = null)
     {
         using SqliteConnection c = Connect();
         using SqliteTransaction tx = c.BeginTransaction();
@@ -206,6 +206,15 @@ public sealed class PersonaStore
             {
                 Exec(c, tx, "UPDATE drives SET unmet_streak=$s WHERE persona_id=$p AND name=$n", ("$s", streak), ("$p", PersonaId), ("$n", name));
             }
+        }
+        foreach (Milestone m in achievements ?? Array.Empty<Milestone>())
+        {
+            Exec(c, tx, "INSERT INTO achievements(persona_id,at,kind,note,reward) VALUES($p,$t,$k,$n,$r)",
+                ("$p", PersonaId), ("$t", Iso(at)), ("$k", m.Kind), ("$n", m.Note), ("$r", m.Reward));
+        }
+        foreach ((string key, string value) in meta ?? new Dictionary<string, string>())
+        {
+            SetMeta(c, tx, key, value);
         }
         tx.Commit();
     }
@@ -294,6 +303,12 @@ public sealed class PersonaStore
         }
         list.Reverse();
         return list;
+    }
+
+    public int AchievementCount()
+    {
+        using SqliteConnection c = Connect();
+        return (int)Scalar<long>(c, null, "SELECT COUNT(*) FROM achievements WHERE persona_id=$p", ("$p", PersonaId));
     }
 
     // ---- exchanges and vectors ----------------------------------------------------------------------
