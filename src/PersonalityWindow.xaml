@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Window x:Class="AquilaLocal.PersonalityWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Aquila · Personalities" Width="1040" Height="780" MinWidth="880" MinHeight="650" WindowStartupLocation="CenterOwner" Background="#101720" Foreground="{StaticResource Ink}" FontFamily="Segoe UI" FontSize="13" xmlns:aquilalocal="clr-namespace:AquilaLocal;assembly=Aquila Local">
+<Window x:Class="AquilaLocal.PersonalityWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Aquila · Personalities" Width="1040" Height="780" MinWidth="880" MinHeight="650" WindowStartupLocation="CenterOwner" Background="#101720" Foreground="{StaticResource Ink}" FontFamily="Segoe UI" FontSize="13" xmlns:aquilalocal="clr-namespace:AquilaLocal">
   <DockPanel Margin="22">
     <StackPanel DockPanel.Dock="Top" Margin="0,0,0,18">
       <TextBlock Text="Personality profiles" FontSize="24" />
