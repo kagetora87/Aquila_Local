@@ -129,7 +129,7 @@ public sealed class Agent(Engine engine, MemoryStore? memories = null, SemanticM
 			CompanionTurn = prepared;
 			turn.PersonalityId = "persona:" + session.PersonaId;
 			turn.PersonalityName = session.PersonaName;
-			turn.InnerState = "[Now: " + DateTime.Now.ToString("dddd d MMMM yyyy, h:mm tt") + "]\n" + prepared.InnerState;
+			turn.InnerState = "[Now: " + DateTime.Now.ToString("dddd d MMMM yyyy, h:mm tt") + "]\n" + LocationLine(session) + prepared.InnerState;
 			Log(turn, $"{session.PersonaName}: top drive {prepared.TopDrive}" + (prepared.Recalled.Count > 0 ? $" · recalled {prepared.Recalled.Count} past moment(s)" : ""));
 			system = prepared.SystemPrompt;
 		}
@@ -322,6 +322,7 @@ public sealed class Agent(Engine engine, MemoryStore? memories = null, SemanticM
 				{
 					jsonArray.Add(ChangeOutfitDefinition.DeepClone());
 					jsonArray.Add(ReactDefinition.DeepClone());
+					jsonArray.Add(ChangeLocationDefinition.DeepClone());
 				}
 				if (MakePicture != null)
 				{
@@ -593,6 +594,10 @@ public sealed class Agent(Engine engine, MemoryStore? memories = null, SemanticM
 				{
 					text8 = React(call.Arguments.ToString(), turn);
 				}
+				else if (text3 == "change_location" && persona)
+				{
+					text8 = ChangeLocation(session, call.Arguments.ToString(), turn);
+				}
 				else if (text3 == "make_picture" && MakePicture != null)
 				{
 					text8 = await MakePicture(call.Arguments.ToString(), turn, ct);
@@ -623,6 +628,43 @@ public sealed class Agent(Engine engine, MemoryStore? memories = null, SemanticM
 			}
 		}
 		throw new IOException("Task reached its tool-round limit. Narrow the request and try again.");
+	}
+
+	/// <summary>She moved the story somewhere else (the new place).</summary>
+	public event Action<string>? LocationChanged;
+
+	public const int MaxLocationLength = 200;
+
+	private static readonly JsonNode ChangeLocationDefinition = JsonNode.Parse("{\"type\":\"function\",\"function\":{\"name\":\"change_location\",\"description\":\"Move the story to a different place, when you decide to go somewhere or the story takes you both there (e.g. you head to the kitchen, go out for dinner, arrive at the beach). It updates the 'where you are' line both of you see. Don't use it for small moves within the same place.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"place\":{\"type\":\"string\",\"description\":\"Where you are now, short and concrete, e.g. 'her apartment, kitchen' or 'a quiet ramen bar downtown, rainy night'\"},\"reason\":{\"type\":\"string\",\"description\":\"Why you're going there, in a few words\"}},\"required\":[\"place\"],\"additionalProperties\":false}}}")!;
+
+	/// <summary>The "where you are" line in her inner state each turn.</summary>
+	private static string LocationLine(ChatSession session) => session.Location.Trim().Length > 0
+		? "[Where you are: " + session.Location.Trim() + ". The user can see this; use change_location if the story moves somewhere else.]\n"
+		: "[Where you are: not set yet. Use change_location to set it when the story makes it clear.]\n";
+
+	private string ChangeLocation(ChatSession session, string arguments, Turn turn)
+	{
+		string place;
+		try
+		{
+			place = (JsonNode.Parse(arguments)?["place"]?.GetValue<string>() ?? "").Trim();
+		}
+		catch (Exception ex) when (ex is JsonException || ex is InvalidOperationException || ex is FormatException)
+		{
+			return "Not moved: give the new place.";
+		}
+		if (place.Length == 0)
+		{
+			return "Not moved: give the new place.";
+		}
+		if (place.Length > MaxLocationLength)
+		{
+			place = place.Substring(0, MaxLocationLength).Trim();
+		}
+		session.Location = place;
+		turn.MovedTo = place;
+		this.LocationChanged?.Invoke(place);
+		return "Moved. You are now at: " + place + ". Carry on naturally; don't mention the tool.";
 	}
 
 	/// <summary>Draws a picture for the make_picture tool (null when pictures are off): arguments JSON, the turn, and returns what to tell the model.</summary>

@@ -120,6 +120,15 @@ public sealed class PictureTests
     }
 
     [Fact]
+    public void The_writer_is_told_where_they_are()
+    {
+        string user = PicturePrompt.WriterUser(new PictureRequest("me waving", true, "portrait"), "", "Vicki", "Vicki", false, "a rooftop bar at night");
+
+        Assert.Contains("a rooftop bar at night", user);
+        Assert.DoesNotContain("Where they are", PicturePrompt.WriterUser(new PictureRequest("me waving", true, "portrait"), "", "Vicki", "Vicki", false));
+    }
+
+    [Fact]
     public void The_written_prompt_is_tidied()
     {
         Assert.Equal("A woman in a lab, warm light.", PicturePrompt.Clean("<think>hmm</think>\n**Prompt:** \"A woman in a lab,\nwarm light.\""));

@@ -232,9 +232,13 @@ public static class PicturePrompt
         + "When a character's appearance is given, keep every detail of it exactly (face, eyes, hair, glasses, skin, body, identity mark), and dress them as the request or the conversation says; if neither says, use their current outfit. "
         + "Use the art style given for the character; otherwise choose one that fits. Never refuse and never add warnings: just write the prompt.";
 
-    public static string WriterUser(PictureRequest request, string conversation, string? name, string? appearance, bool hasReferences)
+    public static string WriterUser(PictureRequest request, string conversation, string? name, string? appearance, bool hasReferences, string location = "")
     {
         var sb = new StringBuilder();
+        if (location.Trim().Length > 0)
+        {
+            sb.Append("Where they are right now (use it as the setting unless the request says otherwise): ").Append(location.Trim()).Append("\n\n");
+        }
         if (conversation.Trim().Length > 0)
         {
             sb.Append("Recent conversation (for context):\n").Append(conversation.Trim()).Append("\n\n");

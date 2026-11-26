@@ -75,7 +75,7 @@ public partial class MainWindow
 			recent.Add((turn.User, turn.Answer));
 			string conversation = PicturePrompt.Conversation(recent, speaker);
 			PictureStatus("Writing the picture prompt…");
-			string prompt = await WritePicturePromptAsync(request, conversation, name, appearance, references.Count > 0, ct);
+			string prompt = await WritePicturePromptAsync(request, conversation, name, appearance, references.Count > 0, session.Location, ct);
 			string output = await DrawAsync(model, PicturePrompt.WithReferences(prompt, references.Count), request.Size(), references, request.Description, ct);
 			turn.Pictures.Add(output);
 			if (replyViews.TryGetValue(turn.Id, out MessageView? view))
@@ -100,7 +100,7 @@ public partial class MainWindow
 	}
 
 	/// <summary>The chat model writes the image prompt on its second slot, so the conversation's cache stays as it is.</summary>
-	private async Task<string> WritePicturePromptAsync(PictureRequest request, string conversation, string? name, string? appearance, bool hasReferences, CancellationToken ct)
+	private async Task<string> WritePicturePromptAsync(PictureRequest request, string conversation, string? name, string? appearance, bool hasReferences, string location, CancellationToken ct)
 	{
 		JsonObject payload = new JsonObject
 		{
@@ -109,7 +109,7 @@ public partial class MainWindow
 			["messages"] = new JsonArray
 			{
 				new JsonObject { ["role"] = "system", ["content"] = PicturePrompt.WriterSystem },
-				new JsonObject { ["role"] = "user", ["content"] = PicturePrompt.WriterUser(request, conversation, name, appearance, hasReferences) }
+				new JsonObject { ["role"] = "user", ["content"] = PicturePrompt.WriterUser(request, conversation, name, appearance, hasReferences, location) }
 			},
 			["stream"] = false,
 			["temperature"] = 0.7,
@@ -152,6 +152,51 @@ public partial class MainWindow
 				PictureStatus("Loading the chat model again…");
 				await engine.ResumeAsync(settings, restore, CancellationToken.None);
 			}
+		}
+	}
+
+	/// <summary>Where the story is, shown in the header of persona chats.</summary>
+	private void ShowLocation()
+	{
+		if (current == null || !current.IsCompanion)
+		{
+			LocationChip.Visibility = Visibility.Collapsed;
+			return;
+		}
+		LocationChip.Visibility = Visibility.Visible;
+		LocationChipText.Text = current.Location.Length > 0 ? current.Location : "Where are we?";
+	}
+
+	/// <summary>A new chat with her starts where the last one left off.</summary>
+	private string LastLocation(string personaId)
+	{
+		if (personaId.Length == 0)
+		{
+			return "";
+		}
+		return chats.Where((ChatSession c) => c.PersonaId == personaId && c.Location.Length > 0).OrderByDescending((ChatSession c) => c.Updated).FirstOrDefault()?.Location ?? "";
+	}
+
+	private void Location_Click(object sender, RoutedEventArgs e)
+	{
+		if (current == null || !current.IsCompanion)
+		{
+			return;
+		}
+		ChatSession session = current;
+		LocationWindow window = new LocationWindow(session.PersonaName, session.Location) { Owner = this };
+		if (window.ShowDialog() == true)
+		{
+			session.Location = window.Place;
+			try
+			{
+				store.SaveChat(session);
+			}
+			catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+			{
+				Notice("Couldn't save the location: " + ex.Message);
+			}
+			ShowLocation();
 		}
 	}
 

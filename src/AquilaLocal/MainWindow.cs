@@ -1973,7 +1973,8 @@ public partial class MainWindow : AquilaWindow
 				{
 					PersonaId = personaId,
 					PersonaName = personaName,
-					Title = (personaId.Length > 0) ? ("Chat with " + personaName) : "New conversation"
+					Title = (personaId.Length > 0) ? ("Chat with " + personaName) : "New conversation",
+					Location = LastLocation(personaId)
 				};
 				chats.Insert(0, chatSession);
 			}
@@ -2006,6 +2007,7 @@ public partial class MainWindow : AquilaWindow
 			return;
 		}
 		ChatTitle.Text = current.Title;
+		ShowLocation();
 		ImageSource? avatar = RefreshChatAvatar(current);
 		replyViews.Clear();
 		userViews.Clear();
@@ -2231,6 +2233,13 @@ public partial class MainWindow : AquilaWindow
 					OpenCompanions(personaId, ids);
 				}));
 			}
+			if (turn.MovedTo.Length > 0)
+			{
+				items.Add(("Moved to: " + turn.MovedTo.Truncate(60), delegate
+				{
+					Location_Click(this, new RoutedEventArgs());
+				}));
+			}
 			List<long> outfits = turn.CompanionWardrobeIds.ToList();
 			if (outfits.Count > 0)
 			{
@@ -2357,6 +2366,10 @@ public partial class MainWindow : AquilaWindow
 			agent.MakePicture = (string arguments, Turn pictureTurn, CancellationToken pictureCt) => MakePictureForTurnAsync(session, pictureTurn, arguments, pictureCt);
 		}
 		agent.ApproveWeb = (string action) => Task.FromResult(AquilaDialog.Confirm(this, "Allow web lookup?", action + "\n\nThis search or address will be sent over the internet.", "Allow", "Don't allow"));
+		agent.LocationChanged += delegate
+		{
+			base.Dispatcher.InvokeAsync(ShowLocation);
+		};
 		agent.Reacted += delegate(string emoji)
 		{
 			base.Dispatcher.InvokeAsync(delegate

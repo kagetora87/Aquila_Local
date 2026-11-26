@@ -306,7 +306,7 @@ public partial class MainWindow
 		ChatSession? session = chats.FirstOrDefault((ChatSession c) => c.IsCall && c.PersonaId == personaId);
 		if (session == null)
 		{
-			session = new ChatSession { PersonaId = personaId, PersonaName = name, IsCall = true, Title = "Call with " + name };
+			session = new ChatSession { PersonaId = personaId, PersonaName = name, IsCall = true, Title = "Call with " + name, Location = LastLocation(personaId) };
 			chats.Insert(0, session);
 		}
 		ChatsList.SelectedItem = session;

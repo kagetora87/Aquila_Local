@@ -8,6 +8,9 @@ public class ChatSession
 {
 	public ContextCheckpoint? CompactedContext { get; set; }
 
+	/// <summary>Where the story is right now in this chat ("her apartment, living room"). Set by you or by her; empty until someone sets it.</summary>
+	public string Location { get; set; } = "";
+
 	/// <summary>Number of oldest active turns left out of the prompt to fit the context window. Kept
 	/// between turns (and only ever grown in large steps) so the start of the prompt stays identical
 	/// and the engine's prompt cache keeps working on long chats.</summary>

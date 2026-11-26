@@ -22,6 +22,9 @@ public class Turn
 	/// <summary>Wardrobe diary entries she wrote during this turn (through change_outfit).</summary>
 	public List<long> CompanionWardrobeIds { get; set; } = new List<long>();
 
+	/// <summary>Where she moved the story during this turn (through change_location), or empty.</summary>
+	public string MovedTo { get; set; } = "";
+
 	/// <summary>You said this aloud (it was transcribed from the microphone) rather than typed it.</summary>
 	public bool Spoken { get; set; }
 

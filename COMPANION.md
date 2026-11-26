@@ -214,6 +214,12 @@ set her up once.
 - The cue shows in the chat as an orange action ("🔊 Door knock"), is never read aloud, and is left out of her memory. Works in scenes too.
 - Switch and volume are in the Soundboard window (`SoundboardEnabled`, `SoundboardVolume` in settings).
 
+## Where you are (location)
+
+- Persona chats show a location chip in the header ("Where are we?" until set). Click it to change or clear it (`ChatSession.Location`).
+- She sees it every turn in her inner state (`[Where you are: …]`) and can move the story with the `change_location` tool; a "Moved to: …" chip appears under that reply and the header updates.
+- A new chat (or call) with her starts where the last one left off. Pictures use the location as the setting unless the request says otherwise.
+
 ## Pictures (built-in image generator)
 
 - **Pictures** in the sidebar: switch it on (off by default), choose the model, add each persona's reference pictures, and draw a test picture.
