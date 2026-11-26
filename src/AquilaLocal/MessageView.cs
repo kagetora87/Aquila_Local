@@ -27,6 +27,12 @@ public sealed class MessageView : Border
 
 	private readonly StackPanel bodyHost = new StackPanel();
 
+	/// <summary>Attached pictures, shown in the user's bubble.</summary>
+	private readonly WrapPanel pictures = new WrapPanel { Visibility = Visibility.Collapsed, Margin = new Thickness(0.0, 0.0, 0.0, 6.0) };
+
+	/// <summary>Small clickable notices under a reply's header, such as "New memory created".</summary>
+	private readonly WrapPanel notices = new WrapPanel { Visibility = Visibility.Collapsed, Margin = new Thickness(0.0, 0.0, 0.0, 8.0) };
+
 	private readonly System.Windows.Controls.TextBox? thoughts;
 
 	private readonly Expander? thoughtsExpander;
@@ -55,7 +61,7 @@ public sealed class MessageView : Border
 	/// <summary>The prose pieces of the message, in order (for tests and copy handling).</summary>
 	public IEnumerable<Emoji.Wpf.RichTextBox> ProseBoxes => bodyHost.Children.OfType<Emoji.Wpf.RichTextBox>();
 
-	public MessageView(string role, bool animate = false)
+	public MessageView(string role, bool animate = false, ImageSource? avatar = null)
 	{
 		user = role == "You";
 		base.Background = Brushes.Transparent;
@@ -88,7 +94,7 @@ public sealed class MessageView : Border
 				Background = Ui.Brush("Surface.2"),
 				CornerRadius = new CornerRadius(16.0, 16.0, 4.0, 16.0),
 				Padding = new Thickness(14.0, 10.0, 14.0, 10.0),
-				Child = bodyHost
+				Child = new StackPanel { Children = { pictures, bodyHost } }
 			};
 			// The copy button sits beside the bubble on hover, so it reserves no space below it.
 			actions.HorizontalAlignment = HorizontalAlignment.Right;
@@ -114,7 +120,13 @@ public sealed class MessageView : Border
 				Height = 28.0,
 				Margin = new Thickness(0.0, 0.0, 0.0, 6.0)
 			};
-			Border element = new Border
+			UIElement element = (avatar != null) ? new Ellipse
+			{
+				Width = 28.0,
+				Height = 28.0,
+				VerticalAlignment = VerticalAlignment.Center,
+				Fill = new ImageBrush(avatar) { Stretch = Stretch.UniformToFill }
+			} : new Border
 			{
 				Width = 24.0,
 				Height = 24.0,
@@ -123,7 +135,7 @@ public sealed class MessageView : Border
 				VerticalAlignment = VerticalAlignment.Center,
 				Child = new TextBlock
 				{
-					Text = "A",
+					Text = (role.Length > 0) ? role.Substring(0, 1).ToUpperInvariant() : "A",
 					FontSize = 13.0,
 					FontWeight = FontWeights.SemiBold,
 					Foreground = Ui.Brush("Accent"),
@@ -134,7 +146,7 @@ public sealed class MessageView : Border
 			stackPanel3.Children.Add(element);
 			stackPanel3.Children.Add(new TextBlock
 			{
-				Text = "Aquila",
+				Text = role,
 				FontSize = 13.0,
 				FontWeight = FontWeights.SemiBold,
 				Foreground = Ui.Brush("Text.Primary"),
@@ -165,6 +177,7 @@ public sealed class MessageView : Border
 				Margin = new Thickness(0.0, 0.0, 0.0, 8.0)
 			};
 			stackPanel2.Children.Add(thoughtsExpander);
+			stackPanel2.Children.Add(notices);
 			waiting = new StackPanel
 			{
 				Orientation = Orientation.Horizontal,
@@ -223,6 +236,93 @@ public sealed class MessageView : Border
 				Motion.RiseIn(this);
 			};
 		}
+	}
+
+	/// <summary>Shows the attached pictures as thumbnails; clicking one opens it larger.</summary>
+	public void ShowPictures(IEnumerable<Attachment> attachments)
+	{
+		pictures.Children.Clear();
+		foreach (Attachment a in attachments.Where((Attachment x) => x.Kind == "image" && x.Base64.Length > 0))
+		{
+			System.Windows.Media.Imaging.BitmapImage image;
+			try
+			{
+				image = Decode(a.Base64, 560);
+			}
+			catch (Exception ex) when (ex is FormatException || ex is NotSupportedException || ex is System.IO.IOException)
+			{
+				continue;
+			}
+			System.Windows.Controls.Image thumb = new System.Windows.Controls.Image { Source = image, Stretch = Stretch.Uniform, MaxWidth = 320.0, MaxHeight = 260.0, Cursor = Cursors.Hand, ToolTip = a.Name };
+			RenderOptions.SetBitmapScalingMode(thumb, BitmapScalingMode.HighQuality);
+			string base64 = a.Base64;
+			string name = a.Name;
+			thumb.MouseLeftButtonUp += delegate
+			{
+				ShowLarge(name, base64);
+			};
+			pictures.Children.Add(new Border
+			{
+				CornerRadius = new CornerRadius(10.0),
+				ClipToBounds = true,
+				Margin = new Thickness(0.0, 0.0, 6.0, 6.0),
+				Child = thumb
+			});
+		}
+		pictures.Visibility = (pictures.Children.Count > 0) ? Visibility.Visible : Visibility.Collapsed;
+	}
+
+	private static System.Windows.Media.Imaging.BitmapImage Decode(string base64, int width)
+	{
+		System.Windows.Media.Imaging.BitmapImage image = new System.Windows.Media.Imaging.BitmapImage();
+		image.BeginInit();
+		image.StreamSource = new System.IO.MemoryStream(Convert.FromBase64String(base64));
+		image.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+		if (width > 0)
+		{
+			image.DecodePixelWidth = width;
+		}
+		image.EndInit();
+		image.Freeze();
+		return image;
+	}
+
+	private void ShowLarge(string name, string base64)
+	{
+		try
+		{
+			AquilaWindow viewer = new AquilaWindow
+			{
+				Title = name,
+				Width = 1000.0,
+				Height = 800.0,
+				CloseOnEscape = true,
+				WindowStartupLocation = WindowStartupLocation.CenterOwner,
+				Owner = Window.GetWindow(this),
+				Content = new System.Windows.Controls.Image { Source = Decode(base64, 0), Stretch = Stretch.Uniform, Margin = new Thickness(12.0) }
+			};
+			viewer.Show();
+		}
+		catch (Exception ex) when (ex is FormatException || ex is NotSupportedException || ex is InvalidOperationException)
+		{
+		}
+	}
+
+	/// <summary>Replaces the clickable notices under the reply header (empty hides them).</summary>
+	public void SetNotices(IEnumerable<(string Text, Action Open)> items)
+	{
+		notices.Children.Clear();
+		foreach ((string label, Action open) in items)
+		{
+			Button chip = Ui.Button(Ui.IconLabel("\uE734", label), "Btn.Chip", delegate
+			{
+				open();
+			});
+			chip.Margin = new Thickness(0.0, 0.0, 6.0, 0.0);
+			chip.ToolTip = "Open it";
+			notices.Children.Add(chip);
+		}
+		notices.Visibility = (notices.Children.Count > 0) ? Visibility.Visible : Visibility.Collapsed;
 	}
 
 	private void RefreshActions()

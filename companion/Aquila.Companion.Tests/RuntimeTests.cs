@@ -346,6 +346,7 @@ public sealed class RuntimeFlowTests
         Assert.Contains("Takeru lives in Japan.", gen.LastUser);
         Assert.Equal(2, r.Added);
         Assert.Equal(1, r.Corrected);
+        Assert.Equal(3, r.NewEntryIds.Count);
         List<MemoryEntry> history = store.MemoryHistory();
         MemoryEntry original = history.Single(e => e.Id == 3);
         Assert.Equal("Ask about the cello.", original.Text);             // the original is untouched...

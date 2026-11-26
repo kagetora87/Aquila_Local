@@ -28,10 +28,14 @@ public sealed class CompanionWindow : AquilaWindow
 
 	private bool showHistory;
 
-	public CompanionWindow(CompanionHost host, Action<string, string> startChat)
+	/// <summary>Memory entries to highlight and scroll to (from a chat's "New memory" notice).</summary>
+	private readonly HashSet<long> highlight;
+
+	public CompanionWindow(CompanionHost host, Action<string, string> startChat, string? focusPersona = null, IEnumerable<long>? highlightMemory = null)
 	{
 		this.host = host;
 		this.startChat = startChat;
+		highlight = new HashSet<long>(highlightMemory ?? Enumerable.Empty<long>());
 		base.Title = "Aquila · Companions";
 		base.Width = 860.0;
 		base.Height = 820.0;
@@ -42,6 +46,10 @@ public sealed class CompanionWindow : AquilaWindow
 		{
 			RegistryManifest m = host.Registry.Load();
 			personaId = m.Active.Length > 0 ? m.Active : (m.Personas.FirstOrDefault()?.Id ?? "");
+			if (focusPersona != null && m.Personas.Any((PersonaEntry p) => p.Id == focusPersona))
+			{
+				personaId = focusPersona;
+			}
 		}
 		catch (PersonaConfigException ex)
 		{
@@ -155,7 +163,15 @@ public sealed class CompanionWindow : AquilaWindow
 		body.Children.Add(Section("Settings (saved to persona.json)", SettingsEditor(config, st.StoreExists), expanded: !st.Ready));
 		if (store != null)
 		{
-			body.Children.Add(Section("Long-term memory", MemoryView(config, store), expanded: false));
+			Expander memorySection = Section("Long-term memory", MemoryView(config, store), expanded: highlight.Count > 0);
+			body.Children.Add(memorySection);
+			if (highlight.Count > 0)
+			{
+				memorySection.Loaded += delegate
+				{
+					memorySection.BringIntoView();
+				};
+			}
 			body.Children.Add(Section("Achievements", AchievementsView(store), expanded: false));
 			body.Children.Add(Section("Recent drive changes", LogView(store), expanded: false));
 		}
@@ -221,6 +237,65 @@ public sealed class CompanionWindow : AquilaWindow
 		});
 		folder.Margin = new Thickness(0, 0, 8, 8);
 		row.Children.Add(folder);
+		if (config != null)
+		{
+			row.Children.Add(ProfilePictureRow(config));
+		}
+		return row;
+	}
+
+	/// <summary>Her small round profile picture, shown beside her name in the chat and at the top of it.</summary>
+	private FrameworkElement ProfilePictureRow(PersonaConfig config)
+	{
+		StackPanel row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 8, 8) };
+		ImageSource? picture = host.ProfilePicture(personaId);
+		if (picture != null)
+		{
+			row.Children.Add(new System.Windows.Shapes.Ellipse
+			{
+				Width = 32,
+				Height = 32,
+				Margin = new Thickness(0, 0, 8, 0),
+				VerticalAlignment = VerticalAlignment.Center,
+				Fill = new ImageBrush(picture) { Stretch = Stretch.UniformToFill }
+			});
+		}
+		row.Children.Add(Ui.Button(picture == null ? "Choose profile picture…" : "Change picture…", "Btn.Secondary", delegate
+		{
+			OpenFileDialog dialog = new OpenFileDialog { Filter = "Pictures|*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.webp;*.tif;*.tiff", Title = "Choose " + config.Name + "'s profile picture" };
+			if (dialog.ShowDialog(this) != true)
+			{
+				return;
+			}
+			try
+			{
+				host.SetProfilePicture(personaId, dialog.FileName);
+				Ok(config.Name + "'s profile picture is set.");
+			}
+			catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is NotSupportedException || ex is ArgumentException || ex is FileFormatException || ex is PersonaConfigException)
+			{
+				Problem("That picture couldn't be used: " + ex.Message);
+			}
+			Build();
+		}));
+		if (picture != null)
+		{
+			Button remove = Ui.Button("Remove", "Btn.Ghost", delegate
+			{
+				try
+				{
+					host.RemoveProfilePicture(personaId);
+					Ok(config.Name + "'s profile picture was removed.");
+				}
+				catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is PersonaConfigException)
+				{
+					Problem(ex.Message);
+				}
+				Build();
+			});
+			remove.Margin = new Thickness(8, 0, 0, 0);
+			row.Children.Add(remove);
+		}
 		return row;
 	}
 
@@ -451,6 +526,11 @@ public sealed class CompanionWindow : AquilaWindow
 		};
 		panel.Children.Add(history);
 		List<AquilaLocal.Companion.MemoryEntry> all = store.MemoryHistory();
+		if (all.Any((AquilaLocal.Companion.MemoryEntry e) => highlight.Contains(e.Id) && !e.Active))
+		{
+			showHistory = true;
+			history.IsChecked = true;
+		}
 		ListBox list = new ListBox { Height = 260 };
 		foreach (AquilaLocal.Companion.MemoryEntry e in all.Where((AquilaLocal.Companion.MemoryEntry e) => showHistory || e.Active))
 		{
@@ -462,9 +542,25 @@ public sealed class CompanionWindow : AquilaWindow
 			text.MaxWidth = 700;
 			item.Children.Add(text);
 			item.Children.Add(Ui.Text("#" + e.Id + " · " + meta, "Type.Caption"));
-			list.Items.Add(item);
+			if (highlight.Contains(e.Id))
+			{
+				// A memory opened from the chat's "New memory" notice.
+				list.Items.Add(new Border { Tag = e, Child = item, Background = Ui.Brush("Accent.Subtle"), CornerRadius = new CornerRadius(6), Padding = new Thickness(6, 2, 6, 2) });
+				list.SelectedItem ??= list.Items[list.Items.Count - 1];
+			}
+			else
+			{
+				list.Items.Add(item);
+			}
 		}
 		panel.Children.Add(list);
+		if (list.SelectedItem != null)
+		{
+			list.Loaded += delegate
+			{
+				list.ScrollIntoView(list.SelectedItem);
+			};
+		}
 
 		ComboBox layer = new ComboBox { ItemsSource = MemoryLayers.All, SelectedIndex = 0, Width = 120, Margin = new Thickness(0, 0, 8, 0) };
 		TextBox text2 = new TextBox { Margin = new Thickness(0, 0, 0, 4) };

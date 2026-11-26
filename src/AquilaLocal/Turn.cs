@@ -16,6 +16,9 @@ public class Turn
 	/// <summary>Companion chats: what the satisfaction loop decided after this reply.</summary>
 	public string DriveReport { get; set; } = "";
 
+	/// <summary>Companion chats: memory ledger entries her summary pass wrote after this turn.</summary>
+	public List<long> CompanionMemoryIds { get; set; } = new List<long>();
+
 	public string SpeechMood { get; set; } = "neutral";
 
 	public string SpeechMoodSource { get; set; } = "default";

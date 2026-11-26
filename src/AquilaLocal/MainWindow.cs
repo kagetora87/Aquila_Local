@@ -116,6 +116,9 @@ public partial class MainWindow : AquilaWindow
 
 	private MessageView? live;
 
+	/// <summary>The reply view of each turn in the open chat, so notices like "New memory created" can be added later.</summary>
+	private readonly Dictionary<string, MessageView> replyViews = new Dictionary<string, MessageView>();
+
 	private Turn? activeTurn;
 
 	private bool dirtyRender;
@@ -1856,15 +1859,20 @@ public partial class MainWindow : AquilaWindow
 			return;
 		}
 		ChatTitle.Text = current.Title;
+		ImageSource? avatar = RefreshChatAvatar(current);
+		replyViews.Clear();
 		Welcome.Visibility = ((current.Turns.Count != 0) ? Visibility.Collapsed : Visibility.Visible);
 		foreach (Turn turn in current.Turns)
 		{
 			MessageView messageView = new MessageView("You");
+			messageView.ShowPictures(turn.Attachments);
 			messageView.Update(Attachments.VisibleText(turn), "", null, "", renderMarkdown: false);
 			Messages.Children.Add(messageView);
-			MessageView messageView2 = new MessageView(current.Speaker);
+			MessageView messageView2 = new MessageView(current.Speaker, animate: false, avatar);
 			ShowReply(messageView2, turn, generating: false);
 			Messages.Children.Add(messageView2);
+			replyViews[turn.Id] = messageView2;
+			RefreshNotices(current, turn);
 		}
 		RefreshUsage();
 		followBottom = true;
@@ -1888,6 +1896,7 @@ public partial class MainWindow : AquilaWindow
 			if ((object)(await new MemoryLearner(engine, memories, personalities).LearnAsync(settings, session, turn, monitorCancellation.Token)) != null)
 			{
 				turn.Activity.Add("Memory: " + turn.MemoryLearningStatus + $" · {turn.MemoryPromptTokens + turn.MemoryCompletionTokens:N0} tokens included in session usage.");
+				RefreshNotices(session, turn);
 			}
 		}
 		catch (OperationCanceledException)
@@ -1948,6 +1957,8 @@ public partial class MainWindow : AquilaWindow
 			if (result != null)
 			{
 				turn.Activity.Add($"{session.PersonaName}: folded {result.FoldedExchanges} older exchange(s) into her long-term memory (about {result.Tokens:N0} tokens).");
+				turn.CompanionMemoryIds = result.NewEntryIds.ToList();
+				RefreshNotices(session, turn);
 			}
 		}
 		catch (OperationCanceledException)
@@ -1972,12 +1983,72 @@ public partial class MainWindow : AquilaWindow
 		{
 			return;
 		}
+		OpenCompanions(null, null);
+	}
+
+	private void OpenCompanions(string? personaId, IEnumerable<long>? highlight)
+	{
+		bool started = false;
 		CompanionWindow window = new CompanionWindow(companion, delegate(string id, string name)
 		{
+			started = true;
 			NewChat(id, name);
-		});
+		}, personaId, highlight);
 		window.Owner = this;
 		window.ShowDialog();
+		if (!started && current != null && current.IsCompanion && !busy)
+		{
+			// Her profile picture may have changed.
+			RenderChat();
+		}
+	}
+
+	/// <summary>Shows her profile picture beside the chat title in a companion chat, and returns it for her messages.</summary>
+	private ImageSource? RefreshChatAvatar(ChatSession session)
+	{
+		ImageSource? avatar = (session.IsCompanion && session.PersonaId.Length > 0) ? companion.ProfilePicture(session.PersonaId) : null;
+		ChatAvatar.Fill = (avatar != null) ? new ImageBrush(avatar) { Stretch = Stretch.UniformToFill } : null;
+		ChatAvatar.Visibility = (avatar != null) ? Visibility.Visible : Visibility.Collapsed;
+		return avatar;
+	}
+
+	/// <summary>Puts a clickable "New memory created" notice under a reply once memories came out of it.</summary>
+	private void RefreshNotices(ChatSession session, Turn turn)
+	{
+		if (session != current || !replyViews.TryGetValue(turn.Id, out MessageView? view))
+		{
+			return;
+		}
+		List<(string Text, Action Open)> items = new List<(string Text, Action Open)>();
+		if (session.IsCompanion)
+		{
+			List<long> ids = turn.CompanionMemoryIds.ToList();
+			if (ids.Count > 0)
+			{
+				string personaId = session.PersonaId;
+				items.Add((ids.Count == 1 ? "New memory created" : $"{ids.Count} new memories created", delegate
+				{
+					if (busy)
+					{
+						Notice("Wait for the reply to finish, then open the memory.");
+						return;
+					}
+					OpenCompanions(personaId, ids);
+				}));
+			}
+		}
+		else
+		{
+			List<string> ids = turn.LearnedMemoryIds.ToList();
+			if (ids.Count > 0)
+			{
+				items.Add((ids.Count == 1 ? "New memory created" : $"{ids.Count} new memories created", delegate
+				{
+					OpenMemories(ids[0]);
+				}));
+			}
+		}
+		view.SetNotices(items);
 	}
 
 	private async Task SendAsync()
@@ -2048,13 +2119,16 @@ public partial class MainWindow : AquilaWindow
 		}
 		ChatsList.Items.Refresh();
 		ChatTitle.Text = session.Title;
+		ImageSource? replyAvatar = RefreshChatAvatar(session);
 		Welcome.Visibility = Visibility.Collapsed;
 		MessageView messageView = new MessageView("You", animate: true);
+		messageView.ShowPictures(turn.Attachments);
 		messageView.Update(Attachments.VisibleText(turn), "", null, "", renderMarkdown: false);
 		Messages.Children.Add(messageView);
-		live = new MessageView(session.Speaker, animate: true);
+		live = new MessageView(session.Speaker, animate: true, replyAvatar);
 		ShowReply(live, turn, generating: true);
 		Messages.Children.Add(live);
+		replyViews[turn.Id] = live;
 		UiSounds.Play(UiSound.Send);
 		sendStarted = DateTime.UtcNow;
 		activeTurn = turn;
@@ -2401,7 +2475,20 @@ public partial class MainWindow : AquilaWindow
 
 	private void Memories_Click(object sender, RoutedEventArgs e)
 	{
-		if (busy || !ReadSettings())
+		OpenMemories(null);
+	}
+
+	private void OpenMemories(string? selectId)
+	{
+		if (busy)
+		{
+			if (selectId != null)
+			{
+				Notice("Wait for the reply to finish, then open the memory.");
+			}
+			return;
+		}
+		if (!ReadSettings())
 		{
 			return;
 		}
@@ -2424,6 +2511,13 @@ public partial class MainWindow : AquilaWindow
 			}
 		});
 		memoryWindow.Owner = this;
+		if (selectId != null)
+		{
+			memoryWindow.Loaded += delegate
+			{
+				memoryWindow.Select(selectId);
+			};
+		}
 		memoryWindow.ShowDialog();
 	}
 

@@ -6,6 +6,9 @@ using System.Net.Http;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using AquilaLocal.Companion;
 
 namespace AquilaLocal;
@@ -190,6 +193,87 @@ public sealed class CompanionHost : IDisposable
 		}
 		incoming.Save(path);
 		Forget(personaId);
+	}
+
+	private readonly Dictionary<string, ImageSource?> avatars = new Dictionary<string, ImageSource?>();
+
+	public const int ProfilePictureSize = 256;
+
+	public string ProfilePicturePath(string personaId)
+	{
+		return Path.Combine(Folder(personaId), "profile.png");
+	}
+
+	/// <summary>Her profile picture (a small round avatar in the chat), or null when none is set.</summary>
+	public ImageSource? ProfilePicture(string personaId)
+	{
+		lock (gate)
+		{
+			if (avatars.TryGetValue(personaId, out ImageSource? cached))
+			{
+				return cached;
+			}
+		}
+		ImageSource? image = null;
+		try
+		{
+			string path = ProfilePicturePath(personaId);
+			if (File.Exists(path))
+			{
+				BitmapImage bitmap = new BitmapImage();
+				bitmap.BeginInit();
+				bitmap.StreamSource = new MemoryStream(File.ReadAllBytes(path));
+				bitmap.CacheOption = BitmapCacheOption.OnLoad;
+				bitmap.EndInit();
+				bitmap.Freeze();
+				image = bitmap;
+			}
+		}
+		catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is NotSupportedException || ex is PersonaConfigException || ex is ArgumentException || ex is FileFormatException)
+		{
+		}
+		lock (gate)
+		{
+			avatars[personaId] = image;
+		}
+		return image;
+	}
+
+	/// <summary>Saves a picture as her profile picture: turned upright, cropped to a centred square, 256 px.</summary>
+	public void SetProfilePicture(string personaId, string file)
+	{
+		BitmapFrame frame = BitmapFrame.Create(new MemoryStream(File.ReadAllBytes(file)), BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad);
+		BitmapSource upright = Attachments.PrepareForVision(frame);
+		int side = Math.Min(upright.PixelWidth, upright.PixelHeight);
+		BitmapSource square = new CroppedBitmap(upright, new Int32Rect((upright.PixelWidth - side) / 2, (upright.PixelHeight - side) / 2, side, side));
+		double scale = (double)ProfilePictureSize / side;
+		BitmapSource small = new TransformedBitmap(square, new ScaleTransform(scale, scale));
+		PngBitmapEncoder encoder = new PngBitmapEncoder();
+		encoder.Frames.Add(BitmapFrame.Create(small));
+		string path = ProfilePicturePath(personaId);
+		string temp = path + ".tmp";
+		using (FileStream stream = File.Create(temp))
+		{
+			encoder.Save(stream);
+		}
+		File.Move(temp, path, overwrite: true);
+		lock (gate)
+		{
+			avatars.Remove(personaId);
+		}
+	}
+
+	public void RemoveProfilePicture(string personaId)
+	{
+		string path = ProfilePicturePath(personaId);
+		if (File.Exists(path))
+		{
+			File.Delete(path);
+		}
+		lock (gate)
+		{
+			avatars.Remove(personaId);
+		}
 	}
 
 	public static Summarizer SummarizerFor(CompanionRuntime runtime, Engine engine, int contextTokens)

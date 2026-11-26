@@ -9,7 +9,7 @@ public interface ITextGenerator
     Task<string> GenerateJsonAsync(string system, string user, int maxTokens, CancellationToken ct);
 }
 
-public sealed record SummaryResult(int FoldedExchanges, int Tokens, StateBlock Block, int Added, int Corrected);
+public sealed record SummaryResult(int FoldedExchanges, int Tokens, StateBlock Block, int Added, int Corrected, IReadOnlyList<long> NewEntryIds);
 
 /// <summary>
 /// Every N turns, folds the old tail of the persona's exchanges into her three-layer state block
@@ -36,6 +36,7 @@ public sealed class Summarizer(PersonaConfig config, PersonaStore store, ITextGe
             return null;
         }
         int folded = 0, added = 0, corrected = 0;
+        var newIds = new List<long>();
         while (tail.Count > 0)
         {
             var batch = new List<Exchange>();
@@ -51,14 +52,14 @@ public sealed class Summarizer(PersonaConfig config, PersonaStore store, ITextGe
                 chars += size;
             }
             (List<(string, string)> adds, List<(long, string, string)> fixes) = await FoldAsync(store.ActiveMemory(), batch, ct);
-            store.ApplySummaryPass(adds, fixes, batch.Select(e => e.Id), now);
+            newIds.AddRange(store.ApplySummaryPass(adds, fixes, batch.Select(e => e.Id), now));
             folded += batch.Count;
             added += adds.Count;
             corrected += fixes.Count;
             tail.RemoveRange(0, batch.Count);
         }
         StateBlock block = store.ReadSummary().CappedTo(config.Memory.SummaryTokenCap);
-        return new SummaryResult(folded, TokenEstimate.Of(block.Render()), block, added, corrected);
+        return new SummaryResult(folded, TokenEstimate.Of(block.Render()), block, added, corrected, newIds);
     }
 
     private sealed class FoldAnswer

@@ -533,20 +533,22 @@ public sealed class PersonaStore
     }
 
     /// <summary>One summary pass, atomically: new entries, superseding entries, folded exchanges, counter reset.</summary>
-    public void ApplySummaryPass(IEnumerable<(string Layer, string Text)> additions, IEnumerable<(long Id, string Text, string Reason)> corrections,
+    /// <returns>Ids of the entries written (corrections first, then additions).</returns>
+    public List<long> ApplySummaryPass(IEnumerable<(string Layer, string Text)> additions, IEnumerable<(long Id, string Text, string Reason)> corrections,
         IEnumerable<long> foldedExchangeIds, DateTimeOffset at)
     {
+        var written = new List<long>();
         using SqliteConnection c = Connect();
         using SqliteTransaction tx = c.BeginTransaction();
         int added = 0, superseded = 0, folded = 0;
         foreach ((long id, string text, string reason) in corrections)
         {
-            SupersedeIn(c, tx, id, text, MemoryAuthors.Persona, reason, at);
+            written.Add(SupersedeIn(c, tx, id, text, MemoryAuthors.Persona, reason, at));
             superseded++;
         }
         foreach ((string layer, string text) in additions)
         {
-            InsertMemory(c, tx, at, layer, text, MemoryAuthors.Persona, null, "summary pass");
+            written.Add(InsertMemory(c, tx, at, layer, text, MemoryAuthors.Persona, null, "summary pass"));
             added++;
         }
         foreach (long id in foldedExchangeIds)
@@ -557,6 +559,7 @@ public sealed class PersonaStore
             ("$p", PersonaId), ("$t", Iso(at)), ("$f", folded), ("$a", added), ("$s", superseded));
         SetMeta(c, tx, "turns_since_summary", "0");
         tx.Commit();
+        return written;
     }
 
     private long SupersedeIn(SqliteConnection c, SqliteTransaction tx, long entryId, string newText, string author, string reason, DateTimeOffset at)
