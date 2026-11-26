@@ -276,8 +276,8 @@ public sealed class PersonaStore
         Exec(c, tx, "INSERT INTO meta(persona_id,key,value) VALUES($p,$k,$v) ON CONFLICT(persona_id,key) DO UPDATE SET value=excluded.value",
             ("$p", PersonaId), ("$k", key), ("$v", value));
 
-    private string? GetMeta(SqliteConnection c, string key) =>
-        Scalar<string>(c, null, "SELECT value FROM meta WHERE persona_id=$p AND key=$k", ("$p", PersonaId), ("$k", key));
+    private string? GetMeta(SqliteConnection c, string key, SqliteTransaction? tx = null) =>
+        Scalar<string>(c, tx, "SELECT value FROM meta WHERE persona_id=$p AND key=$k", ("$p", PersonaId), ("$k", key));
 
     // ---- achievements -------------------------------------------------------------------------------
 
@@ -327,7 +327,7 @@ public sealed class PersonaStore
             INSERT INTO sessions(persona_id,chat_id,started_at,last_at,turns) VALUES($p,$c,$t,$t,1)
             ON CONFLICT(persona_id,chat_id) DO UPDATE SET last_at=excluded.last_at, turns=turns+1
             """, ("$p", PersonaId), ("$c", chatId), ("$t", Iso(at)));
-        int since = int.Parse(GetMeta(c, "turns_since_summary") ?? "0", CultureInfo.InvariantCulture);
+        int since = int.Parse(GetMeta(c, "turns_since_summary", tx) ?? "0", CultureInfo.InvariantCulture);
         SetMeta(c, tx, "turns_since_summary", (since + 1).ToString(CultureInfo.InvariantCulture));
         tx.Commit();
         return id;
