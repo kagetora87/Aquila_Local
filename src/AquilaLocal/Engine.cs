@@ -142,7 +142,40 @@ public sealed class Engine : IDisposable
 
 	public int? SlotContext { get; private set; }
 
-	public static string Executable => Path.Combine(AppContext.BaseDirectory, "engine", "llama-server.exe");
+	public static string VulkanExecutable => Path.Combine(AppContext.BaseDirectory, "engine", "llama-server.exe");
+
+	/// <summary>NVIDIA's CUDA build of the same engine, optional. On an RTX 5090 it read prompts about
+	/// 40% faster and wrote about 14% faster than the Vulkan build.</summary>
+	public static string CudaExecutable => Path.Combine(AppContext.BaseDirectory, "engine-cuda", "llama-server.exe");
+
+	private static bool? useCuda;
+
+	/// <summary>Use CUDA when it is installed and an NVIDIA card is present; detection turns this off
+	/// again if the CUDA engine can't see the card (for example an old driver).</summary>
+	public static bool UseCuda
+	{
+		get
+		{
+			if (!useCuda.HasValue)
+			{
+				try
+				{
+					useCuda = File.Exists(CudaExecutable) && GpuMonitor.GetAdapters().Any((GpuAdapter a) => a.Name.Contains("NVIDIA", StringComparison.OrdinalIgnoreCase));
+				}
+				catch (Exception)
+				{
+					useCuda = false;
+				}
+			}
+			return useCuda.Value;
+		}
+		set
+		{
+			useCuda = value;
+		}
+	}
+
+	public static string Executable => UseCuda ? CudaExecutable : VulkanExecutable;
 
 	public long WorkingSetBytes
 	{

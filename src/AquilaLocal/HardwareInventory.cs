@@ -17,7 +17,7 @@ public sealed record HardwareInventory(long RamBytes, long FreeRamBytes, Inferen
 {
 	public const long GiB = 1073741824L;
 
-	private static readonly Regex DeviceLine = new Regex("^\\s*(Vulkan\\d+):\\s+(.+?)\\s+\\((\\d+) MiB, (\\d+) MiB free\\)\\s*$", RegexOptions.Multiline | RegexOptions.CultureInvariant);
+	private static readonly Regex DeviceLine = new Regex("^\\s*((?:Vulkan|CUDA)\\d+):\\s+(.+?)\\s+\\((\\d+) MiB, (\\d+) MiB free\\)\\s*$", RegexOptions.Multiline | RegexOptions.CultureInvariant);
 
 	/// <summary>Where detection writes what it saw, so "no GPU found" can be diagnosed.</summary>
 	public static string? LogPath { get; set; }
@@ -44,6 +44,15 @@ public sealed record HardwareInventory(long RamBytes, long FreeRamBytes, Inferen
 			}
 			await Task.Delay(2000);
 		}
+		if (gpu == null && executable == Engine.CudaExecutable)
+		{
+			// The CUDA engine couldn't use the card (driver too old, missing runtime): fall back to Vulkan.
+			log.AppendLine("CUDA engine found no usable GPU; falling back to the Vulkan engine.");
+			WriteLog(log.ToString());
+			Engine.UseCuda = false;
+			return await DetectAsync(Engine.VulkanExecutable);
+		}
+		log.AppendLine("Engine: " + executable);
 		WriteLog(log.ToString());
 		var (ramBytes, freeRamBytes) = GpuMonitor.SystemMemory;
 		return new HardwareInventory(ramBytes, freeRamBytes, gpu);

@@ -23,17 +23,17 @@ internal static class InferenceVerification
 			InferencePreferences inferencePreferences = new InferencePreferences();
 			HardwareInventory hardware = new HardwareInventory(48 * gib, 35 * gib, new InferenceGpu("Vulkan1", "High GPU", "b", 24 * gib, 22 * gib));
 			HardwareInventory hardwareInventory = new HardwareInventory(16 * gib, 8 * gib, new InferenceGpu("Vulkan0", "Laptop GPU", "a", 8 * gib, 7 * gib));
-			InferenceProfile inferenceProfile = InferenceProfile.Resolve(inferencePreferences, hardware);
-			InferenceProfile inferenceProfile2 = InferenceProfile.Resolve(inferencePreferences, hardwareInventory);
-			Check(inferenceProfile.Key == "High" && inferenceProfile.Requested(inferencePreferences) == 32768 && inferenceProfile.Maximum == 65536, "24 GiB VRAM selects the high profile with its 32K default and 64K cap");
-			Check(inferenceProfile2.Key == "Laptop" && inferenceProfile2.Requested(inferencePreferences) == 16384 && inferenceProfile2.Maximum == 24576, "8 GiB VRAM and 16 GiB RAM select the laptop profile with its 16K default and 24K cap");
-			Check(InferenceProfile.Resolve(inferencePreferences, hardwareInventory with
+			InferenceProfile autoProfile = InferenceProfile.Resolve(inferencePreferences, hardware);
+			Check(autoProfile.Key == "Auto" && autoProfile.Maximum == 262144, "Automatic is the default profile and is not capped at 64K");
+			InferenceProfile inferenceProfile = InferenceProfile.Resolve(new InferencePreferences { Profile = "High" }, hardware);
+			InferenceProfile inferenceProfile2 = InferenceProfile.Resolve(new InferencePreferences { Profile = "Laptop" }, hardwareInventory);
+			Check(inferenceProfile.Key == "High" && inferenceProfile.Requested(inferencePreferences) == 32768 && inferenceProfile2.Key == "Laptop" && inferenceProfile2.Maximum == 24576, "Manual profiles keep their defaults");
+			InferenceGpu tolerant = HardwareInventory.SelectGpu(new GpuAdapter[2]
 			{
-				RamBytes = 48 * gib
-			}).Key == "Custom" && InferenceProfile.Resolve(inferencePreferences, hardwareInventory with
-			{
-				Gpu = null
-			}).Key == "Custom", "Unmatched hardware retains the Custom profile");
+				new GpuAdapter("AMD Radeon(TM) 610M", "i", 512L * 1048576, 0),
+				new GpuAdapter("NVIDIA GeForce RTX 5090 Laptop GPU", "n", 24 * gib, 1)
+			}, "Available devices:\n  Vulkan0: AMD Radeon(TM) 610M (32446 MiB, 30000 MiB free)\n  Vulkan1: NVIDIA GeForce RTX(TM) 5090 Laptop GPU (24137 MiB, 23000 MiB free)");
+			Check(tolerant?.Device == "Vulkan1", "Detection picks the discrete GPU even when driver names differ slightly");
 			InferenceGpu inferenceGpu = HardwareInventory.SelectGpu(new GpuAdapter[2]
 			{
 				new GpuAdapter("Laptop GPU", "a", 8 * gib, 0),
@@ -41,6 +41,10 @@ internal static class InferenceVerification
 			}, "Available devices:\n  Vulkan0: UMA (29700 MiB, 25000 MiB free)\n  Vulkan1: Laptop GPU (7956 MiB, 7018 MiB free)");
 			Check(inferenceGpu?.Device == "Vulkan1" && inferenceGpu.DedicatedBytes == 8 * gib, "Integrated shared memory is excluded and actual Vulkan ID is retained");
 			ModelInfo modelInfo = ModelInfo.Read(modelPath);
+			InferenceLaunch plan = InferenceLaunch.PlanAuto(hardware, modelInfo, 0L);
+			Check(!plan.CpuOnly && plan.Device == "Vulkan1" && plan.Cache == "q8_0" && plan.AutoContext >= 8192 && plan.AutoContext <= modelInfo.NativeContext, "Automatic mode puts the model on the GPU and sizes the context to free video memory");
+			Check(InferenceLaunch.PlanAuto(hardware with { Gpu = null }, modelInfo, 0L).CpuOnly, "Automatic mode without a GPU runs on the processor instead of guessing a device");
+			inferencePreferences.Profile = "High";
 			Settings settings = new Settings
 			{
 				Inference = inferencePreferences,
@@ -51,6 +55,7 @@ internal static class InferenceVerification
 			inferenceLaunch.AddArguments(list.AddRange);
 			Check(inferenceLaunch.FullOffload && inferenceLaunch.Device == "Vulkan1" && list.Contains("all") && list.Contains("--fit") && inferenceLaunch.Cache == "q8_0" && inferenceLaunch.Flash == "on", "High mode requests full offload, Flash Attention and q8 K and V");
 			settings.Hardware = hardwareInventory;
+			inferencePreferences.Profile = "Laptop";
 			inferencePreferences.ExpertCpuLayers = 99;
 			inferenceLaunch = InferenceLaunch.Resolve(settings, modelInfo);
 			list.Clear();
@@ -71,6 +76,7 @@ internal static class InferenceVerification
 				CustomContext = 31744
 			};
 			inferenceProfile.Remember(options, 65536);
+			inferencePreferences.Profile = "Auto";
 			Check(inferenceProfile2.Requested(options) == 16384 && inferenceProfile.Requested(options) == 65536 && InferenceProfile.Resolve(new InferencePreferences
 			{
 				Profile = "Custom"
