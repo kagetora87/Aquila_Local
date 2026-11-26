@@ -230,6 +230,29 @@ set her up once.
 - Reference pictures live in her persona folder under `references\`; the first four by name are used. The prompt tells the model to take clothes, pose and setting from the description, not from the references.
 - Pictures are saved in `Data\pictures\yyyy-MM\` with a `.txt` beside each (prompt, model, seed, references) and shown under her reply; click one to open it full size.
 
+## Living mode (thoughts of her own)
+
+Off until you turn it on (sidebar: **Living mode**). While Aquila is open and you've left it alone for a while
+(10 minutes by default), each living persona has a thought about every 45 minutes (it varies a little):
+a daydream, a feeling, a reflection, something she's curious about, or a memory she's turning over. It comes
+from her personality sheet, her drives right now (ticked forward to the present, read only), her pinned
+memory, the last things you said to each other and her recent thoughts (so she doesn't repeat herself).
+
+- **Where it runs:** the chat model's spare slot (slot 1), the same one the summary and picture-prompt writers
+  use. No second model, nothing added to your chat's context. Sending a message stops a thought in progress.
+- **Her memory:** each thought is remembered under the chat id `inner-life`. Recall shows it to her as
+  "you thought to yourself (you never said this to them)", and her summary pass knows it was private.
+- **Lookups:** if allowed, she may look something up: a Brave web search and the top page when a key is saved,
+  otherwise Wikipedia. The query never contains her name. Every search and page is listed in her journal. This
+  switch is separate from the chat's Internet setting.
+- **Messaging you first:** when a thought's urge is above 0.75 she writes to you in her full chat voice (her
+  persona prompt, inner state and your recent chat), and the message lands in your latest chat with her with a
+  sound. She doesn't write again until you've answered, leaves 2 hours between messages, keeps to the daily
+  limit (3 by default) and stays quiet between 11 PM and 8 AM. The turn replays to the chat model as "no
+  message from them: you messaged first", so the conversation knows why she wrote.
+- **Journal:** `Data\living\<persona>\journal.jsonl`, one line per thought, appended. A damaged line is reported
+  by number, never skipped. The Living mode window shows it newest first and has "Have a thought now".
+
 ## Fail loud
 
 If her state can't be read (file missing, damaged, belongs to another persona, a drive missing or impossible,

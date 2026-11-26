@@ -1811,6 +1811,7 @@ public partial class MainWindow : AquilaWindow
 			}
 		}
 		MarkupBar.Attach(Composer);
+		StartLiving();
 		MarkupBar.ShowThoughts = settings.ShowPersonaThoughts;
 		MarkupBar.ShowThoughtsChanged += delegate(bool show)
 		{
@@ -2018,6 +2019,11 @@ public partial class MainWindow : AquilaWindow
 			messageView.ShowPictures(turn.Attachments);
 			messageView.Update(Attachments.VisibleText(turn), "", null, "", renderMarkdown: false);
 			messageView.SetReaction(turn.Reaction, current.Speaker);
+			if (turn.Unprompted)
+			{
+				// Living mode: she messaged first, so there's no message from you to show.
+				messageView.Visibility = Visibility.Collapsed;
+			}
 			Messages.Children.Add(messageView);
 			userViews[turn.Id] = messageView;
 			MessageView messageView2 = new MessageView(current.Speaker, animate: false, avatar);
@@ -2318,6 +2324,7 @@ public partial class MainWindow : AquilaWindow
 			speech.Stop();
 		}
 		NoticeBox.Visibility = Visibility.Collapsed;
+		InterruptLiving();
 		ChatSession session = current;
 		Turn turn = new Turn
 		{
@@ -2807,6 +2814,7 @@ public partial class MainWindow : AquilaWindow
 			e.Cancel = true;
 			ReadSettings();
 			featuresClosing = true;
+			StopLiving();
 			monitorCancellation.Cancel();
 			renderTimer.Stop();
 			engine.Dispose();

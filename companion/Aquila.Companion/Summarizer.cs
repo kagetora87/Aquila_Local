@@ -97,7 +97,7 @@ public sealed class Summarizer(PersonaConfig config, PersonaStore store, ITextGe
             {
                 when = e.At.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture),
                 user = Clip(e.User, 1500),
-                how = e.Spoken ? "said aloud" : "typed",
+                how = Living.InnerLife.IsThought(e) ? "no message from them: this was her own private thought, never said to them" : e.Spoken ? "said aloud" : "typed",
                 her_reply = Clip(e.Reply, 2000)
             })
         }, PersonaConfig.Json);

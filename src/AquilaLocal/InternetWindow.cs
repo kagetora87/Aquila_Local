@@ -22,7 +22,7 @@ public sealed class InternetWindow : AquilaWindow
 		{
 			"Aquila never contacts the internet.",
 			"Aquila asks before each web search or page it wants to read.",
-			"Aquila looks things up on its own while answering. It never browses in the background."
+			"Aquila looks things up on its own while answering. It never browses in the background (Living mode's own lookups have their own switch there)."
 		};
 		RadioButton[] choices = new RadioButton[3];
 		for (int i = 0; i < 3; i++)

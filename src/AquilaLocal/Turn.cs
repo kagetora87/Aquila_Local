@@ -25,6 +25,9 @@ public class Turn
 	/// <summary>Where she moved the story during this turn (through change_location), or empty.</summary>
 	public string MovedTo { get; set; } = "";
 
+	/// <summary>Living mode: she wrote this message to you first, on her own (there's no message from you).</summary>
+	public bool Unprompted { get; set; }
+
 	/// <summary>You said this aloud (it was transcribed from the microphone) rather than typed it.</summary>
 	public bool Spoken { get; set; }
 

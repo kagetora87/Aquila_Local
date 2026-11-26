@@ -58,6 +58,12 @@
           </Button>
         </UniformGrid>
         <!-- Multi-persona scenes -->
+        <Button Name="LivingButton" DockPanel.Dock="Bottom" Style="{StaticResource Btn.Ghost}" HorizontalContentAlignment="Left" Margin="0,0,0,4" Padding="10,0" Click="Living_Click" ToolTip="Living mode: your personas think on their own while you're away, and keep a journal">
+          <StackPanel Orientation="Horizontal">
+            <TextBlock Text="&#xEB51;" FontFamily="{StaticResource Font.Icon}" FontSize="14" VerticalAlignment="Center" Margin="0,0,10,0" />
+            <TextBlock Name="LivingButtonText" Text="Living mode" VerticalAlignment="Center" />
+          </StackPanel>
+        </Button>
         <Button Name="PicturesButton" DockPanel.Dock="Bottom" Style="{StaticResource Btn.Ghost}" HorizontalContentAlignment="Left" Margin="0,0,0,4" Padding="10,0" Click="Pictures_Click" ToolTip="Pictures: let Vicki and Aquila draw pictures">
           <StackPanel Orientation="Horizontal">
             <TextBlock Text="&#xEB9F;" FontFamily="{StaticResource Font.Icon}" FontSize="14" VerticalAlignment="Center" Margin="0,0,10,0" />

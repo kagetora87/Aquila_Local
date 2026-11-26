@@ -121,6 +121,13 @@ public static class ContextInjector
         sb.Append("Your own memories of earlier conversations that may be relevant (reference only, may be outdated):\n");
         foreach (Recalled r in recalled.OrderBy(r => r.Exchange.At))
         {
+            if (Living.InnerLife.IsThought(r.Exchange))
+            {
+                // Her own thought from living mode: something she thought, never something said to them.
+                sb.Append("- ").Append(r.Exchange.At.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture))
+                  .Append(" you thought to yourself (you never said this to them): \"").Append(Clip(r.Exchange.Reply, 500)).Append("\"\n");
+                continue;
+            }
             sb.Append("- ").Append(r.Exchange.At.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture))
               .Append(r.Exchange.Spoken ? " you heard them say aloud: \"" : " they wrote: \"").Append(Clip(r.Exchange.User, 400)).Append("\" / you said: \"").Append(Clip(r.Exchange.Reply, 500)).Append("\"\n");
         }

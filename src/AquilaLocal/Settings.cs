@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 using AquilaAvatarProtocol;
 
@@ -81,6 +82,9 @@ public class Settings
 
 	/// <summary>The built-in image generator.</summary>
 	public PictureOptions Pictures { get; set; } = new PictureOptions();
+
+	/// <summary>Living mode: personas think on their own while you're away.</summary>
+	public LivingOptions Living { get; set; } = new LivingOptions();
 
 	/// <summary>Let personas play sounds from the soundboard.</summary>
 	public bool SoundboardEnabled { get; set; } = true;
@@ -219,4 +223,39 @@ public sealed class PictureOptions
 
 	/// <summary>Use the persona's reference pictures so she looks the same every time.</summary>
 	public bool UseReferences { get; set; } = true;
+}
+
+/// <summary>Living mode: thoughts of her own while you're away, kept in a journal and in her memory.</summary>
+public sealed class LivingOptions
+{
+	/// <summary>Off until you turn it on.</summary>
+	public bool Enabled { get; set; }
+
+	/// <summary>Roughly how often she has a thought, in minutes (it varies a little either way).</summary>
+	public int IntervalMinutes { get; set; } = 45;
+
+	/// <summary>She only thinks after you've left Aquila alone this long.</summary>
+	public int IdleMinutes { get; set; } = 10;
+
+	/// <summary>She may look things up on the internet for her own curiosity (each lookup is listed in her journal).</summary>
+	public bool WebLookups { get; set; } = true;
+
+	/// <summary>She may message you first when a thought is strong enough.</summary>
+	public bool MessageFirst { get; set; } = true;
+
+	public int MaxMessagesPerDay { get; set; } = 3;
+
+	/// <summary>No messages from her between 11 PM and 8 AM.</summary>
+	public bool QuietHours { get; set; } = true;
+
+	/// <summary>Personas who live (empty means every persona that's set up).</summary>
+	public List<string> PersonaIds { get; set; } = new List<string>();
+
+	public AquilaLocal.Companion.Living.LivingPolicy Policy() => new AquilaLocal.Companion.Living.LivingPolicy
+	{
+		IntervalMinutes = Math.Clamp(IntervalMinutes, 10, 24 * 60),
+		IdleMinutes = Math.Clamp(IdleMinutes, 1, 240),
+		MaxMessagesPerDay = Math.Clamp(MaxMessagesPerDay, 1, 20),
+		QuietHours = QuietHours
+	};
 }
