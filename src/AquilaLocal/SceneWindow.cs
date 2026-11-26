@@ -130,10 +130,10 @@ public sealed class SceneWindow : AquilaWindow
 		{
 			existing.Children.Add(Ui.Text("No scenes yet. Make one below.", "Type.Small"));
 		}
-		foreach ((string id, string title, DateTimeOffset created, string? problem) in scenes)
+		foreach ((string id, string sceneTitle, DateTimeOffset created, string? problem) in scenes)
 		{
 			string sceneId = id;
-			Button open = Ui.Button(problem == null ? title + "   ·   " + created.ToLocalTime().ToString("MMM d, h:mm tt") : title + " (can't be opened)", "Btn.Secondary", delegate
+			Button open = Ui.Button(problem == null ? sceneTitle + "   ·   " + created.ToLocalTime().ToString("MMM d, h:mm tt") : sceneTitle + " (can't be opened)", "Btn.Secondary", delegate
 			{
 				try
 				{
