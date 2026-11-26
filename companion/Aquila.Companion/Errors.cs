@@ -35,3 +35,9 @@ public sealed class AppearanceCardUnavailableException : Exception
         PersonaId = personaId;
     }
 }
+
+/// <summary>A scene can't do what was asked (unknown scene, too many people, someone not in it). Shown as is.</summary>
+public sealed class SceneException : Exception
+{
+    public SceneException(string message, Exception? inner = null) : base(message, inner) { }
+}

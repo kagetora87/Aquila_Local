@@ -87,9 +87,15 @@ public sealed class CompanionHost : IDisposable
 	/// <summary>Set when the registry couldn't be read at startup; shown in the Companion window.</summary>
 	public string? StartupProblem { get; private set; }
 
+	/// <summary>Multi-persona scenes (Data\scenes): shared world and log, each persona's mind kept separate.</summary>
+	public AquilaLocal.Companion.Scenes.SceneLibrary Scenes { get; }
+
+	private readonly Dictionary<string, float[]> interests = new Dictionary<string, float[]>();
+
 	public CompanionHost(string dataRoot, string? embeddingsDirectory = null)
 	{
 		Registry = new PersonaRegistry(Path.Combine(dataRoot, "personas"));
+		Scenes = new AquilaLocal.Companion.Scenes.SceneLibrary(Path.Combine(dataRoot, "scenes"));
 		embedder = new MiniLmEmbedder(embeddingsDirectory ?? Path.Combine(AppContext.BaseDirectory, "embeddings"));
 		try
 		{
@@ -128,6 +134,70 @@ public sealed class CompanionHost : IDisposable
 			File.Copy(configPath, configPath + ".placeholder-backup", overwrite: true);
 			seed.Save(configPath);
 		}
+	}
+
+	/// <summary>
+	/// Adds a new persona from a persona file (the same format as Vicki's). She still has to be set up once
+	/// before she can chat. Refuses an id that's already taken, so no one can be overwritten.
+	/// </summary>
+	public PersonaConfig AddPersonaFromFile(string file)
+	{
+		PersonaConfig incoming = PersonaConfig.Load(file);
+		if (!PersonaRegistry.IsValidId(incoming.Id))
+		{
+			throw new PersonaConfigException($"The file's id '{incoming.Id}' isn't usable. Use lowercase letters, digits and dashes, such as \"marcus\".");
+		}
+		if (Registry.Load().Personas.Any((PersonaEntry p) => p.Id == incoming.Id))
+		{
+			throw new PersonaConfigException($"There's already a persona with the id '{incoming.Id}'. Nothing was changed.");
+		}
+		if (File.Exists(Registry.Resolve(Path.Combine(incoming.Id, "persona.json"))))
+		{
+			throw new PersonaConfigException($"A folder for '{incoming.Id}' already exists in {Registry.Root}. Nothing was changed.");
+		}
+		Registry.Register(incoming, incoming.Id, makeActive: true);
+		return incoming;
+	}
+
+	/// <summary>Whether this persona has been set up (has her private memory), so she can chat or join a scene.</summary>
+	public bool IsSetUp(string personaId)
+	{
+		try
+		{
+			return File.Exists(Registry.Resolve(Registry.Entry(personaId).MemoryPath));
+		}
+		catch (PersonaConfigException)
+		{
+			return false;
+		}
+	}
+
+	public float[] Embed(string text) => embedder.Embed(text);
+
+	/// <summary>What a persona is about (her name and personality sheet), as an embedding for "who would react to this".</summary>
+	public float[] Interests(CompanionRuntime runtime)
+	{
+		lock (gate)
+		{
+			string key = runtime.Config.Id + "|" + runtime.Config.PersonalitySheet.GetHashCode();
+			if (!interests.TryGetValue(key, out float[]? v))
+			{
+				string sheet = runtime.Config.PersonalitySheet;
+				v = embedder.Embed(runtime.Config.Name + ". " + (sheet.Length > 2000 ? sheet.Substring(0, 2000) : sheet));
+				interests[key] = v;
+			}
+			return v;
+		}
+	}
+
+	/// <summary>A short look others in a scene can see: a few traits, her identity anchor and what she's wearing.</summary>
+	public static string Looks(CompanionRuntime runtime)
+	{
+		AppearanceCard card = runtime.Store.ReadAppearance();
+		List<string> parts = card.Traits.Take(3).Select((TraitEntry t) => t.Name + ": " + (t.Text.Length > 120 ? t.Text.Substring(0, 117) + "..." : t.Text)).ToList();
+		parts.Add(card.IdentityAnchor);
+		parts.Add("wearing " + ContextInjector.WardrobeText(card.Wardrobe.Wardrobe));
+		return string.Join("; ", parts);
 	}
 
 	public CompanionRuntime Open(string personaId)

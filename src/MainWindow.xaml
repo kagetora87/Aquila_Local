@@ -57,6 +57,13 @@
             </StackPanel>
           </Button>
         </UniformGrid>
+        <!-- Multi-persona scenes -->
+        <Button Name="ScenesButton" DockPanel.Dock="Bottom" Style="{StaticResource Btn.Ghost}" HorizontalContentAlignment="Left" Margin="0,0,0,4" Padding="10,0" Click="Scenes_Click" ToolTip="Scenes: several personas together in one shared scene">
+          <StackPanel Orientation="Horizontal">
+            <TextBlock Text="&#xE716;" FontFamily="{StaticResource Font.Icon}" FontSize="14" VerticalAlignment="Center" Margin="0,0,10,0" />
+            <TextBlock Text="Scenes" VerticalAlignment="Center" />
+          </StackPanel>
+        </Button>
         <!-- Companion mode -->
         <Button Name="CompanionButton" DockPanel.Dock="Bottom" Style="{StaticResource Btn.Ghost}" HorizontalContentAlignment="Left" Margin="0,0,0,4" Padding="10,0" Click="Companion_Click" ToolTip="Companions: personas with their own drives and memory">
           <StackPanel Orientation="Horizontal">

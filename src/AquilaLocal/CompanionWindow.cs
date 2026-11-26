@@ -113,7 +113,30 @@ public sealed class CompanionWindow : AquilaWindow
 				Build();
 			}
 		};
-		body.Children.Add(Ui.Group("Persona", picker));
+		Button addPersona = Ui.Button("Add a persona from a file…", "Btn.Secondary", delegate
+		{
+			OpenFileDialog dialog = new OpenFileDialog { Filter = "Persona file (*.json)|*.json", Title = "Choose the new persona's file" };
+			if (dialog.ShowDialog(this) != true)
+			{
+				return;
+			}
+			try
+			{
+				PersonaConfig added = host.AddPersonaFromFile(dialog.FileName);
+				personaId = added.Id;
+				Ok("Added " + added.Name + ". Check her settings, then press \"Set up " + added.Name + "\" once to create her private memory.");
+			}
+			catch (Exception ex) when (ex is PersonaConfigException || ex is IOException || ex is UnauthorizedAccessException)
+			{
+				Problem(ex.Message);
+			}
+			Build();
+		});
+		addPersona.Margin = new Thickness(12, 0, 0, 0);
+		StackPanel personaRow = new StackPanel { Orientation = Orientation.Horizontal };
+		personaRow.Children.Add(picker);
+		personaRow.Children.Add(addPersona);
+		body.Children.Add(Ui.Group("Persona", personaRow));
 		AboutYou? about = null;
 		try
 		{

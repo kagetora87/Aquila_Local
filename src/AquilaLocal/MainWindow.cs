@@ -1608,14 +1608,17 @@ public partial class MainWindow : AquilaWindow
 	}
 
 	/// <summary>Aquila's voice settings, with a companion's own voice when her persona has one.</summary>
-	private VoiceOptions VoiceFor(ChatSession session)
+	private VoiceOptions VoiceFor(ChatSession session) => VoiceForPersona(session.IsCompanion ? session.PersonaId : "");
+
+	/// <summary>Aquila's voice settings, with a persona's own voice when she has one (empty id: Aquila's voice).</summary>
+	private VoiceOptions VoiceForPersona(string personaId)
 	{
 		VoiceOptions options = JsonSerializer.Deserialize<VoiceOptions>(JsonSerializer.Serialize(settings.Voice))!;
-		if (session.IsCompanion)
+		if (personaId.Length > 0)
 		{
 			try
 			{
-				string own = companion.Registry.LoadConfig(session.PersonaId).Voice;
+				string own = companion.Registry.LoadConfig(personaId).Voice;
 				if (!string.IsNullOrWhiteSpace(own))
 				{
 					options.Speaker = own;
@@ -2059,6 +2062,27 @@ public partial class MainWindow : AquilaWindow
 		catch (Exception ex2) when (ex2 is IOException || ex2 is UnauthorizedAccessException)
 		{
 		}
+	}
+
+	private void Scenes_Click(object sender, RoutedEventArgs e)
+	{
+		if (busy)
+		{
+			return;
+		}
+		SceneDirector director = new SceneDirector(engine, companion);
+		Func<string, string, CancellationToken, Task>? speakLine = null;
+		if (settings.Voice.Enabled)
+		{
+			speakLine = async delegate(string personaId, string text, CancellationToken ct)
+			{
+				Turn line = new Turn { Answer = text, Status = "complete" };
+				await speech.SpeakAsync(line, VoiceForPersona(personaId), ct);
+			};
+		}
+		SceneWindow window = new SceneWindow(companion, director, () => settings, speakLine);
+		window.Owner = this;
+		window.ShowDialog();
 	}
 
 	private void Companion_Click(object sender, RoutedEventArgs e)

@@ -159,6 +159,30 @@ each chat, and once more whenever you change it. Files: `Data\personas\about-you
   missing speech recognizer turns listening off with a message saying why. Aquila never quietly switches
   back to typing.
 
+## Scenes (several personas together)
+
+Sidebar → **Scenes**. A scene is three layers working as one:
+
+1. **The world:** a shared block (where, when, what's happening, things there, notes) that every speaker
+   is given first. Edit it at any time with "Update the world"; the change is logged so everyone notices.
+2. **The cast:** up to 12 personas, each a full persona with her own sheet, drives, private memory and
+   appearance card. Add or drop people from the cast bar at any time. Arrivals and departures are scene
+   events everyone present hears. A persona only ever sees what happened while she was present, so a
+   newcomer doesn't know what was said before she arrived.
+3. **Who speaks next:** "Who answers" calls on someone, or leaves it on Automatic. Automatic blends being
+   named, how relevant the last line is to each persona (local embeddings, no extra model call), and how
+   strong her drives are, with a nudge against the same voices dominating. Someone named always answers.
+   After your message up to 2 personas speak in a row before the scene waits for you; "Let them talk"
+   keeps it going without you. "Nobody (just say it)" adds your line without asking anyone to answer.
+
+Everything said and done goes into the scene's append-only log (`Data\scenes\<id>\log.db`, with the
+manifest in `scene.json`). A speaker's reply also goes into her own private memory, and nowhere else. The
+prompt puts the shared parts (world, cast, log) first and her private state last, so the model can reuse
+the shared part between speakers.
+
+To add personas: Companions → **Add a persona from a file…** (same format as Vicki's persona.json), then
+set her up once.
+
 ## Fail loud
 
 If her state can't be read (file missing, damaged, belongs to another persona, a drive missing or impossible,
