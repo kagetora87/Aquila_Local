@@ -393,5 +393,9 @@ public partial class MainWindow
 		view.SetGenerating(generating);
 		view.SetMeta(brush, tooltip);
 		view.Update(VoiceDelivery.Display(turn, settings.Voice.RevealTags), turn.Reasoning, turn.Activity, text, renderMarkdown: true, turn.Answer);
+		if (turn.Pictures.Count > 0)
+		{
+			view.ShowPictureFiles(turn.Pictures);
+		}
 	}
 }

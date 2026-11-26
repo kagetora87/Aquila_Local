@@ -286,6 +286,60 @@ public sealed class MessageView : Border
 	}
 
 	/// <summary>Shows the attached pictures as thumbnails; clicking one opens it larger.</summary>
+	private string shownPictureFiles = "";
+
+	/// <summary>Pictures drawn for a reply (files). Click one to open it full size in Windows' picture viewer.</summary>
+	public void ShowPictureFiles(IReadOnlyList<string> files)
+	{
+		string key = string.Join("|", files);
+		if (key == shownPictureFiles)
+		{
+			return;
+		}
+		shownPictureFiles = key;
+		pictures.Children.Clear();
+		foreach (string file in files)
+		{
+			System.Windows.Media.Imaging.BitmapImage image;
+			try
+			{
+				image = new System.Windows.Media.Imaging.BitmapImage();
+				image.BeginInit();
+				image.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+				image.DecodePixelWidth = 640;
+				image.UriSource = new Uri(file, UriKind.Absolute);
+				image.EndInit();
+				image.Freeze();
+			}
+			catch (Exception ex) when (ex is System.IO.IOException || ex is NotSupportedException || ex is UriFormatException || ex is UnauthorizedAccessException || ex is ArgumentException)
+			{
+				pictures.Children.Add(new TextBlock { Text = "Picture missing: " + System.IO.Path.GetFileName(file), Foreground = Ui.Brush("Text.Tertiary"), Margin = new Thickness(0, 0, 6, 6) });
+				continue;
+			}
+			System.Windows.Controls.Image thumb = new System.Windows.Controls.Image { Source = image, Stretch = Stretch.Uniform, MaxWidth = 420.0, MaxHeight = 520.0, Cursor = Cursors.Hand, ToolTip = "Open full size · " + System.IO.Path.GetFileName(file) };
+			RenderOptions.SetBitmapScalingMode(thumb, BitmapScalingMode.HighQuality);
+			string path = file;
+			thumb.MouseLeftButtonUp += delegate
+			{
+				try
+				{
+					System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = path, UseShellExecute = true });
+				}
+				catch (Exception ex) when (ex is System.ComponentModel.Win32Exception || ex is InvalidOperationException || ex is System.IO.IOException)
+				{
+				}
+			};
+			pictures.Children.Add(new Border
+			{
+				CornerRadius = new CornerRadius(10.0),
+				ClipToBounds = true,
+				Margin = new Thickness(0.0, 0.0, 6.0, 6.0),
+				Child = thumb
+			});
+		}
+		pictures.Visibility = (pictures.Children.Count > 0) ? Visibility.Visible : Visibility.Collapsed;
+	}
+
 	public void ShowPictures(IEnumerable<Attachment> attachments)
 	{
 		pictures.Children.Clear();

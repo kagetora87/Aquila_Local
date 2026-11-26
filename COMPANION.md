@@ -214,6 +214,16 @@ set her up once.
 - The cue shows in the chat as an orange action ("🔊 Door knock"), is never read aloud, and is left out of her memory. Works in scenes too.
 - Switch and volume are in the Soundboard window (`SoundboardEnabled`, `SoundboardVolume` in settings).
 
+## Pictures (built-in image generator)
+
+- **Pictures** in the sidebar: switch it on (off by default), choose the model, add each persona's reference pictures, and draw a test picture.
+- Engine: stable-diffusion.cpp `sd-cli.exe` in `imagegen\sd\` next to the app; model files in `imagegen\models\` (`PictureKit` finds them and names anything missing).
+  - **Fast:** FLUX 3 Image Klein Q8_0 + Qwen3-VL 4B text encoder + flux2 VAE. About 14 s per picture (25 s with references), about 11 GB, so it runs beside the chat model.
+  - **Best:** Qwen-Image-2.1 Q8_0 + Qwen3-VL 8B + mmproj + its VAE. About 45 s per picture, 18 to 21 GB. The chat model is paused: its working memory is saved with llama-server's slot save (`--slot-save-path` in `Data\engine-cache`) and restored afterwards (`Engine.ParkAsync`/`ResumeAsync`).
+- Vicki and Aquila get a `make_picture` tool (description, includes_you, framing) when pictures are on. The chat model writes the image prompt on slot 1 (`PicturePrompt`), from the request, the recent chat (without your thoughts or sound cues) and, when she's in it, her appearance card.
+- Reference pictures live in her persona folder under `references\`; the first four by name are used. The prompt tells the model to take clothes, pose and setting from the description, not from the references.
+- Pictures are saved in `Data\pictures\yyyy-MM\` with a `.txt` beside each (prompt, model, seed, references) and shown under her reply; click one to open it full size.
+
 ## Fail loud
 
 If her state can't be read (file missing, damaged, belongs to another persona, a drive missing or impossible,

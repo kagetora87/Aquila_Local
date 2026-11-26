@@ -323,6 +323,10 @@ public sealed class Agent(Engine engine, MemoryStore? memories = null, SemanticM
 					jsonArray.Add(ChangeOutfitDefinition.DeepClone());
 					jsonArray.Add(ReactDefinition.DeepClone());
 				}
+				if (MakePicture != null)
+				{
+					jsonArray.Add(MakePictureDefinition.DeepClone());
+				}
 				if (web != null)
 				{
 					foreach (JsonNode definition2 in WebAccess.Definitions)
@@ -589,6 +593,10 @@ public sealed class Agent(Engine engine, MemoryStore? memories = null, SemanticM
 				{
 					text8 = React(call.Arguments.ToString(), turn);
 				}
+				else if (text3 == "make_picture" && MakePicture != null)
+				{
+					text8 = await MakePicture(call.Arguments.ToString(), turn, ct);
+				}
 				else if ((text3 == "web_search" || text3 == "web_read") ? true : false)
 				{
 					string text7 = ((web != null) ? (await web.ExecuteAsync(call.Name, call.Arguments.ToString(), ct)) : "Web access is off.");
@@ -616,6 +624,11 @@ public sealed class Agent(Engine engine, MemoryStore? memories = null, SemanticM
 		}
 		throw new IOException("Task reached its tool-round limit. Narrow the request and try again.");
 	}
+
+	/// <summary>Draws a picture for the make_picture tool (null when pictures are off): arguments JSON, the turn, and returns what to tell the model.</summary>
+	public Func<string, Turn, CancellationToken, Task<string>>? MakePicture { get; set; }
+
+	private static readonly JsonNode MakePictureDefinition = JsonNode.Parse("{\"type\":\"function\",\"function\":{\"name\":\"make_picture\",\"description\":\"Draw a picture with the local image generator and show it in the chat. Use it when they ask for a picture, photo or selfie, or when showing something would really add to the moment (how you look right now, where you are, something you describe). Describe plainly what it should show; set includes_you when you are in it. It takes 15 to 60 seconds, so don't use it for every message.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"description\":{\"type\":\"string\",\"description\":\"What the picture shows: who, what they wear, pose, expression, setting, lighting\"},\"includes_you\":{\"type\":\"boolean\",\"description\":\"True if you yourself are in the picture\"},\"framing\":{\"type\":\"string\",\"enum\":[\"portrait\",\"half body\",\"full body\",\"scene\",\"landscape\"]}},\"required\":[\"description\"],\"additionalProperties\":false}}}")!;
 
 	/// <summary>Her read-write interface to her appearance card: she can log a wardrobe change, never touch her permanent traits.</summary>
 	private static readonly JsonNode ChangeOutfitDefinition = JsonNode.Parse("{\"type\":\"function\",\"function\":{\"name\":\"change_outfit\",\"description\":\"Change what you are wearing. It is logged in your wardrobe diary with the time and your reason, and your appearance card updates. Give only what changes; anything left out stays the same. Your permanent traits can't be changed.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"outfit\":{\"type\":\"string\",\"description\":\"What you are wearing now, e.g. 'oversized grey hoodie and bare feet'\"},\"color\":{\"type\":\"string\"},\"fabric\":{\"type\":\"string\"},\"condition\":{\"type\":\"string\",\"description\":\"e.g. neat, rumpled, rain-soaked\"},\"reason\":{\"type\":\"string\",\"description\":\"Why you are changing, in a few words\"}},\"required\":[\"reason\"],\"additionalProperties\":false}}}")!;

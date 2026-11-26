@@ -1,0 +1,172 @@
+using AquilaLocal.Companion;
+using AquilaLocal.Companion.Pictures;
+using Xunit;
+
+namespace Aquila.Companion.Tests;
+
+/// <summary>
+/// The built-in image generator: finds its files (and names what's missing), builds the engine command with the
+/// settings measured on the laptop, reads picture requests, and tidies the prompt the chat model writes.
+/// </summary>
+public sealed class PictureTests
+{
+    private static PictureKit Kit(TempDir dir, bool fast = true, bool best = true)
+    {
+        var kit = new PictureKit(dir.File("imagegen"));
+        Directory.CreateDirectory(kit.EngineFolder);
+        Directory.CreateDirectory(kit.ModelsFolder);
+        File.WriteAllText(Path.Combine(kit.EngineFolder, "sd-cli.exe"), "");
+        if (fast)
+        {
+            foreach (string f in new[] { "flux3-image-klein-Q8_0.gguf", "Qwen3VL-4B-Instruct-Q4_K_M.gguf", "flux2-vae.safetensors" })
+            {
+                File.WriteAllText(Path.Combine(kit.ModelsFolder, f), "");
+            }
+        }
+        if (best)
+        {
+            foreach (string f in new[] { "qwen_image_2.1-Q8_0.gguf", "qwen_image_2.1_vae_bf16.safetensors", "Qwen3VL-8B-Instruct-Q4_K_M.gguf", "mmproj-Qwen3VL-8B-Instruct-F16.gguf" })
+            {
+                File.WriteAllText(Path.Combine(kit.ModelsFolder, f), "");
+            }
+        }
+        return kit;
+    }
+
+    [Fact]
+    public void Finds_the_files_installed_on_the_laptop()
+    {
+        using var dir = new TempDir();
+        PictureKit kit = Kit(dir);
+
+        PictureModelFiles fast = kit.Resolve(PictureModels.Fast);
+        PictureModelFiles best = kit.Resolve(PictureModels.Best);
+
+        Assert.EndsWith("flux3-image-klein-Q8_0.gguf", fast.Diffusion);
+        Assert.EndsWith("Qwen3VL-4B-Instruct-Q4_K_M.gguf", fast.TextEncoder);
+        Assert.Null(fast.Vision);
+        Assert.EndsWith("qwen_image_2.1-Q8_0.gguf", best.Diffusion);
+        Assert.EndsWith("Qwen3VL-8B-Instruct-Q4_K_M.gguf", best.TextEncoder);
+        Assert.EndsWith("mmproj-Qwen3VL-8B-Instruct-F16.gguf", best.Vision);
+    }
+
+    [Fact]
+    public void Missing_files_are_named_not_guessed()
+    {
+        using var dir = new TempDir();
+        PictureKit kit = Kit(dir, best: false);
+
+        var ex = Assert.Throws<PersonaConfigException>(() => kit.Resolve(PictureModels.Best));
+        Assert.Contains("Qwen-Image-2.1 model", ex.Message);
+        Assert.Contains("vision file", ex.Message);
+        Assert.True(kit.Check(PictureModels.Fast).Ready);
+    }
+
+    [Fact]
+    public void The_fast_model_uses_16_steps_and_no_guidance()
+    {
+        using var dir = new TempDir();
+        PictureModelFiles files = Kit(dir).Resolve(PictureModels.Fast);
+        List<string> args = PictureCommand.Arguments(files, new PictureJob("a cat", 1024, 1024, new[] { "a.png" }, 42, "out.png"));
+
+        Assert.Equal("16", args[args.IndexOf("--steps") + 1]);
+        Assert.Equal("1.0", args[args.IndexOf("--cfg-scale") + 1]);
+        Assert.Contains("--offload-to-cpu", args);
+        Assert.Equal("a.png", args[args.IndexOf("-r") + 1]);
+        Assert.DoesNotContain("--llm_vision", args);
+    }
+
+    [Fact]
+    public void The_best_model_needs_its_vision_file_for_references_and_takes_at_most_four()
+    {
+        using var dir = new TempDir();
+        PictureModelFiles files = Kit(dir).Resolve(PictureModels.Best);
+        List<string> args = PictureCommand.Arguments(files, new PictureJob("a cat", 1024, 1024, new[] { "1.png", "2.png", "3.png", "4.png", "5.png" }, 7, "out.png"));
+
+        Assert.Equal(4, args.Count(a => a == "-r"));
+        Assert.Contains("--llm_vision", args);
+        Assert.Equal("6.0", args[args.IndexOf("--cfg-scale") + 1]);
+    }
+
+    [Fact]
+    public void Odd_sizes_are_refused()
+    {
+        using var dir = new TempDir();
+        PictureModelFiles files = Kit(dir).Resolve(PictureModels.Fast);
+
+        Assert.Throws<PersonaConfigException>(() => PictureCommand.Arguments(files, new PictureJob("x", 1000, 1024, Array.Empty<string>(), 1, "o.png")));
+    }
+
+    [Fact]
+    public void Reads_a_picture_request_and_picks_a_shape()
+    {
+        PictureRequest r = PictureRequest.Parse("{\"description\":\"me on the sofa with coffee\",\"includes_you\":true}");
+
+        Assert.True(r.IncludesPersona);
+        Assert.Equal("half body", r.Framing);
+        Assert.True(r.Size().Height > r.Size().Width);
+        Assert.Equal("scene", PictureRequest.Parse("{\"description\":\"the lab at night\"}").Framing);
+        Assert.Throws<PersonaConfigException>(() => PictureRequest.Parse("{\"includes_you\":true}"));
+    }
+
+    [Fact]
+    public void The_writer_gets_her_appearance_only_when_she_is_in_the_picture()
+    {
+        var withHer = new PictureRequest("me waving", true, "portrait");
+        var without = new PictureRequest("a sunset", false, "landscape");
+
+        Assert.Contains("platinum", PicturePrompt.WriterUser(withHer, "", "Vicki", "Vicki, hair: platinum ponytail", false));
+        Assert.DoesNotContain("platinum", PicturePrompt.WriterUser(without, "", "Vicki", "Vicki, hair: platinum ponytail", false));
+    }
+
+    [Fact]
+    public void The_written_prompt_is_tidied()
+    {
+        Assert.Equal("A woman in a lab, warm light.", PicturePrompt.Clean("<think>hmm</think>\n**Prompt:** \"A woman in a lab,\nwarm light.\""));
+        Assert.Throws<PersonaConfigException>(() => PicturePrompt.Clean("<think>only thinking</think>"));
+        Assert.True(PicturePrompt.Clean(new string('a', 5000)).Length <= PicturePrompt.MaxPromptChars);
+    }
+
+    [Fact]
+    public void With_references_the_clothes_come_from_the_prompt_not_the_reference()
+    {
+        string p = PicturePrompt.WithReferences("She wears a red sweater.", 2);
+
+        Assert.Contains("not from the references", p);
+        Assert.EndsWith("She wears a red sweater.", p);
+        Assert.Equal("x", PicturePrompt.WithReferences("x", 0));
+    }
+
+    [Fact]
+    public void The_context_leaves_out_your_thoughts_and_sound_cues()
+    {
+        string c = PicturePrompt.Conversation(new[] { ("Hi <thought>secret</thought>", "Hello! <sound>Giggle</sound>") }, "Vicki");
+
+        Assert.DoesNotContain("secret", c);
+        Assert.DoesNotContain("Giggle", c);
+        Assert.Contains("Vicki: Hello!", c);
+    }
+
+    [Fact]
+    public void Pictures_get_dated_names_and_references_are_listed_in_order()
+    {
+        using var dir = new TempDir();
+        string path = PictureFiles.NewOutput(dir.File("pictures"), "Vicki on the sofa!", TestPersona.T0);
+        Assert.EndsWith(Path.Combine("2026-11", "20261126-200000-vicki-on-the-sofa.png"), path);
+
+        string refs = PictureFiles.ReferenceFolder(dir.File("vicki"));
+        Directory.CreateDirectory(refs);
+        File.WriteAllText(Path.Combine(refs, "b.png"), "");
+        File.WriteAllText(Path.Combine(refs, "a.jpg"), "");
+        File.WriteAllText(Path.Combine(refs, "notes.txt"), "");
+        Assert.Equal(new[] { "a.jpg", "b.png" }, PictureFiles.References(dir.File("vicki")).Select(Path.GetFileName));
+    }
+
+    [Theory]
+    [InlineData("  5/16 - 0.65s/it", 5, 16)]
+    [InlineData("|=====>      | 12/20 - 1.53s/it", 12, 20)]
+    public void Reads_progress_from_the_engine(string line, int step, int of)
+    {
+        Assert.Equal((step, of), PictureCommand.Progress(line));
+    }
+}

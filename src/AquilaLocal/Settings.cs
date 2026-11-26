@@ -79,6 +79,9 @@ public class Settings
 	/// <summary>Show the personas' private thoughts (blue) in the chat.</summary>
 	public bool ShowPersonaThoughts { get; set; } = true;
 
+	/// <summary>The built-in image generator.</summary>
+	public PictureOptions Pictures { get; set; } = new PictureOptions();
+
 	/// <summary>Let personas play sounds from the soundboard.</summary>
 	public bool SoundboardEnabled { get; set; } = true;
 
@@ -203,4 +206,17 @@ public class Settings
 			throw new ArgumentException("Invalid avatar folder or model path.");
 		}
 	}
+}
+
+/// <summary>Built-in pictures: whether Vicki and Aquila may draw, and with which model.</summary>
+public sealed class PictureOptions
+{
+	/// <summary>Off until you allow it.</summary>
+	public bool Enabled { get; set; }
+
+	/// <summary>"fast" (FLUX 3 Image Klein, the chat model stays loaded) or "best" (Qwen-Image-2.1, the chat model pauses).</summary>
+	public string Model { get; set; } = AquilaLocal.Companion.Pictures.PictureModels.Fast;
+
+	/// <summary>Use the persona's reference pictures so she looks the same every time.</summary>
+	public bool UseReferences { get; set; } = true;
 }

@@ -62,6 +62,9 @@ public class Turn
 
 	public List<Attachment> Attachments { get; set; } = new List<Attachment>();
 
+	/// <summary>Pictures drawn for this reply (files in Data\pictures).</summary>
+	public List<string> Pictures { get; set; } = new List<string>();
+
 	public long PromptTokens { get; set; }
 
 	public long CompletionTokens { get; set; }

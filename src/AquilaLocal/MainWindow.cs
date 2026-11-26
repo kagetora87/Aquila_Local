@@ -1913,42 +1913,42 @@ public partial class MainWindow : AquilaWindow
 	{
 		try
 		{
-			Settings settings = new Settings
-			{
-				ModelPath = this.settings.ModelPath,
-				ProjectorPath = this.settings.ProjectorPath,
-				VisionDisabled = this.settings.VisionDisabled,
-				Workspace = this.settings.Workspace,
-				Memory = MemoryBox.Text,
-				Instructions = InstructionsBox.Text,
-				Context = contextTokens,
-				ReplyEmoji = (ReplyEmojiCheck.IsChecked == true),
-				MaxTokens = int.Parse(MaxTokensBox.Text, CultureInfo.InvariantCulture),
-				Temperature = double.Parse(TempBox.Text, CultureInfo.InvariantCulture),
-				GpuLayers = int.Parse(GpuBox.Text, CultureInfo.InvariantCulture),
-				CpuThreads = int.Parse(CpuBox.Text, CultureInfo.InvariantCulture),
-				Inference = ReadInferenceSettings(),
-				Hardware = this.settings.Hardware,
-				ThinkingBudget = int.Parse(ThinkingBudgetBox.Text, CultureInfo.InvariantCulture),
-				RequireLookup = (LookupCheck.IsChecked == true),
-				LearnMemories = (LearnMemoryCheck.IsChecked == true),
-				UseMemories = (UseMemoryCheck.IsChecked == true),
-				SemanticMemories = (SemanticMemoryCheck.IsChecked == true),
-				PersonalityId = ((PersonalityCombo.SelectedItem as PersonalityProfile)?.Id ?? "default"),
-				Voice = this.settings.Voice,
-				AvatarEnabled = this.settings.AvatarEnabled,
-				Avatar = this.settings.Avatar,
-				AvatarFolder = this.settings.AvatarFolder,
-				AvatarModelPath = this.settings.AvatarModelPath,
-				Sprite = this.settings.Sprite,
-				WebMode = this.settings.WebMode,
-				WebKeyProtected = this.settings.WebKeyProtected,
-				Thinking = (ThinkingCheck.IsChecked == true),
-				WorkspaceTools = (ToolsCheck.IsChecked == true),
-				UiSounds = (UiSoundsCheck.IsChecked == true),
-				UiSoundVolume = UiSoundVolumeSlider.Value,
-				ShowTechnicalDetails = (ShowDetailsCheck.IsChecked == true)
-			};
+			// Start from a copy of everything (voice commands, listening, soundboard, pictures, thought colours…),
+			// then take what the settings panel shows. Building a fresh object here used to drop newer options.
+			Settings settings = System.Text.Json.JsonSerializer.Deserialize<Settings>(System.Text.Json.JsonSerializer.Serialize(this.settings)) ?? new Settings();
+			settings.ModelPath = this.settings.ModelPath;
+			settings.ProjectorPath = this.settings.ProjectorPath;
+			settings.VisionDisabled = this.settings.VisionDisabled;
+			settings.Workspace = this.settings.Workspace;
+			settings.Memory = MemoryBox.Text;
+			settings.Instructions = InstructionsBox.Text;
+			settings.Context = contextTokens;
+			settings.ReplyEmoji = (ReplyEmojiCheck.IsChecked == true);
+			settings.MaxTokens = int.Parse(MaxTokensBox.Text, CultureInfo.InvariantCulture);
+			settings.Temperature = double.Parse(TempBox.Text, CultureInfo.InvariantCulture);
+			settings.GpuLayers = int.Parse(GpuBox.Text, CultureInfo.InvariantCulture);
+			settings.CpuThreads = int.Parse(CpuBox.Text, CultureInfo.InvariantCulture);
+			settings.Inference = ReadInferenceSettings();
+			settings.Hardware = this.settings.Hardware;
+			settings.ThinkingBudget = int.Parse(ThinkingBudgetBox.Text, CultureInfo.InvariantCulture);
+			settings.RequireLookup = (LookupCheck.IsChecked == true);
+			settings.LearnMemories = (LearnMemoryCheck.IsChecked == true);
+			settings.UseMemories = (UseMemoryCheck.IsChecked == true);
+			settings.SemanticMemories = (SemanticMemoryCheck.IsChecked == true);
+			settings.PersonalityId = ((PersonalityCombo.SelectedItem as PersonalityProfile)?.Id ?? "default");
+			settings.Voice = this.settings.Voice;
+			settings.AvatarEnabled = this.settings.AvatarEnabled;
+			settings.Avatar = this.settings.Avatar;
+			settings.AvatarFolder = this.settings.AvatarFolder;
+			settings.AvatarModelPath = this.settings.AvatarModelPath;
+			settings.Sprite = this.settings.Sprite;
+			settings.WebMode = this.settings.WebMode;
+			settings.WebKeyProtected = this.settings.WebKeyProtected;
+			settings.Thinking = (ThinkingCheck.IsChecked == true);
+			settings.WorkspaceTools = (ToolsCheck.IsChecked == true);
+			settings.UiSounds = (UiSoundsCheck.IsChecked == true);
+			settings.UiSoundVolume = UiSoundVolumeSlider.Value;
+			settings.ShowTechnicalDetails = (ShowDetailsCheck.IsChecked == true);
 			settings.Validate();
 			store.SaveSettings(settings);
 			this.settings = settings;
@@ -2352,6 +2352,10 @@ public partial class MainWindow : AquilaWindow
 		operation = new CancellationTokenSource();
 		Agent agent = new Agent(engine, memories, semantic, personalities);
 		agent.Companion = companion;
+		if (settings.Pictures.Enabled)
+		{
+			agent.MakePicture = (string arguments, Turn pictureTurn, CancellationToken pictureCt) => MakePictureForTurnAsync(session, pictureTurn, arguments, pictureCt);
+		}
 		agent.ApproveWeb = (string action) => Task.FromResult(AquilaDialog.Confirm(this, "Allow web lookup?", action + "\n\nThis search or address will be sent over the internet.", "Allow", "Don't allow"));
 		agent.Reacted += delegate(string emoji)
 		{
