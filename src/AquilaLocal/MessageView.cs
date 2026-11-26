@@ -64,6 +64,11 @@ public sealed class MessageView : Border
 		{
 			CopyAll();
 		});
+		// Re-assigning the tooltip closes it, so it can't linger after the pointer leaves.
+		copyButton.MouseLeave += delegate
+		{
+			copyButton.ToolTip = "Copy message";
+		};
 		copyButton.Width = 28.0;
 		copyButton.Height = 28.0;
 		copyButton.FontSize = 14.0;
