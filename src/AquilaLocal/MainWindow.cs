@@ -1185,6 +1185,50 @@ public partial class MainWindow : AquilaWindow
 		}
 	}
 
+	/// <summary>Ctrl+V with a picture (or copied files) on the clipboard attaches it, like dragging it in.</summary>
+	private async void Composer_PastePicture(object sender, KeyEventArgs e)
+	{
+		if (e.Key != Key.V || (Keyboard.Modifiers & ModifierKeys.Control) == 0 || busy || attaching)
+		{
+			return;
+		}
+		try
+		{
+			if (Clipboard.ContainsFileDropList())
+			{
+				List<string> files = Clipboard.GetFileDropList().Cast<string>().Where(File.Exists).ToList();
+				if (files.Count > 0)
+				{
+					e.Handled = true;
+					await StageFilesAsync(files);
+				}
+			}
+			else if (Clipboard.ContainsImage() && !Clipboard.ContainsText())
+			{
+				System.Windows.Media.Imaging.BitmapSource image = Clipboard.GetImage();
+				if (image == null)
+				{
+					return;
+				}
+				e.Handled = true;
+				string folder = Path.Combine(store.Root, "pasted");
+				Directory.CreateDirectory(folder);
+				string file = Path.Combine(folder, "pasted picture " + DateTime.Now.ToString("yyyy-MM-dd HHmmss") + ".png");
+				System.Windows.Media.Imaging.PngBitmapEncoder encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+				encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(image));
+				using (FileStream stream = File.Create(file))
+				{
+					encoder.Save(stream);
+				}
+				await StageFilesAsync(new string[1] { file });
+			}
+		}
+		catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is System.Runtime.InteropServices.COMException || ex is NotSupportedException)
+		{
+			Notice("Couldn't paste that picture: " + ex.Message + " You can drag the file in or use the paperclip instead.");
+		}
+	}
+
 	private async Task StageFilesAsync(IEnumerable<string> paths)
 	{
 		if (busy || attaching)
@@ -1623,6 +1667,7 @@ public partial class MainWindow : AquilaWindow
 	public MainWindow(string? dataRoot = null, string? speechAssets = null)
 	{
 		InitializeComponent();
+		Composer.PreviewKeyDown += Composer_PastePicture;
 		base.CommandBindings.Add(new CommandBinding(DeleteChatCommand, DeleteChat_Executed, DeleteChat_CanExecute));
 		store = new Storage(dataRoot);
 		this.settings = store.LoadSettings();

@@ -29,7 +29,26 @@ public sealed record ModelInfo(string Name, string Architecture, int NativeConte
 			return Directory.EnumerateFiles(directoryName, "*.gguf").FirstOrDefault((string p) => Path.GetFileName(p).Contains("Deckard", StringComparison.OrdinalIgnoreCase) && Path.GetFileName(p).Contains("mmproj", StringComparison.OrdinalIgnoreCase)) ?? "";
 		}
 		string stem = Path.GetFileNameWithoutExtension(path);
-		return Directory.EnumerateFiles(directoryName, "*.gguf").FirstOrDefault((string p) => Path.GetFileName(p).StartsWith(stem + ".mmproj", StringComparison.OrdinalIgnoreCase)) ?? "";
+		List<string> projectors = Directory.EnumerateFiles(directoryName, "*.gguf").Where((string p) => Path.GetFileName(p).Contains("mmproj", StringComparison.OrdinalIgnoreCase)).ToList();
+		string exact = projectors.FirstOrDefault((string p) => Path.GetFileName(p).StartsWith(stem + ".mmproj", StringComparison.OrdinalIgnoreCase));
+		if (exact != null)
+		{
+			return exact;
+		}
+		// Downloaded projectors are usually named like "mmproj-Qwen3.8-27B-Q8_0.gguf" or "Qwen3.8-27B-mmproj-F16.gguf".
+		// Pair one automatically when it names the same model family and size (the first two parts of the
+		// model's file name, e.g. "Qwen3.8-27B") and it is the only such file, so a mismatch is never guessed.
+		string[] parts = stem.Split('-', '_');
+		if (parts.Length >= 2)
+		{
+			string family = parts[0] + "-" + parts[1];
+			List<string> matches = projectors.Where((string p) => Path.GetFileName(p).Replace('_', '-').Contains(family, StringComparison.OrdinalIgnoreCase)).ToList();
+			if (matches.Count == 1)
+			{
+				return matches[0];
+			}
+		}
+		return "";
 	}
 
 	public static ModelInfo Read(string path)
