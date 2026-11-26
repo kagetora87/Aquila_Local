@@ -1539,6 +1539,7 @@ public partial class MainWindow : AquilaWindow
 			{
 				if (!featuresClosing)
 				{
+					HerVoicePlaying(frame.Playing && speech.CurrentUtterance == frame.Utterance);
 					if (frame.Playing && speech.CurrentUtterance == frame.Utterance)
 					{
 						avatarState = "speaking";
@@ -1606,13 +1607,35 @@ public partial class MainWindow : AquilaWindow
 		}
 	}
 
+	/// <summary>Aquila's voice settings, with a companion's own voice when her persona has one.</summary>
+	private VoiceOptions VoiceFor(ChatSession session)
+	{
+		VoiceOptions options = JsonSerializer.Deserialize<VoiceOptions>(JsonSerializer.Serialize(settings.Voice))!;
+		if (session.IsCompanion)
+		{
+			try
+			{
+				string own = companion.Registry.LoadConfig(session.PersonaId).Voice;
+				if (!string.IsNullOrWhiteSpace(own))
+				{
+					options.Speaker = own;
+				}
+			}
+			catch (AquilaLocal.Companion.PersonaConfigException ex)
+			{
+				VoiceStatusText.Text = "Voice: couldn't read her voice setting (" + ex.Message.Truncate(200) + "), using Aquila's voice.";
+			}
+		}
+		return options;
+	}
+
 	private async Task SpeakCompletedReply(ChatSession session, Turn turn)
 	{
 		if (!settings.Voice.Enabled || turn.Status != "complete")
 		{
 			return;
 		}
-		VoiceOptions options = JsonSerializer.Deserialize<VoiceOptions>(JsonSerializer.Serialize(settings.Voice));
+		VoiceOptions options = VoiceFor(session);
 		try
 		{
 			await speech.SpeakAsync(turn, options);
@@ -1634,6 +1657,59 @@ public partial class MainWindow : AquilaWindow
 		}
 	}
 
+	private void AddReplyActions(MessageView view, ChatSession session, Turn turn)
+	{
+		if (turn.Status == "complete" && !string.IsNullOrWhiteSpace(turn.Answer))
+		{
+			view.AddAction(Ui.Glyph.Audio, "Save as audio (a sound file you can play or send)", delegate
+			{
+				_ = SaveReplyAudioAsync(session, turn);
+			});
+		}
+	}
+
+	/// <summary>Saves one reply as a WAV file in the voice she speaks with, so it can be played or sent elsewhere.</summary>
+	private async Task SaveReplyAudioAsync(ChatSession session, Turn turn)
+	{
+		string who = session.IsCompanion ? session.Speaker : "Aquila";
+		SaveFileDialog dialog = new SaveFileDialog
+		{
+			Filter = "Sound file (*.wav)|*.wav",
+			FileName = who + " " + DateTime.Now.ToString("yyyy-MM-dd HHmm") + ".wav"
+		};
+		if (dialog.ShowDialog(this) != true)
+		{
+			return;
+		}
+		VoiceOptions options = VoiceFor(session);
+		VoiceStatusText.Text = "Voice: saving audio…";
+		try
+		{
+			TimeSpan length = await speech.SaveAudioAsync(turn, options, dialog.FileName, monitorCancellation.Token);
+			if (!featuresClosing)
+			{
+				VoiceStatusText.Text = "Voice: saved " + System.IO.Path.GetFileName(dialog.FileName) + $" ({length.TotalSeconds:0} s)";
+				Notice("Saved " + who + "'s reply as audio: " + dialog.FileName);
+			}
+		}
+		catch (OperationCanceledException)
+		{
+			if (!featuresClosing)
+			{
+				VoiceStatusText.Text = "Voice: saving audio stopped.";
+			}
+		}
+		catch (Exception ex)
+		{
+			if (!featuresClosing)
+			{
+				VoiceStatusText.Text = "Voice: " + ex.Message.Truncate(400);
+				Notice("Couldn't save the audio: " + ex.Message.Truncate(400));
+				UiSounds.Play(UiSound.Notice);
+			}
+		}
+	}
+
 	private async void ReplayVoice_Click(object sender, RoutedEventArgs e)
 	{
 		if (busy || current == null)
@@ -1647,7 +1723,7 @@ public partial class MainWindow : AquilaWindow
 			Notice("Complete a reply before replaying speech.");
 			return;
 		}
-		VoiceOptions options = JsonSerializer.Deserialize<VoiceOptions>(JsonSerializer.Serialize(settings.Voice));
+		VoiceOptions options = VoiceFor(session);
 		try
 		{
 			await speech.SpeakAsync(turn, options);
@@ -1879,6 +1955,7 @@ public partial class MainWindow : AquilaWindow
 			Messages.Children.Add(messageView2);
 			replyViews[turn.Id] = messageView2;
 			RefreshNotices(current, turn);
+			AddReplyActions(messageView2, current, turn);
 		}
 		RefreshUsage();
 		followBottom = true;
@@ -1935,7 +2012,8 @@ public partial class MainWindow : AquilaWindow
 			string turnId = turn.Id;
 			string user = Attachments.VisibleText(turn);
 			string reply = turn.Answer;
-			AquilaLocal.Companion.CompletedTurn done = await Task.Run(() => runtime.Complete(prepared, chatId, turnId, user, reply, DateTimeOffset.Now));
+			bool spoken = turn.Spoken;
+			AquilaLocal.Companion.CompletedTurn done = await Task.Run(() => runtime.Complete(prepared, chatId, turnId, user, reply, DateTimeOffset.Now, spoken));
 			AquilaLocal.Companion.LoopResult loop = done.Loop;
 			turn.DriveReport = loop.Drive + (loop.Satisfied ? " satisfied" : " not satisfied") + " (" + loop.Reason + ")"
 				+ string.Concat(loop.Changes.Select((AquilaLocal.Companion.DriveChange c) => $" · {c.Drive} {c.Old:0.0}→{c.New:0.0}"))
@@ -1999,7 +2077,7 @@ public partial class MainWindow : AquilaWindow
 		{
 			started = true;
 			NewChat(id, name);
-		}, personaId, highlight, highlightWardrobe);
+		}, personaId, highlight, highlightWardrobe, speech.VoiceChoices);
 		window.Owner = this;
 		window.ShowDialog();
 		if (!started && current != null && current.IsCompanion && !busy)
@@ -2125,8 +2203,10 @@ public partial class MainWindow : AquilaWindow
 		{
 			User = (string.IsNullOrWhiteSpace(Composer.Text) ? "Please review the attached files." : Composer.Text.Trim()),
 			Attachments = pendingAttachments.ToList(),
-			Status = "generating"
+			Status = "generating",
+			Spoken = pendingSpoken
 		};
+		pendingSpoken = false;
 		if (session.Turns.Count == 0)
 		{
 			session.Title = turn.User.Replace('\n', ' ').Replace('\r', ' ').Truncate(42);
@@ -2205,6 +2285,10 @@ public partial class MainWindow : AquilaWindow
 			store.SaveChat(session);
 			RenderLive(final: true);
 			RefreshNotices(session, turn);
+			if (replyViews.TryGetValue(turn.Id, out MessageView? finishedView))
+			{
+				AddReplyActions(finishedView, session, turn);
+			}
 			if (turn.Status == "complete")
 			{
 				if (!settings.Voice.Enabled && (DateTime.UtcNow - sendStarted >= TimeSpan.FromSeconds(4.0) || !base.IsActive))
@@ -2260,6 +2344,7 @@ public partial class MainWindow : AquilaWindow
 			ChatsList.Items.Refresh();
 			Composer.Focus();
 		}
+		await SendQueuedSpokenAsync();
 	}
 
 	private void RenderLive(bool final)
@@ -2599,6 +2684,7 @@ public partial class MainWindow : AquilaWindow
 			engine.Dispose();
 			semantic.Dispose();
 			companion.Dispose();
+			DisposeListening();
 			await speech.DisposeAsync();
 			await avatar.DisposeAsync();
 			if (avatarPopout != null)

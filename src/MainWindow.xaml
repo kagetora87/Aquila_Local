@@ -248,6 +248,11 @@
             </Grid.RowDefinitions>
             <TextBox Name="Composer" Style="{StaticResource TextBox.Bare}" local:Ui.Placeholder="Message Aquila…" AutomationProperties.Name="Message" FontSize="15" MinHeight="44" MaxHeight="200" Padding="2,4" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" PreviewKeyDown="Composer_KeyDown" TextChanged="Composer_TextChanged" GotKeyboardFocus="Composer_FocusChanged" LostKeyboardFocus="Composer_FocusChanged" />
             <Button Name="AttachButton" Grid.Row="1" Style="{StaticResource Btn.Icon}" Width="36" Height="36" HorizontalAlignment="Left" Content="&#xE723;" ToolTip="Attach files" Click="Attach_Click" />
+            <Button Name="MicButton" Grid.Row="1" Style="{StaticResource Btn.Icon}" Width="36" Height="36" Margin="40,0,0,0" HorizontalAlignment="Left" Content="&#xE720;" ToolTip="Talk instead of typing (right-click for settings)" Click="Mic_Click" ContextMenuOpening="Mic_ContextMenuOpening">
+              <Button.ContextMenu>
+                <ContextMenu />
+              </Button.ContextMenu>
+            </Button>
             <Grid Grid.Row="1" HorizontalAlignment="Right">
               <Button Name="SendButton" Style="{StaticResource Btn.Primary}" local:Ui.Radius="18" Width="36" Height="36" MinHeight="0" Padding="0" ToolTip="Send (Enter)" Click="Send_Click" IsEnabled="False" RenderTransformOrigin="0.5,0.5">
                 <TextBlock Text="&#xE74A;" FontFamily="{StaticResource Font.Icon}" FontSize="16" />

@@ -67,6 +67,16 @@ public sealed class SpeechService : IAsyncDisposable
 		return "Clone: " + (Voices.Find(cloneId)?.Name ?? "missing voice");
 	}
 
+	/// <summary>Every voice that can be picked: Kitten presets, your cloned voices, Qwen presets and Windows voices.</summary>
+	public List<(string Key, string Label)> VoiceChoices()
+	{
+		return VoiceOptions.KittenSpeakers.Select((string name) => ("Kitten: " + name, "Kitten: " + name))
+			.Concat(Voices.List().Select((VoiceReference voice) => ("Clone: " + voice.Id, "Clone: " + voice.Name)))
+			.Concat(VoiceOptions.Speakers.Select((string name) => (name, "Qwen: " + name)))
+			.Concat(WindowsVoices().Select((string name) => (name, name)))
+			.ToList();
+	}
+
 	public static List<string> WindowsVoices()
 	{
 		try
@@ -110,6 +120,120 @@ public sealed class SpeechService : IAsyncDisposable
 			lifecycle.Release();
 		}
 		await task;
+	}
+
+	/// <summary>
+	/// Turns a reply into one sound file without playing it (stops anything she's saying first). Same voice,
+	/// moods and pacing as speaking it aloud. Returns how long the recording is.
+	/// </summary>
+	public async Task<TimeSpan> SaveAudioAsync(Turn turn, VoiceOptions options, string path, CancellationToken ct = default(CancellationToken))
+	{
+		options.Validate();
+		await lifecycle.WaitAsync(ct);
+		Task<TimeSpan> task;
+		try
+		{
+			ObjectDisposedException.ThrowIf(disposed, this);
+			if (!running.IsCompleted)
+			{
+				Stop();
+			}
+			try
+			{
+				await running;
+			}
+			catch
+			{
+			}
+			stop?.Dispose();
+			stop = CancellationTokenSource.CreateLinkedTokenSource(ct);
+			task = RenderAsync(turn, options, path, stop.Token);
+			running = task;
+		}
+		finally
+		{
+			lifecycle.Release();
+		}
+		return await task;
+	}
+
+	private async Task<TimeSpan> RenderAsync(Turn turn, VoiceOptions options, string path, CancellationToken ct)
+	{
+		List<string> files = new List<string>();
+		try
+		{
+			VoiceReference? reference = null;
+			string? cloneId = options.CloneId;
+			if (cloneId != null)
+			{
+				reference = Voices.Find(cloneId) ?? throw new IOException("This voice sample is missing. Choose another voice.");
+			}
+			IReadOnlyList<SpeechSegment> segments = VoiceDelivery.Plan(turn, options);
+			if (segments.Count == 0)
+			{
+				throw new IOException("This reply has nothing to say aloud.");
+			}
+			for (int i = 0; i < segments.Count; i++)
+			{
+				ct.ThrowIfCancellationRequested();
+				Report($"Saving audio · part {i + 1} of {segments.Count}…");
+				files.Add(options.UsesWindows ? (await WindowsAudio(segments[i].Text, options, ct)) : (await worker.GenerateAsync(segments[i].Text, options, segments[i].Mood, ct, reference)));
+			}
+			List<WaveFileReader> readers = files.Select((string f) => new WaveFileReader(f)).ToList();
+			try
+			{
+				int rate = readers[0].WaveFormat.SampleRate;
+				List<ISampleProvider> parts = new List<ISampleProvider>();
+				foreach (WaveFileReader reader in readers)
+				{
+					ISampleProvider part = reader.ToSampleProvider();
+					if (part.WaveFormat.Channels != 1)
+					{
+						part = part.ToMono();
+					}
+					if (part.WaveFormat.SampleRate != rate)
+					{
+						part = new NAudio.Wave.SampleProviders.WdlResamplingSampleProvider(part, rate);
+					}
+					// A short breath between parts, as when she speaks them.
+					parts.Add(new NAudio.Wave.SampleProviders.OffsetSampleProvider(part) { LeadOut = TimeSpan.FromMilliseconds(250) });
+				}
+				string partial = path + ".part";
+				WaveFileWriter.CreateWaveFile16(partial, new NAudio.Wave.SampleProviders.ConcatenatingSampleProvider(parts));
+				File.Move(partial, path, overwrite: true);
+			}
+			finally
+			{
+				foreach (WaveFileReader reader in readers)
+				{
+					reader.Dispose();
+				}
+			}
+			TimeSpan length;
+			using (WaveFileReader saved = new WaveFileReader(path))
+			{
+				length = saved.TotalTime;
+			}
+			Report("Saved audio · " + Path.GetFileName(path));
+			return length;
+		}
+		finally
+		{
+			if (!options.KeepLoaded)
+			{
+				worker.Stop();
+			}
+			foreach (string f in files)
+			{
+				try
+				{
+					File.Delete(f);
+				}
+				catch (IOException)
+				{
+				}
+			}
+		}
 	}
 
 	public void Stop()

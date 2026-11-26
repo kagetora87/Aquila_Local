@@ -209,6 +209,9 @@ public sealed class PersonaConfig
     public MemorySettings Memory { get; set; } = new();
     public PersonaSeed Seed { get; set; } = new();
 
+    /// <summary>Her speaking voice in the app's voice library (for example "Clone: vicki" or "Kitten: Luna"). Empty uses the app's voice.</summary>
+    public string Voice { get; set; } = "";
+
     public static readonly JsonSerializerOptions Json = new()
     {
         WriteIndented = true,

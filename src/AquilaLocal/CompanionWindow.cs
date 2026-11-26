@@ -34,8 +34,12 @@ public sealed class CompanionWindow : AquilaWindow
 	/// <summary>Wardrobe diary entries to highlight (from a chat's "Changed outfit" notice).</summary>
 	private readonly HashSet<long> highlightWardrobe;
 
-	public CompanionWindow(CompanionHost host, Action<string, string> startChat, string? focusPersona = null, IEnumerable<long>? highlightMemory = null, IEnumerable<long>? highlightWardrobe = null)
+	/// <summary>The voices she can be given (from the app's voice library).</summary>
+	private readonly Func<List<(string Key, string Label)>>? voices;
+
+	public CompanionWindow(CompanionHost host, Action<string, string> startChat, string? focusPersona = null, IEnumerable<long>? highlightMemory = null, IEnumerable<long>? highlightWardrobe = null, Func<List<(string Key, string Label)>>? voices = null)
 	{
+		this.voices = voices;
 		this.host = host;
 		this.startChat = startChat;
 		highlight = new HashSet<long>(highlightMemory ?? Enumerable.Empty<long>());
@@ -396,6 +400,25 @@ public sealed class CompanionWindow : AquilaWindow
 		CheckBox unlocked = new CheckBox { Content = "Drift unlocked", IsChecked = config.Drift.Unlocked, Margin = new Thickness(0, 6, 0, 0) };
 		panel.Children.Add(unlocked);
 
+		panel.Children.Add(Label("Her voice (when replies are spoken)"));
+		List<(string Key, string Label)> choices = new List<(string Key, string Label)> { ("", "Same as Aquila's voice (set in Voice…)") };
+		try
+		{
+			choices.AddRange(voices?.Invoke() ?? new List<(string Key, string Label)>());
+		}
+		catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is InvalidOperationException)
+		{
+		}
+		if (config.Voice.Length > 0 && !choices.Any(((string Key, string Label) c) => c.Key == config.Voice))
+		{
+			choices.Add((config.Voice, config.Voice + " (not found)"));
+		}
+		ComboBox voice = new ComboBox { ItemsSource = choices.Select(((string Key, string Label) c) => c.Label).ToList(), SelectedIndex = Math.Max(0, choices.FindIndex(((string Key, string Label) c) => c.Key == config.Voice)), Width = 320, HorizontalAlignment = HorizontalAlignment.Left };
+		panel.Children.Add(voice);
+		TextBlock voiceNote = Ui.Text("To give her a voice of her own, import a short clip in Voice… → Import voice sample, then pick it here.", "Type.Caption");
+		voiceNote.TextWrapping = TextWrapping.Wrap;
+		panel.Children.Add(voiceNote);
+
 		panel.Children.Add(Label("Drives"));
 		string[] columns = { "Weight", "Start", "Decay /h", "Rest", "Rise /h", "Step", "Floor", "Ceiling" };
 		Grid grid = new Grid();
@@ -486,6 +509,7 @@ public sealed class CompanionWindow : AquilaWindow
 				edited.PersonalitySheet = sheet.Text.Trim();
 				edited.Drift.Text = drift.Text.Trim();
 				edited.Drift.Unlocked = unlocked.IsChecked == true;
+				edited.Voice = choices[Math.Max(0, voice.SelectedIndex)].Key;
 				foreach (DriveSpec d in edited.Drives)
 				{
 					TextBox[] b = fields[d.Name];

@@ -251,6 +251,24 @@ public sealed class MessageView : Border
 		}
 	}
 
+	/// <summary>Adds an extra button next to Copy (once per name), such as "Save as audio".</summary>
+	public void AddAction(string glyph, string tooltip, Action click)
+	{
+		if (actions.Children.OfType<Button>().Any((Button b) => b.Tag as string == tooltip))
+		{
+			return;
+		}
+		Button button = Ui.IconButton(glyph, tooltip, delegate
+		{
+			click();
+		});
+		button.Tag = tooltip;
+		button.Width = 28.0;
+		button.Height = 28.0;
+		button.FontSize = 14.0;
+		actions.Children.Add(button);
+	}
+
 	/// <summary>Shows (or, with an empty string, hides) the persona's emoji reaction to this message.</summary>
 	public void SetReaction(string emoji, string who)
 	{

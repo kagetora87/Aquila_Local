@@ -130,6 +130,27 @@ costs nothing extra per turn. Your picture is shown to her (with the vision mode
 each chat, and once more whenever you change it. Files: `Data\personas\about-you.json` and
 `about-you-picture.json`.
 
+## Her voice and listening
+
+- **Her own voice.** Companions → her settings → "Her voice" picks the voice she always speaks with (a
+  Kitten or Qwen preset, a Windows voice, or a voice you cloned in Voice… → Import voice sample). It is
+  saved in her persona.json as `voice`; empty means "same as Aquila's voice".
+- **Save as audio.** Every finished reply has a speaker button next to Copy that saves it as a .wav in her
+  voice, with the same moods and pacing as when she speaks it. This is how someone outside Aquila can hear her.
+- **Talking to her.** The microphone button beside the message box listens through whisper.cpp running on
+  this computer (nothing is sent anywhere). Live words appear while you talk; when you pause (1 second by
+  default) what you said is sent. Right-click the microphone for the microphone, pause length, language
+  and "talking interrupts her".
+- **How it was said.** Whisper writes tidy text and drops hesitations, so Aquila measures them from the
+  audio itself and adds bracketed notes she can read: `[paused 1.8s]`, `[restarted]`, `[trailed off]`,
+  `[spoke quietly]`/`[spoke loudly]` (against your usual level, learned as you talk), and
+  `[spoke quickly]`/`[spoke slowly]`.
+- **Remembered as heard.** Each spoken exchange is stored with a spoken flag, so later recall says "you
+  heard them say aloud" instead of "they wrote".
+- **Fail loud.** No microphone, a microphone Windows blocks, a microphone that sends pure silence, or a
+  missing speech recognizer turns listening off with a message saying why. Aquila never quietly switches
+  back to typing.
+
 ## Fail loud
 
 If her state can't be read (file missing, damaged, belongs to another persona, a drive missing or impossible,

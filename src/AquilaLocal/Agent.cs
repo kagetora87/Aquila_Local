@@ -158,7 +158,11 @@ public sealed class Agent(Engine engine, MemoryStore? memories = null, SemanticM
 		{
 			contextParts.Add("Current date (UTC): " + DateTime.UtcNow.ToString("yyyy-MM-dd"));
 		}
-		if (persona && CompanionTurn != null && CompanionTurn.RecalledText.Length > 0)
+		if (turn.Spoken)
+		{
+			contextParts.Add("They said this message aloud; it reached you as a transcript. Bracketed notes such as [paused 1.8s], [restarted], [trailed off] or [spoke quietly] describe how they said it, measured from their voice. Respond to how it was said as well as the words, naturally, without quoting the notes.");
+		}
+				if (persona && CompanionTurn != null && CompanionTurn.RecalledText.Length > 0)
 		{
 			contextParts.Add(CompanionTurn.RecalledText);
 		}

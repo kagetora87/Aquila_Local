@@ -67,6 +67,8 @@ public class Settings
 
 	public VoiceOptions Voice { get; set; } = new VoiceOptions();
 
+	public ListeningOptions Listening { get; set; } = new ListeningOptions();
+
 	public bool AvatarEnabled { get; set; }
 
 	public string WebMode { get; set; } = "Off";
