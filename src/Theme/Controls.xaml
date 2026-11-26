@@ -192,8 +192,36 @@
 
   <Style x:Key="Btn.Chip" TargetType="{x:Type Button}" BasedOn="{StaticResource Btn.Secondary}">
     <Setter Property="local:Ui.Radius" Value="999" />
+    <Setter Property="BorderBrush" Value="{StaticResource Stroke.Default}" />
+    <Setter Property="BorderThickness" Value="1" />
     <Setter Property="FontWeight" Value="Normal" />
     <Setter Property="Padding" Value="16,0" />
+  </Style>
+
+  <!-- A text link: accent, no chrome, underline on hover. -->
+  <Style x:Key="Btn.Link" TargetType="{x:Type Button}">
+    <Setter Property="Foreground" Value="{StaticResource Accent}" />
+    <Setter Property="FontFamily" Value="{StaticResource Font.UI}" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="FontWeight" Value="Medium" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="FocusVisualStyle" Value="{StaticResource Focus.Ring}" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="{x:Type Button}">
+          <TextBlock x:Name="LinkText" Text="{TemplateBinding Content}" Background="Transparent" />
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="LinkText" Property="TextDecorations" Value="Underline" />
+              <Setter Property="Foreground" Value="{StaticResource Accent.Hover}" />
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+              <Setter Property="Foreground" Value="{StaticResource Text.Disabled}" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
   </Style>
 
   <Style x:Key="Btn.HeaderChip" TargetType="{x:Type Button}" BasedOn="{StaticResource Btn.Base}">
@@ -240,7 +268,7 @@
             <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8" />
             <Border x:Name="FocusGlow" Margin="-1" BorderThickness="2" BorderBrush="{StaticResource Accent}" CornerRadius="9" Opacity="0" IsHitTestVisible="False" />
             <TextBlock x:Name="Hint" Text="{TemplateBinding local:Ui.Placeholder}" Foreground="{StaticResource Text.Tertiary}" Margin="{TemplateBinding Padding}" Padding="2,0,0,0" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" IsHitTestVisible="False" Visibility="Collapsed" TextTrimming="CharacterEllipsis" />
-            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" Focusable="False" />
+            <ScrollViewer x:Name="PART_ContentHost" Margin="0" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" Focusable="False" />
           </Grid>
           <ControlTemplate.Triggers>
             <Trigger Property="Text" Value="">
@@ -281,7 +309,7 @@
         <ControlTemplate TargetType="{x:Type TextBox}">
           <Grid Background="Transparent">
             <TextBlock x:Name="Hint" Text="{TemplateBinding local:Ui.Placeholder}" Foreground="{StaticResource Text.Tertiary}" Margin="{TemplateBinding Padding}" Padding="2,0,0,0" IsHitTestVisible="False" Visibility="Collapsed" />
-            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" Focusable="False" />
+            <ScrollViewer x:Name="PART_ContentHost" Margin="0" Focusable="False" />
           </Grid>
           <ControlTemplate.Triggers>
             <Trigger Property="Text" Value="">
@@ -325,7 +353,7 @@
             <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8" />
             <Border x:Name="FocusGlow" Margin="-1" BorderThickness="2" BorderBrush="{StaticResource Accent}" CornerRadius="9" Opacity="0" IsHitTestVisible="False" />
             <TextBlock x:Name="Hint" Text="{TemplateBinding local:Ui.Placeholder}" Foreground="{StaticResource Text.Tertiary}" Margin="{TemplateBinding Padding}" Padding="2,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False" Visibility="Collapsed" />
-            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" VerticalAlignment="Center" Focusable="False" />
+            <ScrollViewer x:Name="PART_ContentHost" Margin="0" VerticalAlignment="Center" Focusable="False" />
           </Grid>
           <ControlTemplate.Triggers>
             <Trigger Property="local:Ui.IsEmpty" Value="True">

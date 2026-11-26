@@ -59,7 +59,7 @@ public sealed class MessageView : Border
 	{
 		user = role == "You";
 		base.Background = Brushes.Transparent;
-		base.Margin = new Thickness(0.0, 0.0, 0.0, user ? 20.0 : 28.0);
+		base.Margin = new Thickness(0.0, 0.0, 0.0, user ? 24.0 : 28.0);
 		copyButton = Ui.IconButton(Ui.Glyph.Copy, "Copy message", delegate
 		{
 			CopyAll();
@@ -85,13 +85,20 @@ public sealed class MessageView : Border
 				Padding = new Thickness(14.0, 10.0, 14.0, 10.0),
 				Child = bodyHost
 			};
+			// The copy button sits beside the bubble on hover, so it reserves no space below it.
 			actions.HorizontalAlignment = HorizontalAlignment.Right;
-			actions.Margin = new Thickness(0.0, 4.0, -6.0, 0.0);
+			actions.VerticalAlignment = VerticalAlignment.Bottom;
+			actions.Margin = new Thickness(0.0, 0.0, 6.0, 0.0);
 			actions.Opacity = 0.0;
-			StackPanel stackPanel = new StackPanel();
-			stackPanel.Children.Add(border);
-			stackPanel.Children.Add(actions);
-			base.Child = stackPanel;
+			DockPanel dock = new DockPanel
+			{
+				HorizontalAlignment = HorizontalAlignment.Right,
+				LastChildFill = true
+			};
+			DockPanel.SetDock(actions, Dock.Left);
+			dock.Children.Add(actions);
+			dock.Children.Add(border);
+			base.Child = dock;
 		}
 		else
 		{
@@ -240,6 +247,8 @@ public sealed class MessageView : Border
 			Foreground = Ui.Brush("Text.Primary"),
 			BorderThickness = new Thickness(0.0),
 			Padding = new Thickness(0.0),
+			// The text view keeps a small caret gutter; pull it back so text lines up with the mark and code blocks.
+			Margin = new Thickness(-3.0, 0.0, 0.0, 0.0),
 			FontFamily = Ui.FontUI,
 			FontSize = 15.0,
 			SelectionBrush = Ui.Brush("Selection"),
@@ -355,7 +364,7 @@ public sealed class MessageView : Border
 		{
 			List<string> list = logs.ToList();
 			activity.Text = string.Join("\n\n", list);
-			bool flag = ShowTechnicalDetails || list.Any((string l) => !l.StartsWith("Memory:") && !l.StartsWith("Recalled memory") && !l.StartsWith("Learned") && l.Trim().Length > 0);
+			bool flag = ShowTechnicalDetails || list.Any((string l) => l.Trim().Length > 0 && !Housekeeping(l));
 			activityExpander.Visibility = ((activity.Text.Length <= 0 || !flag) ? Visibility.Collapsed : Visibility.Visible);
 		}
 		bool flag2 = generating && content.Length == 0 && reasoning.Length == 0;
@@ -378,6 +387,13 @@ public sealed class MessageView : Border
 		{
 			meta.Text = ((status.Length > 0) ? ("  ·  " + status) : "");
 		}
+	}
+
+	/// <summary>Routine notes (memory, context trimming) that are not worth a "Details" line on their own.</summary>
+	private static bool Housekeeping(string line)
+	{
+		string[] prefixes = new string[8] { "Memory", "Recalled memory", "Learned", "Using compacted context", "Omitted", "Generation stopped", "Response reached its token limit", "Error:" };
+		return prefixes.Any((string p) => line.StartsWith(p, StringComparison.Ordinal));
 	}
 
 	/// <summary>Meta colour and the full technical line as a tooltip.</summary>
@@ -434,7 +450,7 @@ public sealed class MessageView : Border
 				richTextBox.Tag = segment.Source;
 				richTextBox.Document = MarkdownRenderer.Prose(segment.Source);
 			}
-			richTextBox.Margin = new Thickness(0.0, 0.0, 0.0, (i < list.Count - 1) ? 12.0 : 0.0);
+			richTextBox.Margin = new Thickness(-3.0, 0.0, 0.0, (i < list.Count - 1) ? 12.0 : 0.0);
 		}
 		while (bodyHost.Children.Count > i)
 		{

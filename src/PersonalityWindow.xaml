@@ -5,18 +5,20 @@
       <TextBlock Text="Personalities" Style="{StaticResource Type.Title}" />
       <TextBlock Text="Choose a speaking style, or create your own with instructions and example replies. Profiles are separate from factual memory." Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,9,0,0" />
     </StackPanel>
-    <TextBlock Name="ProfileStatus" DockPanel.Dock="Bottom" Style="{StaticResource Type.Small}" Foreground="{StaticResource Accent}" TextWrapping="Wrap" Margin="0,14,0,0" MinHeight="35" />
+    <TextBlock Name="ProfileStatus" DockPanel.Dock="Bottom" Style="{StaticResource Type.Small}" TextWrapping="Wrap" Margin="0,12,0,0" MinHeight="20" />
     <Grid>
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="245" />
         <ColumnDefinition Width="*" />
       </Grid.ColumnDefinitions>
       <DockPanel Margin="0,0,20,0">
-        <StackPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
-          <Button Content="New personality" Style="{StaticResource Btn.Secondary}" HorizontalAlignment="Stretch" Margin="0,0,0,8" Click="New_Click" />
-          <Button Content="Duplicate" Style="{StaticResource Btn.Ghost}" HorizontalAlignment="Stretch" Click="Duplicate_Click" />
-        </StackPanel>
-        <ListBox Name="ProfileList" AutomationProperties.Name="Personality profiles" DisplayMemberPath="Name" SelectionChanged="Selection_Changed" />
+        <UniformGrid DockPanel.Dock="Bottom" Columns="2" Margin="0,12,0,0">
+          <Button Content="New" Margin="0,0,4,0" Click="New_Click" />
+          <Button Content="Duplicate" Margin="4,0,0,0" Click="Duplicate_Click" />
+        </UniformGrid>
+        <Border Style="{StaticResource Card}" Padding="4">
+          <ListBox Name="ProfileList" AutomationProperties.Name="Personality profiles" DisplayMemberPath="Name" SelectionChanged="Selection_Changed" />
+        </Border>
       </DockPanel>
       <DockPanel Grid.Column="1">
         <WrapPanel DockPanel.Dock="Bottom" Margin="0,16,0,0" HorizontalAlignment="Right">
@@ -32,8 +34,8 @@
             <TextBox Name="ProfileStyleBox" AutomationProperties.Name="Profile style" Height="160" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MaxLength="6000" />
             <TextBlock Text="Example replies (optional)" Style="{StaticResource Label}" />
             <TextBox Name="ProfileExamplesBox" AutomationProperties.Name="Profile examples" Height="150" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MaxLength="6000" />
-            <CheckBox Name="ProfileLearningCheck" Content="Allow automatic memory learning with this profile" Margin="0,16,0,0" />
-            <TextBlock Text="Creative storyteller starts with learning paused to keep story details out of factual memory. Existing global instructions still apply. Changes affect future messages." Foreground="{StaticResource Muted}" TextWrapping="Wrap" FontSize="12" Margin="0,8,0,16" />
+            <CheckBox Name="ProfileLearningCheck" Style="{StaticResource Switch}" Content="Learn memories while using this personality" Margin="0,20,0,0" />
+            <TextBlock Text="Creative storyteller starts with learning paused to keep story details out of factual memory. Existing global instructions still apply. Changes affect future messages." Style="{StaticResource Type.Small}" TextWrapping="Wrap" Margin="0,8,0,16" />
           </StackPanel>
         </ScrollViewer>
       </DockPanel>

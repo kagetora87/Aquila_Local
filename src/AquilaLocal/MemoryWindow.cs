@@ -43,12 +43,12 @@ public sealed class MemoryWindow : AquilaWindow
 
 	private readonly CheckBox all = new CheckBox
 	{
-		Content = "Show other projects"
+		Content = "Other projects"
 	};
 
 	private readonly CheckBox history = new CheckBox
 	{
-		Content = "Show history / forgotten"
+		Content = "Forgotten"
 	};
 
 	private readonly TextBlock status = new TextBlock
@@ -61,6 +61,13 @@ public sealed class MemoryWindow : AquilaWindow
 	{
 		TextWrapping = TextWrapping.Wrap,
 		Foreground = Ui.Brush("Text.Secondary")
+	};
+
+	private readonly StackPanel emptyState = new StackPanel
+	{
+		VerticalAlignment = VerticalAlignment.Center,
+		HorizontalAlignment = HorizontalAlignment.Center,
+		IsHitTestVisible = false
 	};
 
 	private MemoryEntry? selected;
@@ -80,24 +87,24 @@ public sealed class MemoryWindow : AquilaWindow
 		base.MinHeight = 640.0;
 		base.WindowStartupLocation = WindowStartupLocation.CenterOwner;
 		base.Height = Math.Min(base.Height, SystemParameters.WorkArea.Height - 30.0);
-		DockPanel dockPanel = (DockPanel)(base.Content = new DockPanel
+		DockPanel dockPanel = (DockPanel)(base.Content = new DockPanel());
+		StackPanel stackPanel = new StackPanel
 		{
-			Margin = new Thickness(22.0)
-		});
-		StackPanel stackPanel = new StackPanel();
+			Margin = new Thickness(24.0, 20.0, 24.0, 12.0)
+		};
 		DockPanel.SetDock(stackPanel, Dock.Top);
 		dockPanel.Children.Add(stackPanel);
 		stackPanel.Children.Add(new TextBlock
 		{
 			Text = "Memories",
 			Style = Ui.Style("Type.Title"),
-			Margin = new Thickness(0.0, 0.0, 0.0, 8.0)
+			Margin = new Thickness(0.0, 0.0, 0.0, 6.0)
 		});
 		stackPanel.Children.Add(new TextBlock
 		{
-			Text = "Personal memories follow you across chats. Project memories are recalled only in the same folder. Pinned entries need your approval before a correction replaces them.",
+			Text = "Things Aquila has learned about you. Personal memories apply to every chat; project memories only to the folder they came from.",
 			TextWrapping = TextWrapping.Wrap,
-			Foreground = Ui.Brush("Text.Secondary")
+			Style = Ui.Style("Type.Small")
 		});
 		StackPanel stackPanel2 = new StackPanel
 		{
@@ -105,35 +112,27 @@ public sealed class MemoryWindow : AquilaWindow
 			Margin = new Thickness(0.0, 14.0, 0.0, 12.0)
 		};
 		stackPanel.Children.Add(stackPanel2);
-		stackPanel2.Children.Add(new TextBlock
-		{
-			Text = "Search",
-			VerticalAlignment = VerticalAlignment.Center,
-			Margin = new Thickness(0.0, 0.0, 10.0, 0.0)
-		});
-		search.Width = 270.0;
-		search.Margin = new Thickness(0.0, 0.0, 16.0, 0.0);
+		search.Width = 340.0;
+		search.Margin = new Thickness(0.0, 0.0, 20.0, 0.0);
+		Ui.SetPlaceholder(search, "Search memories");
+		all.Margin = new Thickness(0.0, 0.0, 20.0, 0.0);
+		all.VerticalAlignment = VerticalAlignment.Center;
+		history.VerticalAlignment = VerticalAlignment.Center;
 		SetAccessibleName(search, "Search memories");
 		stackPanel2.Children.Add(search);
 		stackPanel2.Children.Add(all);
 		stackPanel2.Children.Add(history);
-		StackPanel stackPanel3 = new StackPanel
+		Button closeButton = Ui.Button("Close", "Btn.Secondary", delegate
 		{
-			Margin = new Thickness(0.0, 12.0, 0.0, 0.0)
-		};
-		DockPanel.SetDock(stackPanel3, Dock.Bottom);
-		dockPanel.Children.Add(stackPanel3);
-		stackPanel3.Children.Add(status);
-		stackPanel3.Children.Add(new TextBlock
-		{
-			Text = "Forget clears this topic's saved values and quotes, including history, and blocks automatic relearning of that topic. Original conversations and backups remain. Topic names are retained for the block.",
-			TextWrapping = TextWrapping.Wrap,
-			Foreground = Ui.Brush("Text.Secondary"),
-			FontSize = 12.0,
-			Margin = new Thickness(0.0, 9.0, 0.0, 0.0)
+			memoryWindow.Close();
 		});
+		closeButton.IsCancel = true;
+		Border footer = Ui.Footer(status, closeButton);
+		DockPanel.SetDock(footer, Dock.Bottom);
+		dockPanel.Children.Add(footer);
 		Grid grid = new Grid
 		{
+			Margin = new Thickness(24.0, 4.0, 24.0, 20.0),
 			ColumnDefinitions = 
 			{
 				new ColumnDefinition
@@ -147,16 +146,31 @@ public sealed class MemoryWindow : AquilaWindow
 			}
 		};
 		dockPanel.Children.Add(grid);
-		entries.Margin = new Thickness(0.0, 0.0, 18.0, 0.0);
 		SetAccessibleName(entries, "Memory entries");
-		grid.Children.Add(entries);
+		emptyState.Children.Add(Ui.Icon("\uE8F1", 28.0, "Text.Tertiary"));
+		TextBlock emptyTitle = Ui.Text("Nothing remembered yet", "Type.BodyStrong");
+		emptyTitle.Margin = new Thickness(0.0, 10.0, 0.0, 4.0);
+		emptyTitle.HorizontalAlignment = HorizontalAlignment.Center;
+		emptyState.Children.Add(emptyTitle);
+		TextBlock emptyHint = Ui.Text("Aquila adds memories as you chat, or you can add one yourself.", "Type.Small");
+		emptyHint.TextAlignment = TextAlignment.Center;
+		emptyHint.MaxWidth = 260.0;
+		emptyState.Children.Add(emptyHint);
+		Grid listHost = new Grid();
+		listHost.Children.Add(entries);
+		listHost.Children.Add(emptyState);
+		Border listCard = Ui.Card(listHost, 4.0);
+		listCard.Margin = new Thickness(0.0, 0.0, 16.0, 0.0);
+		grid.Children.Add(listCard);
 		ScrollViewer scrollViewer = new ScrollViewer
 		{
 			VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
 			HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
 		};
-		Grid.SetColumn(scrollViewer, 1);
-		grid.Children.Add(scrollViewer);
+		Border detailCard = Ui.Card(scrollViewer, 0.0);
+		scrollViewer.Padding = new Thickness(16.0, 12.0, 8.0, 16.0);
+		Grid.SetColumn(detailCard, 1);
+		grid.Children.Add(detailCard);
 		StackPanel stackPanel4 = (StackPanel)(scrollViewer.Content = new StackPanel());
 		WrapPanel wrapPanel = new WrapPanel();
 		stackPanel4.Children.Add(wrapPanel);
@@ -165,8 +179,10 @@ public sealed class MemoryWindow : AquilaWindow
 			memoryWindow.entries.SelectedItem = null;
 			memoryWindow.Edit(null);
 		});
-		Button(wrapPanel, "Save / approve", Save);
-		Button(wrapPanel, "Forget topic", Forget);
+		Button(wrapPanel, "Save", Save).Style = Ui.Style("Btn.Primary");
+		Button forgetButton = Button(wrapPanel, "Forget…", Forget);
+		forgetButton.Style = Ui.Style("Btn.DangerGhost");
+		forgetButton.ToolTip = "Clears this topic's saved values and quotes, including history, and stops Aquila relearning it automatically. Your original conversations are kept.";
 		Label(stackPanel4, "TOPIC");
 		stackPanel4.Children.Add(topic);
 		SetAccessibleName(topic, "Memory topic");
@@ -185,6 +201,7 @@ public sealed class MemoryWindow : AquilaWindow
 		SetAccessibleName(scope, "Memory scope");
 		Label(stackPanel4, "KIND");
 		kind.ItemsSource = MemoryStore.Kinds;
+		kind.ItemTemplate = SentenceCaseTemplate();
 		stackPanel4.Children.Add(kind);
 		SetAccessibleName(kind, "Memory kind");
 		stackPanel4.Children.Add(pinned);
@@ -248,6 +265,34 @@ public sealed class MemoryWindow : AquilaWindow
 		Edit(null);
 	}
 
+	/// <summary>Shows lower-case values such as "fact" as "Fact" without changing the stored value.</summary>
+	private static DataTemplate SentenceCaseTemplate()
+	{
+		FrameworkElementFactory text = new FrameworkElementFactory(typeof(TextBlock));
+		text.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding
+		{
+			Converter = new SentenceCase()
+		});
+		return new DataTemplate
+		{
+			VisualTree = text
+		};
+	}
+
+	private sealed class SentenceCase : System.Windows.Data.IValueConverter
+	{
+		public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+		{
+			string text = value?.ToString() ?? "";
+			return (text.Length == 0) ? text : (char.ToUpperInvariant(text[0]) + text.Substring(1));
+		}
+
+		public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+		{
+			return System.Windows.Data.Binding.DoNothing;
+		}
+	}
+
 	private static void SetAccessibleName(DependencyObject control, string name)
 	{
 		AutomationProperties.SetName(control, name);
@@ -258,13 +303,12 @@ public sealed class MemoryWindow : AquilaWindow
 		panel.Children.Add(Ui.Section(text));
 	}
 
-	private void Button(Panel panel, string text, Action action)
+	private Button Button(Panel panel, string text, Action action)
 	{
 		Button button = new Button
 		{
 			Content = text,
-			Margin = new Thickness(0.0, 0.0, 8.0, 7.0),
-			Padding = new Thickness(10.0, 7.0, 10.0, 7.0)
+			Margin = new Thickness(0.0, 0.0, 8.0, 8.0)
 		};
 		panel.Children.Add(button);
 		button.Click += delegate
@@ -278,6 +322,7 @@ public sealed class MemoryWindow : AquilaWindow
 				status.Text = ex.Message;
 			}
 		};
+		return button;
 	}
 
 	private void Refresh(string? selectId = null)
@@ -314,7 +359,8 @@ public sealed class MemoryWindow : AquilaWindow
 			{
 				Edit(null);
 			}
-			status.Text = $"{list.Count} entries shown · " + (store.RecoveryNotice ?? "Learning and recall controls are in the main Settings panel.");
+			emptyState.Visibility = (list.Count == 0) ? Visibility.Visible : Visibility.Collapsed;
+			status.Text = ((list.Count == 1) ? "1 memory" : $"{list.Count} memories") + ((store.RecoveryNotice != null) ? (" · " + store.RecoveryNotice) : "");
 		}
 		catch (Exception ex)
 		{

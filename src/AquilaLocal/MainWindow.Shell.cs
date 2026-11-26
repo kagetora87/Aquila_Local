@@ -34,8 +34,39 @@ public partial class MainWindow
 		{
 			MoreMenu.IsOpen = false;
 		}), handledEventsToo: true);
+		base.SizeChanged += delegate
+		{
+			FitSidebar();
+		};
 		RefreshShell();
 		UpdateSendEnabled();
+	}
+
+	/// <summary>On short windows the avatar shrinks so the chat list keeps room for several rows.</summary>
+	private void FitSidebar()
+	{
+		double height = base.ActualHeight;
+		AvatarSlot.Height = (height < 720.0) ? 96.0 : ((height < 800.0) ? 120.0 : 184.0);
+	}
+
+	/// <summary>"Qwen3.8-27B-Turbo-…-IQ4_XS" becomes "Qwen3.8-27B": the name up to the size.</summary>
+	private static string ShortModelName(string name)
+	{
+		string[] parts = name.Split('-', '_', ' ');
+		string result = "";
+		foreach (string part in parts)
+		{
+			result = (result.Length == 0) ? part : (result + "-" + part);
+			if (System.Text.RegularExpressions.Regex.IsMatch(part, "^[0-9.]+[BbMm]$"))
+			{
+				break;
+			}
+		}
+		if (result.Length > 18)
+		{
+			result = result.Substring(0, 17).TrimEnd('-', '.') + "…";
+		}
+		return result;
 	}
 
 	private void ApplyUiSoundSettings()
@@ -53,6 +84,12 @@ public partial class MainWindow
 		bool empty = current == null || current.Turns.Count == 0;
 		string state = $"{ready}|{hasModel}|{model}|{empty}|{busy}|{settings.WebMode}";
 		string dot = busy ? "busy" : (ready ? "ready" : "off");
+		bool speaking = speech.Active;
+		if (VoiceStopButton.IsEnabled != speaking)
+		{
+			VoiceStopButton.IsEnabled = speaking;
+		}
+		MetricsText.Visibility = (MetricsText.Text.Length == 0) ? Visibility.Collapsed : Visibility.Visible;
 		if (dot != dotState)
 		{
 			dotState = dot;
@@ -68,7 +105,7 @@ public partial class MainWindow
 			return;
 		}
 		shellState = state;
-		ModelChipText.Text = (model.Length == 0) ? "Choose a model" : model;
+		ModelChipText.Text = (model.Length == 0) ? "Choose a model" : ShortModelName(model);
 		ModelChip.ToolTip = (model.Length == 0) ? "Choose the model Aquila uses" : (settings.ModelPath + "\nClick to change model settings.");
 		WebChip.Visibility = (settings.WebMode == "Off") ? Visibility.Collapsed : Visibility.Visible;
 		WebChipText.Text = (settings.WebMode == "Automatic") ? "Web: on" : "Web: ask first";
@@ -85,13 +122,13 @@ public partial class MainWindow
 		{
 			WelcomeLoadButton.Content = "Starting…";
 			WelcomeLoadButton.IsEnabled = false;
-			WelcomeLoadHint.Text = "Loading " + model + ". This can take a minute.";
+			WelcomeLoadHint.Text = "Starting up. This can take a minute.";
 		}
 		else
 		{
 			WelcomeLoadButton.Content = "Start Aquila";
 			WelcomeLoadButton.IsEnabled = true;
-			WelcomeLoadHint.Text = "Loads " + model + ". This can take a minute the first time.";
+			WelcomeLoadHint.Text = "This can take a minute the first time.";
 		}
 	}
 
@@ -284,7 +321,7 @@ public partial class MainWindow
 	{
 		if (ComposerFocus != null)
 		{
-			Motion.Animate(ComposerFocus, UIElement.OpacityProperty, (composerHighlight || Composer.IsKeyboardFocusWithin) ? 1.0 : 0.0, Motion.Fast, Motion.EaseOut);
+			Motion.Animate(ComposerFocus, UIElement.OpacityProperty, (composerHighlight || Composer.IsKeyboardFocusWithin) ? 0.6 : 0.0, Motion.Fast, Motion.EaseOut);
 		}
 	}
 

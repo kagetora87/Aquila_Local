@@ -12,9 +12,8 @@ public sealed class InternetWindow : AquilaWindow
 		InternetWindow window = this;
 		base.Title = "Aquila · Internet";
 		base.Width = 600.0;
-		base.Height = 680.0;
-		base.MinWidth = 480.0;
-		base.MinHeight = 480.0;
+		base.SizeToContent = SizeToContent.Height;
+		base.ResizeMode = ResizeMode.NoResize;
 		base.WindowStartupLocation = WindowStartupLocation.CenterOwner;
 		StackPanel body = new StackPanel();
 		string[] modes = new string[3] { "Off", "Ask first", "Automatic" };
@@ -68,10 +67,10 @@ public sealed class InternetWindow : AquilaWindow
 		};
 		body.Children.Add(expander);
 		TextBlock privacy = Ui.Text("Searches go to Brave and page requests go to the websites themselves. Your conversations and the model stay on this computer. The key is encrypted for your Windows account. Pages that need a sign-in or JavaScript can't be read.", "Type.Caption");
-		privacy.Margin = new Thickness(4.0, 16.0, 4.0, 0.0);
+		privacy.Margin = new Thickness(4.0, 16.0, 4.0, 24.0);
 		body.Children.Add(privacy);
 		TextBlock status = new TextBlock();
-		Button cancel = Ui.Button("Cancel", "Btn.Secondary", delegate
+		Button cancel = Ui.Button("Cancel", "Btn.Ghost", delegate
 		{
 			window.Close();
 		});

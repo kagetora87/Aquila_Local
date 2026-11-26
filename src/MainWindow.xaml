@@ -11,8 +11,8 @@
       <DockPanel Margin="12">
         <!-- Brand -->
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Height="40" Margin="4,4,4,12">
-          <Border Width="28" Height="28" CornerRadius="8" Background="{StaticResource Accent}" VerticalAlignment="Center">
-            <TextBlock Text="A" Foreground="{StaticResource Accent.On}" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+          <Border Width="28" Height="28" CornerRadius="8" Background="{StaticResource Accent.Subtle}" VerticalAlignment="Center">
+            <TextBlock Text="A" Foreground="{StaticResource Accent}" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
           </Border>
           <TextBlock Text="Aquila" Style="{StaticResource Type.Subtitle}" Margin="10,0,0,0" VerticalAlignment="Center" />
         </StackPanel>
@@ -94,7 +94,7 @@
                   <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <StackPanel VerticalAlignment="Center">
-                  <TextBlock TextTrimming="CharacterEllipsis" FontSize="14" FontWeight="Medium" Text="{Binding Title}" />
+                  <TextBlock x:Name="RowTitle" TextTrimming="CharacterEllipsis" FontSize="14" FontWeight="Medium" Foreground="{StaticResource Text.Secondary}" Text="{Binding Title}" />
                   <TextBlock Style="{StaticResource Type.Caption}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" Text="{Binding Subtitle}" />
                 </StackPanel>
                 <Button x:Name="RowDelete" Grid.Column="1" Style="{StaticResource Btn.IconDanger}" Width="28" Height="28" FontSize="13" Content="&#xE74D;" ToolTip="Delete chat" Visibility="Hidden" Command="{x:Static local:MainWindow.DeleteChatCommand}" CommandParameter="{Binding}" />
@@ -102,6 +102,10 @@
               <DataTemplate.Triggers>
                 <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType={x:Type ListBoxItem}}}" Value="True">
                   <Setter TargetName="RowDelete" Property="Visibility" Value="Visible" />
+                  <Setter TargetName="RowTitle" Property="Foreground" Value="{StaticResource Text.Primary}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType={x:Type ListBoxItem}}}" Value="True">
+                  <Setter TargetName="RowTitle" Property="Foreground" Value="{StaticResource Text.Primary}" />
                 </DataTrigger>
               </DataTemplate.Triggers>
             </DataTemplate>
@@ -190,7 +194,7 @@
       <ScrollViewer Name="ChatScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="24,24,14,8" ScrollChanged="Chat_ScrollChanged">
         <Grid>
           <StackPanel Name="Messages" MaxWidth="820" HorizontalAlignment="Stretch" />
-          <StackPanel Name="Welcome" VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="520" Margin="0,48,0,40">
+          <StackPanel Name="Welcome" VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="640" Margin="0,48,0,40">
             <Border Width="56" Height="56" CornerRadius="16" Background="{StaticResource Accent.Subtle}" HorizontalAlignment="Center">
               <TextBlock Text="A" Foreground="{StaticResource Accent}" FontSize="28" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
             </Border>
@@ -274,14 +278,14 @@
           <Button Name="SaveSettingsButton" Style="{StaticResource Btn.Primary}" HorizontalAlignment="Stretch" Content="Save settings" Click="SaveSettings_Click" />
         </Border>
         <ScrollViewer Name="DrawerScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-          <StackPanel Name="SetupControls" Margin="20,16,20,24">
+          <StackPanel Name="SetupControls" Margin="20,16,10,24">
 
             <!-- ======== General ======== -->
             <StackPanel Name="GeneralPanel">
               <TextBlock Text="Personality" Style="{StaticResource Type.Label}" Margin="0,8,0,8" />
               <ComboBox Name="PersonalityCombo" AutomationProperties.Name="Active personality" DisplayMemberPath="Name" SelectionChanged="Personality_Changed" />
               <TextBlock Name="PersonalitySummary" Style="{StaticResource Type.Small}" Margin="0,8,0,0" />
-              <Button Content="Manage personalities…" Style="{StaticResource Btn.Ghost}" HorizontalAlignment="Right" Margin="0,4,-14,0" Click="Personalities_Click" />
+              <Button Content="Manage personalities…" Style="{StaticResource Btn.Link}" HorizontalAlignment="Left" Margin="0,8,0,0" Click="Personalities_Click" />
 
               <TextBlock Text="Things to always remember" Style="{StaticResource Type.Label}" />
               <TextBox Name="MemoryBox" AutomationProperties.Name="Persistent memory" local:Ui.Placeholder="For example: my name is Sam, I prefer metric units." AcceptsReturn="True" TextWrapping="Wrap" Height="96" VerticalScrollBarVisibility="Auto" MaxLength="16000" />
@@ -291,7 +295,7 @@
               <TextBlock Text="Aquila can pick up facts as you chat. You can review and delete them at any time." Style="{StaticResource Type.Small}" Margin="0,0,0,4" />
               <CheckBox Name="LearnMemoryCheck" Style="{StaticResource Switch}" Content="Learn from our conversations" />
               <CheckBox Name="UseMemoryCheck" Style="{StaticResource Switch}" Content="Use what you remember" />
-              <Button Content="Review memories…" Style="{StaticResource Btn.Ghost}" HorizontalAlignment="Right" Margin="0,4,-14,0" Click="Memories_Click" />
+              <Button Content="Review memories…" Style="{StaticResource Btn.Link}" HorizontalAlignment="Left" Margin="0,8,0,0" Click="Memories_Click" />
 
               <TextBlock Text="Your files" Style="{StaticResource Type.Label}" />
               <TextBlock Text="Aquila only looks inside the folder you choose." Style="{StaticResource Type.Small}" Margin="0,0,0,8" />
@@ -332,10 +336,10 @@
                   <ColumnDefinition Width="8" />
                   <ColumnDefinition />
                 </Grid.ColumnDefinitions>
-                <Button Name="LoadButton" Style="{StaticResource Btn.Primary}" Content="Load model" Click="Load_Click" />
+                <Button Name="LoadButton" Style="{StaticResource Btn.Secondary}" Content="Load model" Click="Load_Click" />
                 <Button Name="UnloadButton" Grid.Column="2" Content="Unload" Click="Unload_Click" />
               </Grid>
-              <Button Content="Add a model file…" Style="{StaticResource Btn.Ghost}" HorizontalAlignment="Left" Margin="-14,4,0,0" ToolTip="Choose a .gguf model file from your computer." Click="Model_Click" />
+              <Button Content="Add a model file…" Style="{StaticResource Btn.Link}" HorizontalAlignment="Left" Margin="0,8,0,0" ToolTip="Choose a .gguf model file from your computer." Click="Model_Click" />
 
               <TextBlock Text="Speed" Style="{StaticResource Type.Label}" />
               <ComboBox Name="ProfileCombo" AutomationProperties.Name="Inference profile" SelectedValuePath="Tag" SelectionChanged="Profile_Changed">
@@ -360,7 +364,7 @@
                   <Border Name="MemoryEstimateLine" Width="2" Background="{StaticResource ContextAdvisoryInk}" />
                 </Border>
               </Canvas>
-              <TextBlock Name="ContextThresholds" Text="Reading model details…" FontSize="13" LineHeight="18" Foreground="{StaticResource ContextTargetInk}" TextWrapping="Wrap" />
+              <TextBlock Name="ContextThresholds" Text="Reading model details…" Style="{StaticResource Type.Small}" TextWrapping="Wrap" />
               <TextBlock Name="ContextRisk" Style="{StaticResource Type.Small}" Margin="0,6,0,0" />
 
               <TextBlock Text="Graphics card activity" Style="{StaticResource Type.Label}" />
@@ -425,7 +429,7 @@
                     <TextBox Name="ThinkingBudgetBox" DockPanel.Dock="Right" Width="120" AutomationProperties.Name="Thinking budget" TextChanged="Reasoning_Changed" />
                     <TextBlock Text="Thinking budget (tokens)" VerticalAlignment="Center" />
                   </DockPanel>
-                  <TextBlock Name="ThinkingSummary" Style="{StaticResource Type.Small}" Foreground="{StaticResource Accent}" Margin="0,8,0,0" />
+                  <TextBlock Name="ThinkingSummary" Style="{StaticResource Type.Small}" Margin="0,8,0,0" />
                   <TextBlock Text="Thinking shares the reply limit. Part of it is reserved for the final answer. More thinking takes longer and does not always help." Style="{StaticResource Type.Small}" Margin="0,6,0,0" />
                 </StackPanel>
               </Expander>

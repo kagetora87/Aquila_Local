@@ -41,7 +41,7 @@ public sealed class AnimationsWindow : AquilaWindow
 	private readonly TextBlock status = new TextBlock
 	{
 		TextWrapping = TextWrapping.Wrap,
-		Foreground = Accent,
+		Foreground = Ui.Brush("Text.Secondary"),
 		Margin = new Thickness(0.0, 8.0, 0.0, 0.0)
 	};
 
@@ -109,7 +109,9 @@ public sealed class AnimationsWindow : AquilaWindow
 		{
 			Margin = new Thickness(0.0, 12.0, 0.0, 0.0)
 		};
-		wrapPanel.Children.Add(Button("New animation…", NewAnimation));
+		Button newButton = Button("New animation…", NewAnimation);
+		newButton.Style = Ui.Style("Btn.Primary");
+		wrapPanel.Children.Add(newButton);
 		wrapPanel.Children.Add(Button("Import folder…", ImportFolder));
 		wrapPanel.Children.Add(Button("Open folder", delegate
 		{
@@ -229,7 +231,7 @@ public sealed class AnimationsWindow : AquilaWindow
 		};
 		DockPanel.SetDock(stackPanel2, Dock.Right);
 		dockPanel.Children.Add(stackPanel2);
-		stackPanel2.Children.Add(Button("▶ Play", delegate
+		stackPanel2.Children.Add(Button("Play", delegate
 		{
 			preview.Preview(animation.Name);
 		}));
@@ -245,7 +247,8 @@ public sealed class AnimationsWindow : AquilaWindow
 				});
 			}
 		}));
-		stackPanel2.Children.Add(Button("Delete", delegate
+		Button deleteButton;
+		stackPanel2.Children.Add(deleteButton = Button("Delete", delegate
 		{
 			if (AquilaDialog.Confirm(this, "Delete this animation?", "\"" + animation.Name + "\" and its pictures will be removed from the avatar folder.", "Delete", "Cancel", DialogKind.Danger))
 			{
@@ -256,10 +259,11 @@ public sealed class AnimationsWindow : AquilaWindow
 				});
 			}
 		}));
+		deleteButton.Style = Ui.Style("Btn.DangerGhost");
 		TextBox name = new TextBox
 		{
 			Text = animation.Name,
-			FontSize = 15.0,
+			Style = Ui.Style("Text.InlineTitle"),
 			Margin = new Thickness(0.0, 0.0, 12.0, 0.0),
 			ToolTip = "The name in plain words. Press Enter to rename."
 		};
@@ -436,11 +440,11 @@ public sealed class AnimationsWindow : AquilaWindow
 		{
 			Columns = 2
 		};
-		Button button = Button("◀", delegate
+		Button button = Button("\uE76B", delegate
 		{
 			Move(animation, index, -1);
 		});
-		Button button2 = Button("▶", delegate
+		Button button2 = Button("\uE76C", delegate
 		{
 			Move(animation, index, 1);
 		});
@@ -448,6 +452,9 @@ public sealed class AnimationsWindow : AquilaWindow
 		button2.IsEnabled = index < animation.Frames.Count - 1;
 		button.Margin = (button2.Margin = new Thickness(0.0, 3.0, 0.0, 0.0));
 		button.Padding = (button2.Padding = new Thickness(2.0));
+		button.Style = (button2.Style = Ui.Style("Btn.Icon"));
+		button.FontSize = (button2.FontSize = 12.0);
+		button.Width = (button2.Width = double.NaN);
 		button.ToolTip = "Play this picture earlier";
 		button2.ToolTip = "Play this picture later";
 		uniformGrid.Children.Add(button);
@@ -636,14 +643,7 @@ public sealed class AnimationsWindow : AquilaWindow
 
 	private static TextBlock Label(string text)
 	{
-		return new TextBlock
-		{
-			Text = text,
-			FontSize = 12.0,
-			Foreground = Accent,
-			FontWeight = FontWeights.SemiBold,
-			Margin = new Thickness(0.0, 18.0, 0.0, 6.0)
-		};
+		return Ui.Section(text);
 	}
 
 	private static Button Button(string text, Action click)
@@ -651,9 +651,7 @@ public sealed class AnimationsWindow : AquilaWindow
 		Button button = new Button
 		{
 			Content = text,
-			Margin = new Thickness(0.0, 0.0, 6.0, 6.0),
-			Padding = new Thickness(8.0, 4.0, 8.0, 4.0),
-			FontSize = 12.0
+			Margin = new Thickness(0.0, 0.0, 8.0, 8.0)
 		};
 		button.Click += delegate
 		{

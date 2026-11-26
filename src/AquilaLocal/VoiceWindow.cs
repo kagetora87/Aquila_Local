@@ -82,7 +82,8 @@ public sealed class VoiceWindow : AquilaWindow
 
 	private readonly Button remove = new Button
 	{
-		Content = "Delete selected clone",
+		Content = "Delete this voice",
+		Style = Ui.Style("Btn.DangerGhost"),
 		Margin = new Thickness(0.0, 0.0, 8.0, 0.0)
 	};
 
@@ -97,51 +98,53 @@ public sealed class VoiceWindow : AquilaWindow
 		base.MinWidth = 560.0;
 		base.MinHeight = 600.0;
 		base.WindowStartupLocation = WindowStartupLocation.CenterOwner;
-		DockPanel dockPanel = (DockPanel)(base.Content = new DockPanel
+		DockPanel dockPanel = (DockPanel)(base.Content = new DockPanel());
+		StackPanel stackPanel = new StackPanel
 		{
-			Margin = new Thickness(22.0)
-		});
-		StackPanel stackPanel = new StackPanel();
+			Margin = new Thickness(24.0, 20.0, 24.0, 12.0)
+		};
 		DockPanel.SetDock(stackPanel, Dock.Top);
 		dockPanel.Children.Add(stackPanel);
 		stackPanel.Children.Add(new TextBlock
 		{
-			Text = "Voice & delivery",
+			Text = "Voice",
 			Style = Ui.Style("Type.Title")
 		});
 		stackPanel.Children.Add(new TextBlock
 		{
-			Text = "Choose a preset or import a local voice sample for Kitten TTS 2.",
+			Text = "Choose how Aquila sounds when it reads replies aloud.",
 			TextWrapping = TextWrapping.Wrap,
 			Margin = new Thickness(0.0, 10.0, 0.0, 15.0),
 			Foreground = Ui.Brush("Text.Secondary")
 		});
-		StackPanel stackPanel2 = new StackPanel();
-		DockPanel.SetDock(stackPanel2, Dock.Bottom);
-		dockPanel.Children.Add(stackPanel2);
-		WrapPanel wrapPanel = new WrapPanel
-		{
-			Margin = new Thickness(0.0, 15.0, 0.0, 12.0)
-		};
-		stackPanel2.Children.Add(wrapPanel);
-		AddButton(wrapPanel, "Save voice", async delegate
+		WrapPanel wrapPanel = new WrapPanel();
+		Button saveButton = AddButton(wrapPanel, "Save", async delegate
 		{
 			await apply(voiceWindow.Read(), arg2: false);
 			voiceWindow.status.Text = "Voice saved · applies to the next reply";
 		});
-		AddButton(wrapPanel, "Play sample", async delegate
+		Button playButton = AddButton(wrapPanel, "Play sample", async delegate
 		{
 			await apply(voiceWindow.Read(), arg2: true);
 		});
-		AddButton(wrapPanel, "Stop speaking", delegate
+		Button stopButton = AddButton(wrapPanel, "Stop", delegate
 		{
 			speech.Stop();
 			return Task.CompletedTask;
 		});
-		stackPanel2.Children.Add(status);
+		wrapPanel.Children.Clear();
+		saveButton.Style = Ui.Style("Btn.Primary");
+		stopButton.Style = Ui.Style("Btn.Ghost");
+		saveButton.Margin = playButton.Margin = stopButton.Margin = default(Thickness);
+		Border footer = Ui.Footer(status, stopButton, playButton, saveButton);
+		DockPanel.SetDock(footer, Dock.Bottom);
+		dockPanel.Children.Add(footer);
+		enabled.Style = Ui.Style("Switch");
+		keep.Style = Ui.Style("Switch");
 		ScrollViewer scrollViewer = new ScrollViewer
 		{
-			VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+			VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+			Padding = new Thickness(24.0, 0.0, 14.0, 24.0)
 		};
 		dockPanel.Children.Add(scrollViewer);
 		StackPanel stackPanel3 = (StackPanel)(scrollViewer.Content = new StackPanel());
@@ -310,7 +313,7 @@ public sealed class VoiceWindow : AquilaWindow
 		return voiceOptions;
 	}
 
-	private void AddButton(Panel panel, string text, Func<Task> action)
+	private Button AddButton(Panel panel, string text, Func<Task> action)
 	{
 		Button button = new Button
 		{
@@ -329,6 +332,7 @@ public sealed class VoiceWindow : AquilaWindow
 			}
 		};
 		panel.Children.Add(button);
+		return button;
 	}
 
 	private static void Label(Panel p, string text)
