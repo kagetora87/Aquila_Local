@@ -65,7 +65,7 @@ Invalid values are refused and the file is left unchanged (for example, horizon'
 3. **Her context, in this order.** (a) Her pinned long-term memory, in the stable system prompt (capped at
    2,000 tokens). (b) Her drives, put in front of your message as a short block (under 300 tokens): each
    drive, its value and one line of guidance, strongest first. (c) Her appearance card, verbatim, as her own
-   current self-description (under 400 tokens). Then her latest achievements and the current time. She reads
+   current self-description (under 500 tokens; a change that would make it longer is refused up front). Then her latest achievements and the current time. She reads
    it all as the state of her world. Everything comes from her own store only, and assembly takes a few
    milliseconds (a test holds it under 100 ms).
 4. **Her reply.**

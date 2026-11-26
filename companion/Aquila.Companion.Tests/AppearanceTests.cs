@@ -264,3 +264,22 @@ public sealed class AppearanceTests
         Assert.True(best < 100, $"assembly took {best} ms");
     }
 }
+
+public sealed class AppearanceCapTests
+{
+    [Fact]
+    public void A_wardrobe_change_that_would_overflow_the_card_is_refused_up_front()
+    {
+        using var dir = new TempDir();
+        PersonaConfig c = TestPersona.Config();
+        c.Seed.Appearance.Traits.Add(new AppearanceTrait { Name = "history", Text = new string('x', 380) });
+        c.Seed.Appearance.Traits.Add(new AppearanceTrait { Name = "more", Text = new string('y', 380) });
+        PersonaStore store = PersonaStore.Create(dir.File("v.db"), c, TestPersona.T0);
+        CompanionRuntime rt = CompanionRuntime.ForTests(c, store, new FakeEmbedder());
+        string huge = string.Join(" ", Enumerable.Repeat("embroidered", 18));
+
+        Assert.Throws<ArgumentException>(() => rt.ChangeWardrobe(new WardrobeChange(huge, huge, huge, huge), "showing off", MemoryAuthors.Persona, TestPersona.T0));
+        Assert.Single(store.WardrobeHistory());
+        rt.Prepare("still fine?", new HashSet<string>(), false, TestPersona.T0.AddMinutes(1));
+    }
+}

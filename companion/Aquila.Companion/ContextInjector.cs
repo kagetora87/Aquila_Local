@@ -15,7 +15,7 @@ public static class ContextInjector
 
     public const int AchievementsShown = 5;
 
-    public const int MaxAppearanceTokens = 400;
+    public const int MaxAppearanceTokens = 500;
 
     /// <summary>
     /// Assembles everything she is given before a reply, in this order: her pinned state block (in the stable

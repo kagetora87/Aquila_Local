@@ -165,6 +165,13 @@ public sealed partial class PersonaStore
         {
             throw new InvalidOperationException("The identity anchor can be reworded but never removed.");
         }
+        AppearanceCard before = ReadAppearance();
+        var traits = before.Traits.Where(t => t.Name != name).ToList();
+        if (name != AnchorTrait && text.Length > 0)
+        {
+            traits.Add(new TraitEntry(0, at, name, text, author, null, reason, null));
+        }
+        EnsureFits(before with { Traits = traits, IdentityAnchor = name == AnchorTrait ? text : before.IdentityAnchor });
         using SqliteConnection c = Connect();
         using SqliteTransaction tx = c.BeginTransaction();
         long found = Scalar<long>(c, tx, """
@@ -196,6 +203,11 @@ public sealed partial class PersonaStore
         {
             throw new ArgumentException("A wardrobe entry needs an outfit.");
         }
+        if (HasAppearance)
+        {
+            AppearanceCard card = ReadAppearance();
+            EnsureFits(card with { Wardrobe = new WardrobeEntry(0, at, wardrobe, author, reason) });
+        }
         using SqliteConnection c = Connect();
         using SqliteTransaction tx = c.BeginTransaction();
         long id = InsertWardrobe(c, tx, at, wardrobe, author, reason.Trim());
@@ -215,6 +227,19 @@ public sealed partial class PersonaStore
         Exec(c, tx, "INSERT INTO wardrobe_log(persona_id,at,outfit,color,fabric,condition,author,reason) VALUES($p,$t,$o,$c,$f,$k,$a,$r)",
             ("$p", PersonaId), ("$t", Iso(at)), ("$o", Clip(w.Outfit)), ("$c", Clip(w.Color)), ("$f", Clip(w.Fabric)), ("$k", Clip(w.Condition)), ("$a", author), ("$r", reason));
         return Scalar<long>(c, tx, "SELECT last_insert_rowid()");
+    }
+
+    /// <summary>Refuses a change that would make her card too long to give her every turn (instead of failing her next turn).</summary>
+    private static void EnsureFits(AppearanceCard card)
+    {
+        try
+        {
+            ContextInjector.AppearanceBlock(card.PersonaId, card);
+        }
+        catch (AppearanceCardUnavailableException)
+        {
+            throw new ArgumentException($"That would make her appearance card longer than {ContextInjector.MaxAppearanceTokens} tokens. Describe it more briefly.");
+        }
     }
 
     private static string Clip(string? s)
