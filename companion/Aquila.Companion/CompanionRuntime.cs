@@ -67,6 +67,7 @@ public sealed class CompanionRuntime
     /// <param name="sameSession">True when this isn't the first message of the chat.</param>
     public PreparedTurn Prepare(string userText, ISet<string> verbatimTurnIds, bool sameSession, DateTimeOffset now)
     {
+        using IDisposable connection = Store.Hold();
         string[] names = Config.Drives.Select(d => d.Name).ToArray();
         Dictionary<string, DriveValue> drives = Store.ReadDrives(names);
         // Read (and size-check) her card before anything is changed, so a bad card stops the turn cleanly.
@@ -153,6 +154,7 @@ public sealed class CompanionRuntime
         {
             throw new InvalidOperationException($"A turn prepared for '{prepared.PersonaId}' can't be completed by '{Config.Id}'.");
         }
+        using IDisposable connection = Store.Hold();
         double? similarity = Memory.MaxSimilarity(Memory.Embed(reply), minimumMemories: 10);
         List<WardrobeEntry> mine;
         lock (selfChanges)

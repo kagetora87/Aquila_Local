@@ -173,14 +173,72 @@ public sealed partial class PersonaStore
         return store;
     }
 
+    /// <summary>A connection that ignores Dispose until its <see cref="Hold"/> scope ends.</summary>
+    private sealed class HeldConnection(string connectionString) : SqliteConnection(connectionString)
+    {
+        public bool Release { get; set; }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (Release)
+            {
+                base.Dispose(disposing);
+            }
+        }
+    }
+
+    private sealed class HoldScope(PersonaStore store, HeldConnection? connection) : IDisposable
+    {
+        public void Dispose()
+        {
+            if (connection != null)
+            {
+                store.held = null;
+                connection.Release = true;
+                connection.Dispose();
+            }
+        }
+    }
+
+    private HeldConnection? held;
+
+    private int heldThread;
+
+    /// <summary>
+    /// Keeps one connection open for the calling thread until disposed, so a turn's many small reads don't each
+    /// reopen the file (the slowest part of assembling her context on Windows). Other threads still get their own.
+    /// Nested holds reuse the outer one.
+    /// </summary>
+    public IDisposable Hold()
+    {
+        if (held != null && heldThread == Environment.CurrentManagedThreadId)
+        {
+            return new HoldScope(this, null);
+        }
+        var c = new HeldConnection(connectionString);
+        Configure(c);
+        heldThread = Environment.CurrentManagedThreadId;
+        held = c;
+        return new HoldScope(this, c);
+    }
+
     internal SqliteConnection Connect()
     {
+        if (held is HeldConnection h && heldThread == Environment.CurrentManagedThreadId)
+        {
+            return h;
+        }
         var c = new SqliteConnection(connectionString);
+        Configure(c);
+        return c;
+    }
+
+    private static void Configure(SqliteConnection c)
+    {
         c.Open();
         using SqliteCommand pragma = c.CreateCommand();
         pragma.CommandText = "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;";
         pragma.ExecuteNonQuery();
-        return c;
     }
 
     // ---- drives -------------------------------------------------------------------------------------
