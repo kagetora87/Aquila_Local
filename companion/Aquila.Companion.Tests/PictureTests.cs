@@ -165,6 +165,7 @@ public sealed class PictureTests
     [Theory]
     [InlineData("  5/16 - 0.65s/it", 5, 16)]
     [InlineData("|=====>      | 12/20 - 1.53s/it", 12, 20)]
+    [InlineData("|===============>                                  |  5/16 -   1.14s/it - ETA 00:18\u001b[K", 5, 16)]
     public void Reads_progress_from_the_engine(string line, int step, int of)
     {
         Assert.Equal((step, of), PictureCommand.Progress(line));
