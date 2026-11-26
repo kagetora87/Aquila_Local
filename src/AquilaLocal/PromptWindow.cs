@@ -12,6 +12,20 @@ internal static class PromptWindow
 		{
 			return new FittedPrompt(messages, 0);
 		}
+		// Over budget: trim down to about 70% of the budget rather than the bare minimum. The cut point
+		// then stays put for many turns, so the prompt cache survives instead of missing every turn.
+		try
+		{
+			return await FitToAsync(messages, oldPairs, budget * 7 / 10, count);
+		}
+		catch (ArgumentException)
+		{
+			return await FitToAsync(messages, oldPairs, budget, count);
+		}
+	}
+
+	private static async Task<FittedPrompt> FitToAsync(JsonArray messages, int oldPairs, int budget, Func<JsonArray, Task<int>> count)
+	{
 		int low = 0;
 		int high = Math.Min(1, oldPairs);
 		JsonArray fitted = null;

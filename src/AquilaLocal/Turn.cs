@@ -5,6 +5,10 @@ namespace AquilaLocal;
 
 public class Turn
 {
+	/// <summary>Per-turn reference context (recalled memories, date, initial web lookup). Stored so the
+	/// exact same text is replayed in later requests and the engine prompt cache stays valid.</summary>
+	public string Context { get; set; } = "";
+
 	public string SpeechMood { get; set; } = "neutral";
 
 	public string SpeechMoodSource { get; set; } = "default";

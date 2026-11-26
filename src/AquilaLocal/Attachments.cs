@@ -180,7 +180,12 @@ public static class Attachments
 
 	public static JsonObject UserMessage(Turn turn)
 	{
-		StringBuilder stringBuilder = new StringBuilder(turn.User);
+		StringBuilder stringBuilder = new StringBuilder();
+		if (!string.IsNullOrEmpty(turn.Context))
+		{
+			stringBuilder.Append(turn.Context).Append("\n\n");
+		}
+		stringBuilder.Append(turn.User);
 		foreach (Attachment item in turn.Attachments.Where((Attachment a) => a.Kind == "text"))
 		{
 			StringBuilder stringBuilder2 = stringBuilder;
