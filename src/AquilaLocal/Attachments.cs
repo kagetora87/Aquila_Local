@@ -64,27 +64,28 @@ public static class Attachments
 		}
 		if (flag)
 		{
-			if (array.Length > 4194304)
+			if (array.Length > 50331648)
 			{
-				throw new ArgumentException("Images must be no larger than 4 MB.");
+				throw new ArgumentException("Pictures must be no larger than 48 MB.");
 			}
 			using MemoryStream bitmapStream = new MemoryStream(array);
-			BitmapFrame bitmapFrame = BitmapDecoder.Create(bitmapStream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.Default).Frames[0];
-			if (bitmapFrame.PixelWidth > 4096 || bitmapFrame.PixelHeight > 4096)
+			BitmapFrame bitmapFrame = BitmapDecoder.Create(bitmapStream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad).Frames[0];
+			BitmapSource picture = PrepareForVision(bitmapFrame);
+			byte[] encoded = Encode(picture, png: true);
+			string mime = "image/png";
+			if (encoded.Length > 3145728)
 			{
-				throw new ArgumentException("Images must be at most 4096 pixels on each side.");
+				// Photos compress far better as JPEG; text-heavy screenshots usually stay PNG.
+				encoded = Encode(picture, png: false);
+				mime = "image/jpeg";
 			}
-			PngBitmapEncoder pngBitmapEncoder = new PngBitmapEncoder();
-			pngBitmapEncoder.Frames.Add(BitmapFrame.Create(bitmapFrame));
-			using MemoryStream memoryStream = new MemoryStream();
-			pngBitmapEncoder.Save(memoryStream);
-			if (memoryStream.Length > 8388608)
+			if (encoded.Length > 8388608)
 			{
 				throw new ArgumentException("Decoded image is too large. Save a smaller image and attach it again.");
 			}
 			attachment.Kind = "image";
-			attachment.MimeType = "image/png";
-			attachment.Base64 = Convert.ToBase64String(memoryStream.ToArray());
+			attachment.MimeType = mime;
+			attachment.Base64 = Convert.ToBase64String(encoded);
 			return attachment;
 		}
 		if (text == ".pdf")
@@ -176,6 +177,50 @@ public static class Attachments
 			throw new ArgumentException("Attachment text exceeds 120,000 characters. Attach a smaller excerpt; files are never silently truncated.");
 		}
 		return attachment;
+	}
+
+	/// <summary>Longest side pictures are resized to: small ones are enlarged (the vision model misreads small
+	/// text), big phone photos are shrunk (the engine reads at most about 1,000 picture tokens anyway).</summary>
+	public const int VisionMinSide = 1024;
+
+	public const int VisionMaxSide = 1600;
+
+	/// <summary>Turns phone photos upright (EXIF orientation) and scales the picture to the size the vision model reads best.</summary>
+	public static BitmapSource PrepareForVision(BitmapFrame frame)
+	{
+		BitmapSource source = frame;
+		try
+		{
+			if (frame.Metadata is BitmapMetadata metadata && metadata.ContainsQuery("System.Photo.Orientation") && metadata.GetQuery("System.Photo.Orientation") is ushort orientation)
+			{
+				double angle = orientation switch { 3 => 180.0, 6 => 90.0, 8 => 270.0, _ => 0.0 };
+				if (angle != 0.0)
+				{
+					source = new TransformedBitmap(source, new System.Windows.Media.RotateTransform(angle));
+				}
+			}
+		}
+		catch (Exception ex) when (ex is NotSupportedException || ex is InvalidOperationException || ex is ArgumentException)
+		{
+		}
+		int longest = Math.Max(source.PixelWidth, source.PixelHeight);
+		int target = Math.Clamp(longest, VisionMinSide, VisionMaxSide);
+		if (longest > 0 && target != longest)
+		{
+			double scale = (double)target / longest;
+			source = new TransformedBitmap(source, new System.Windows.Media.ScaleTransform(scale, scale));
+		}
+		source.Freeze();
+		return source;
+	}
+
+	private static byte[] Encode(BitmapSource picture, bool png)
+	{
+		BitmapEncoder encoder = png ? new PngBitmapEncoder() : new JpegBitmapEncoder { QualityLevel = 90 };
+		encoder.Frames.Add(BitmapFrame.Create(picture));
+		using MemoryStream stream = new MemoryStream();
+		encoder.Save(stream);
+		return stream.ToArray();
 	}
 
 	public static JsonObject UserMessage(Turn turn)
