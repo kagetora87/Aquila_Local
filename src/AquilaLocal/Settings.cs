@@ -76,6 +76,18 @@ public class Settings
 	/// <summary>Show token counts, speed and tool details on every reply.</summary>
 	public bool ShowTechnicalDetails { get; set; }
 
+	/// <summary>Show the personas' private thoughts (blue) in the chat.</summary>
+	public bool ShowPersonaThoughts { get; set; } = true;
+
+	/// <summary>Colour of thoughts, "#RRGGBB".</summary>
+	public string ThoughtColor { get; set; } = "#6CB4FF";
+
+	/// <summary>Colour of actions, "#RRGGBB".</summary>
+	public string ActionColor { get; set; } = "#FFA14A";
+
+	/// <summary>"first" ("I smile") or "third" ("Vicki smiles") for the personas' thoughts and actions.</summary>
+	public string ThoughtPerson { get; set; } = "first";
+
 	/// <summary>Quiet interface sounds (send, reply finished, model ready, …).</summary>
 	public bool UiSounds { get; set; } = true;
 

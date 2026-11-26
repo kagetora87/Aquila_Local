@@ -179,7 +179,8 @@ public sealed class CompanionRuntime
             selfChanges.Clear();
         }
         LoopResult result = loop.Run(new TurnObservation(userText, reply, prepared.TopDrive, similarity, mine), now);
-        long id = Memory.Add(chatId, turnId, now, userText, reply, spoken);
+        // She remembers what you said and did, never what you only thought.
+        long id = Memory.Add(chatId, turnId, now, ThoughtMarkup.StripThoughts(userText), reply, spoken);
         return new CompletedTurn(result, id, Store.TurnsSinceSummary >= Config.Memory.SummarizeEveryTurns, mine);
     }
 

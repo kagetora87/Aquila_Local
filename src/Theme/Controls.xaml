@@ -322,6 +322,25 @@
   </Style>
 
   <!-- Read-only selectable text inside views. -->
+  <!-- The message box: rich text so thoughts (blue) and actions (orange) show while typing. -->
+  <Style TargetType="{x:Type local:MarkupComposer}">
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="{x:Type local:MarkupComposer}">
+          <Grid Background="Transparent">
+            <TextBlock x:Name="Hint" Text="{TemplateBinding local:Ui.Placeholder}" Foreground="{StaticResource Text.Tertiary}" Margin="{TemplateBinding Padding}" Padding="2,0,0,0" IsHitTestVisible="False" Visibility="Collapsed" />
+            <ScrollViewer x:Name="PART_ContentHost" Margin="0" Focusable="False" />
+          </Grid>
+          <ControlTemplate.Triggers>
+            <Trigger Property="local:Ui.IsEmpty" Value="True">
+              <Setter TargetName="Hint" Property="Visibility" Value="Visible" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
   <Style x:Key="Text.Plain" TargetType="{x:Type TextBox}" BasedOn="{StaticResource TextBox.Bare}">
     <Setter Property="IsReadOnly" Value="True" />
     <Setter Property="Padding" Value="0" />

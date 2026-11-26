@@ -199,6 +199,14 @@ the shared part between speakers.
 To add personas: Companions → **Add a persona from a file…** (same format as Vicki's persona.json), then
 set her up once.
 
+## Thoughts and actions
+
+- Under the message box, **Thought** and **Action** start a thought or an action at the cursor; press again to end it (Ctrl+T / Ctrl+J). Thoughts show in blue italics and actions in orange, as you type and in the chat. A message can mix several.
+- In the text they are `<thought>...</thought>` and `<action>...</action>` (`ThoughtMarkup`).
+- Your actions are seen by the persona. Your thoughts are private: the persona is told she can't know them, but may let them quietly shape the story when it fits. They are never saved into her memory (`CompanionRuntime.Complete` stores the message without them).
+- Personas use both. Her thoughts never reach another persona in a scene (`SceneTranscript.Line`), and her voice reads only speech (`ThoughtMarkup.MaskForSpeech` in `VoiceDelivery.Plan`).
+- The eye button shows or hides her thoughts. The palette button sets first person ("I smile") or third person ("Vicki smiles") for her thoughts and actions (applies to new replies) and the two colours. Saved in settings (`ShowPersonaThoughts`, `ThoughtPerson`, `ThoughtColor`, `ActionColor`).
+
 ## Fail loud
 
 If her state can't be read (file missing, damaged, belongs to another persona, a drive missing or impossible,

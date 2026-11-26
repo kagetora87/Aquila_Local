@@ -89,25 +89,25 @@ public static class VoiceDelivery
 			List<VoiceTag> voiceTags = turn.VoiceTags;
 			if (voiceTags != null && voiceTags.Count > 0)
 			{
-				return Insert(turn, (VoiceTag tag) => (!tag.Opening) ? (" [[voice:" + tag.Name + "]] ") : ("[[tone:" + tag.Name + "]] "));
+				return Insert(turn, turn.Answer, (VoiceTag tag) => (!tag.Opening) ? (" [[voice:" + tag.Name + "]] ") : ("[[tone:" + tag.Name + "]] "));
 			}
 		}
 		return turn.Answer;
 	}
 
-	private static string Insert(Turn turn, Func<VoiceTag, string> render)
+	private static string Insert(Turn turn, string answer, Func<VoiceTag, string> render)
 	{
-		StringBuilder stringBuilder = new StringBuilder(turn.Answer.Length + 128);
+		StringBuilder stringBuilder = new StringBuilder(answer.Length + 128);
 		int num = 0;
-		foreach (VoiceTag item in from tag in turn.VoiceTags.Where((VoiceTag tag) => (object)tag != null && tag.Offset >= 0 && tag.Offset <= turn.Answer.Length && (IsMood(tag.Name) || (!tag.Opening && IsEvent(tag.Name)))).Take(16)
+		foreach (VoiceTag item in from tag in turn.VoiceTags.Where((VoiceTag tag) => (object)tag != null && tag.Offset >= 0 && tag.Offset <= answer.Length && (IsMood(tag.Name) || (!tag.Opening && IsEvent(tag.Name)))).Take(16)
 			orderby tag.Offset
 			select tag)
 		{
-			stringBuilder.Append(turn.Answer.AsSpan(num, item.Offset - num));
+			stringBuilder.Append(answer.AsSpan(num, item.Offset - num));
 			stringBuilder.Append(render(item));
 			num = item.Offset;
 		}
-		stringBuilder.Append(turn.Answer.AsSpan(num));
+		stringBuilder.Append(answer.AsSpan(num));
 		return stringBuilder.ToString();
 	}
 
@@ -156,6 +156,8 @@ public static class VoiceDelivery
 	public static IReadOnlyList<SpeechSegment> Plan(Turn turn, VoiceOptions options)
 	{
 		string mood = BaseMood(turn, options);
+		// Only speech is read aloud: thoughts and actions become blanks of the same length, so voice cue offsets still line up.
+		string answer = AquilaLocal.Companion.ThoughtMarkup.MaskForSpeech(turn.Answer);
 		List<SpeechSegment> result;
 		StringBuilder section;
 		int left;
@@ -165,7 +167,7 @@ public static class VoiceDelivery
 			if (voiceTags != null && voiceTags.Count > 0)
 			{
 				string marker = "Aquila" + Guid.NewGuid().ToString("N") + "_";
-				string text = Insert(turn, (VoiceTag tag) => (!tag.Opening) ? (marker + tag.Name + "_") : "");
+				string text = Insert(turn, answer, (VoiceTag tag) => (!tag.Opening) ? (marker + tag.Name + "_") : "");
 				string text2 = SpokenText.Clean(options.UsesKitten ? StripNativeMarkup(text) : text);
 				result = new List<SpeechSegment>();
 				section = new StringBuilder();
@@ -203,7 +205,7 @@ public static class VoiceDelivery
 				return result;
 			}
 		}
-		return (from text4 in SpokenText.Segments(options.UsesKitten ? StripNativeMarkup(turn.Answer) : turn.Answer, options.MaxCharacters)
+		return (from text4 in SpokenText.Segments(options.UsesKitten ? StripNativeMarkup(answer) : answer, options.MaxCharacters)
 			select new SpeechSegment(text4, mood)).ToArray();
 		bool Append(string text4)
 		{

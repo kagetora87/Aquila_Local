@@ -107,14 +107,31 @@ public static class MarkdownRenderer
 		{
 			Margin = new Thickness(0.0)
 		};
-		string[] array = text.Replace("\r\n", "\n").Split('\n');
+		string[] array = AquilaLocal.Companion.ThoughtMarkup.BalancePerLine(text.Replace("\r\n", "\n")).Split('\n');
 		for (int i = 0; i < array.Length; i++)
 		{
 			if (i > 0)
 			{
 				paragraph.Inlines.Add(new LineBreak());
 			}
-			paragraph.Inlines.Add(new Run(array[i]));
+			if (!AquilaLocal.Companion.ThoughtMarkup.HasMarkup(array[i]))
+			{
+				paragraph.Inlines.Add(new Run(array[i]));
+				continue;
+			}
+			foreach (AquilaLocal.Companion.MarkupPart part in AquilaLocal.Companion.ThoughtMarkup.Parse(array[i]))
+			{
+				if (part.Kind == AquilaLocal.Companion.MarkupKind.Speech)
+				{
+					paragraph.Inlines.Add(new Run(part.Text));
+				}
+				else
+				{
+					Span span = MarkupColors.Span(part.Kind);
+					span.Inlines.Add(new Run(part.Text));
+					paragraph.Inlines.Add(span);
+				}
+			}
 		}
 		flowDocument.Blocks.Add(paragraph);
 		return flowDocument;
@@ -376,8 +393,30 @@ public static class MarkdownRenderer
 			select c.Trim()).ToArray();
 	}
 
-	/// <summary>Bold, italic, strikethrough, inline code and safe links.</summary>
+	/// <summary>Bold, italic, strikethrough, inline code and safe links; thoughts in blue and actions in orange.</summary>
 	public static void AddInlines(InlineCollection inlines, string text)
+	{
+		if (!AquilaLocal.Companion.ThoughtMarkup.HasMarkup(text))
+		{
+			AddFormatted(inlines, text);
+			return;
+		}
+		foreach (AquilaLocal.Companion.MarkupPart part in AquilaLocal.Companion.ThoughtMarkup.Parse(text))
+		{
+			if (part.Kind == AquilaLocal.Companion.MarkupKind.Speech)
+			{
+				AddFormatted(inlines, part.Text);
+			}
+			else
+			{
+				Span span = MarkupColors.Span(part.Kind);
+				AddFormatted(span.Inlines, part.Text);
+				inlines.Add(span);
+			}
+		}
+	}
+
+	private static void AddFormatted(InlineCollection inlines, string text)
 	{
 		string[] array;
 		try

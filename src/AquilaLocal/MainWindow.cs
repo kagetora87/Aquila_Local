@@ -1757,6 +1757,24 @@ public partial class MainWindow : AquilaWindow
 		store = new Storage(dataRoot);
 		this.settings = store.LoadSettings();
 		Settings settings = this.settings;
+		MessageView.ShowPersonaThoughts = settings.ShowPersonaThoughts;
+		AquilaLocal.Companion.ThoughtMarkup.Person = settings.ThoughtPerson == "third" ? AquilaLocal.Companion.MarkupPerson.Third : AquilaLocal.Companion.MarkupPerson.First;
+		{
+			Color thoughtColor = MarkupColors.Parse(settings.ThoughtColor, MarkupColors.DefaultThought);
+			Color actionColor = MarkupColors.Parse(settings.ActionColor, MarkupColors.DefaultAction);
+			if (thoughtColor != actionColor)
+			{
+				MarkupColors.Set(thoughtColor, actionColor);
+			}
+		}
+		MarkupBar.Attach(Composer);
+		MarkupBar.ShowThoughts = settings.ShowPersonaThoughts;
+		MarkupBar.ShowThoughtsChanged += delegate(bool show)
+		{
+			MessageView.ShowPersonaThoughts = show;
+			SaveMarkupLook();
+		};
+		MarkupBar.LookChanged += SaveMarkupLook;
 		if (settings.Inference == null)
 		{
 			InferencePreferences obj = new InferencePreferences
@@ -2068,6 +2086,28 @@ public partial class MainWindow : AquilaWindow
 		}
 	}
 
+	/// <summary>Saves how thoughts and actions look (shown or hidden, colours, first or third person) and redraws the chat.</summary>
+	private void SaveMarkupLook()
+	{
+		settings.ShowPersonaThoughts = MessageView.ShowPersonaThoughts;
+		settings.ThoughtColor = MarkupColors.Hex(MarkupColors.ThoughtColor);
+		settings.ActionColor = MarkupColors.Hex(MarkupColors.ActionColor);
+		settings.ThoughtPerson = AquilaLocal.Companion.ThoughtMarkup.Person == AquilaLocal.Companion.MarkupPerson.Third ? "third" : "first";
+		MarkupBar.ShowThoughts = MessageView.ShowPersonaThoughts;
+		try
+		{
+			store.SaveSettings(settings);
+		}
+		catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+		{
+			Notice("Couldn't save how thoughts and actions look: " + ex.Message);
+		}
+		if (!busy)
+		{
+			RenderChat();
+		}
+	}
+
 	private void Scenes_Click(object sender, RoutedEventArgs e)
 	{
 		if (busy)
@@ -2084,7 +2124,7 @@ public partial class MainWindow : AquilaWindow
 				await speech.SpeakAsync(line, VoiceForPersona(personaId), ct);
 			};
 		}
-		SceneWindow window = new SceneWindow(companion, director, () => settings, speakLine);
+		SceneWindow window = new SceneWindow(companion, director, () => settings, speakLine, SaveMarkupLook);
 		window.Owner = this;
 		window.ShowDialog();
 	}
@@ -2237,7 +2277,7 @@ public partial class MainWindow : AquilaWindow
 		pendingSpoken = false;
 		if (session.Turns.Count == 0)
 		{
-			session.Title = turn.User.Replace('\n', ' ').Replace('\r', ' ').Truncate(42);
+			session.Title = AquilaLocal.Companion.ThoughtMarkup.Plain(turn.User).Replace('\n', ' ').Replace('\r', ' ').Truncate(42);
 		}
 		session.Turns.Add(turn);
 		store.SaveChat(session);

@@ -69,6 +69,9 @@ public sealed class MessageView : Border
 	/// <summary>Show "Details" (tool activity) on every reply, not just when something happened.</summary>
 	public bool ShowTechnicalDetails { get; set; }
 
+	/// <summary>Whether the personas' thoughts (blue) are shown. Your own thoughts are always shown.</summary>
+	public static bool ShowPersonaThoughts { get; set; } = true;
+
 	/// <summary>The prose pieces of the message, in order (for tests and copy handling).</summary>
 	public IEnumerable<Emoji.Wpf.RichTextBox> ProseBoxes => bodyHost.Children.OfType<Emoji.Wpf.RichTextBox>();
 
@@ -489,6 +492,14 @@ public sealed class MessageView : Border
 	public void Update(string content, string reasoning = "", IEnumerable<string>? logs = null, string status = "", bool renderMarkdown = true, string? copyText = null)
 	{
 		text = copyText ?? content;
+		if (AquilaLocal.Companion.ThoughtMarkup.HasMarkup(content))
+		{
+			if (!user && !ShowPersonaThoughts)
+			{
+				content = AquilaLocal.Companion.ThoughtMarkup.StripThoughts(content);
+			}
+			content = AquilaLocal.Companion.ThoughtMarkup.BalancePerLine(content);
+		}
 		if (user || !renderMarkdown)
 		{
 			Emoji.Wpf.RichTextBox richTextBox = ProseBoxes.FirstOrDefault() ?? AddProse();

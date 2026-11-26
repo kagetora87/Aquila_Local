@@ -39,7 +39,10 @@ public sealed class SceneWindow : AquilaWindow
 
 	private ScrollViewer scroll = new ScrollViewer();
 
-	private TextBox composer = new TextBox();
+	private MarkupComposer composer = new MarkupComposer();
+
+	/// <summary>Saves how thoughts and actions look (shown or hidden, colours, first or third person).</summary>
+	private readonly Action? markupChanged;
 
 	private ComboBox responder = new ComboBox();
 
@@ -61,8 +64,9 @@ public sealed class SceneWindow : AquilaWindow
 
 	private const string NobodyLabel = "Nobody (just say it)";
 
-	public SceneWindow(CompanionHost host, SceneDirector director, Func<Settings> settings, Func<string, string, CancellationToken, Task>? speakLine)
+	public SceneWindow(CompanionHost host, SceneDirector director, Func<Settings> settings, Func<string, string, CancellationToken, Task>? speakLine, Action? markupChanged = null)
 	{
+		this.markupChanged = markupChanged;
 		this.host = host;
 		this.director = director;
 		this.settings = settings;
@@ -256,8 +260,8 @@ public sealed class SceneWindow : AquilaWindow
 		root.Children.Add(top);
 
 		StackPanel bottom = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
-		composer = new TextBox { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 56, MaxHeight = 160, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalContentAlignment = VerticalAlignment.Top };
-		Ui.SetPlaceholder(composer, "Say something, or describe what you do… (Enter to send, Shift+Enter for a new line)");
+		composer = new MarkupComposer { MinHeight = 56, MaxHeight = 160, FontSize = 14, Padding = new Thickness(2, 2, 2, 2) };
+		Ui.SetPlaceholder(composer, "Say something… Use Thought and Action below for what you think or do. (Enter to send, Shift+Enter for a new line)");
 		composer.PreviewKeyDown += delegate(object _, KeyEventArgs e)
 		{
 			if (e.Key == Key.Return && (Keyboard.Modifiers & ModifierKeys.Shift) == 0)
@@ -266,7 +270,31 @@ public sealed class SceneWindow : AquilaWindow
 				_ = SendAsync();
 			}
 		};
-		bottom.Children.Add(composer);
+		Border composerCard = new Border
+		{
+			Background = Ui.Brush("Surface.1"),
+			BorderBrush = Ui.Brush("Stroke.Default"),
+			BorderThickness = new Thickness(1),
+			CornerRadius = new CornerRadius(10),
+			Padding = new Thickness(10, 8, 10, 8),
+			Child = composer
+		};
+		bottom.Children.Add(composerCard);
+		MarkupToggles markup = new MarkupToggles { Margin = new Thickness(0, 6, 0, 0), HorizontalAlignment = HorizontalAlignment.Left };
+		markup.Attach(composer);
+		markup.ShowThoughts = MessageView.ShowPersonaThoughts;
+		markup.ShowThoughtsChanged += delegate(bool show)
+		{
+			MessageView.ShowPersonaThoughts = show;
+			markupChanged?.Invoke();
+			RenderAll();
+		};
+		markup.LookChanged += delegate
+		{
+			markupChanged?.Invoke();
+			RenderAll();
+		};
+		bottom.Children.Add(markup);
 		StackPanel controls = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };
 		controls.Children.Add(new TextBlock { Text = "Who answers", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0), Foreground = Ui.Brush("Text.Secondary") });
 		responder = new ComboBox { Width = 200, Margin = new Thickness(0, 0, 12, 0) };
@@ -480,6 +508,21 @@ public sealed class SceneWindow : AquilaWindow
 		{
 			Problem(ex.Message);
 		}
+	}
+
+	/// <summary>Shows the whole scene again (after hiding or showing thoughts).</summary>
+	private void RenderAll()
+	{
+		if (scene == null || busy)
+		{
+			return;
+		}
+		messages.Children.Clear();
+		foreach (SceneEvent e in scene.Log.All())
+		{
+			Render(e);
+		}
+		scroll.ScrollToEnd();
 	}
 
 	private void Render(SceneEvent e)

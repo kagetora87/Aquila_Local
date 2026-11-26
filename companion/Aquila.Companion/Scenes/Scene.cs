@@ -399,7 +399,8 @@ public static class SceneTranscript
 {
     public static string Line(SceneEvent e, string viewerId) => e.Kind switch
     {
-        SceneEventKinds.Said => e.SpeakerName + (e.SpeakerId == viewerId ? " (you)" : "") + ": " + e.Text,
+        // A persona's thoughts are hers alone: other personas only get what she said and did.
+        SceneEventKinds.Said => e.SpeakerName + (e.SpeakerId == viewerId ? " (you)" : "") + ": " + (e.SpeakerId == SceneLog.UserId ? e.Text : ThoughtMarkup.StripThoughts(e.Text)),
         SceneEventKinds.Joined => "[" + e.SpeakerName + " joins the scene]",
         SceneEventKinds.Left => "[" + e.SpeakerName + " leaves the scene]",
         SceneEventKinds.WorldChanged => "[The scene changes. " + e.Text + "]",
@@ -420,7 +421,7 @@ public static class ScenePrompt
     {
         var sb = new StringBuilder();
         sb.Append("[Scene: ").Append(manifest.Title).Append("]\n");
-        sb.Append("This is a shared scene with several characters and one real person. Below is the world everyone here shares, who is here, and then everything said and done out loud, labelled with who did it. Nobody can read anyone else's thoughts or memories.\n\n");
+        sb.Append("This is a shared scene with several characters and one real person. Below is the world everyone here shares, who is here, and then everything said and done out loud, labelled with who did it. Nobody can read anyone else's thoughts or memories. <action>...</action> is something someone visibly did. The user's <thought>...</thought> is private: no character knows it, but it may quietly shape the story when that fits.\n\n");
         sb.Append("[World]\n").Append(manifest.World.Render()).Append("\n[End world]\n\n");
         sb.Append("[Here now]\n");
         sb.Append("- ").Append(userName).Append(": the user, a real person\n");
@@ -440,7 +441,7 @@ public static class ScenePrompt
     public static string Cue(string name, IEnumerable<string> others)
     {
         string them = string.Join(", ", others.Where(o => o != name));
-        return $"[Your turn] You are {name}. Write only what {name} says and does next in this scene, in character, speaking only for yourself. Never write lines, thoughts or actions for anyone else{(them.Length > 0 ? " (" + them + ")" : "")}. Keep it to a natural conversational length. Put physical actions in *asterisks*. Don't start with your name.";
+        return $"[Your turn] You are {name}. Write only what {name} says and does next in this scene, in character, speaking only for yourself. Never write lines, thoughts or actions for anyone else{(them.Length > 0 ? " (" + them + ")" : "")}. Keep it to a natural conversational length. Put what you do in <action>...</action> and private thoughts in <thought>...</thought>. {ThoughtMarkup.PersonRule(name)} Don't start with your name.";
     }
 
     private static readonly Regex OtherSpeaker = new(@"^\s*\**\s*[\p{Lu}][\p{L}' .-]{0,30}\s*\**\s*:\s", RegexOptions.CultureInvariant);

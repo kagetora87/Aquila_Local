@@ -325,7 +325,7 @@ public partial class MainWindow
 		UiSounds.Play(UiSound.Ready);
 		ShowCall();
 		// She picks up: a short ring line starts the call, and her answer is spoken in her own voice.
-		Composer.Text = "📞 *calls you*";
+		Composer.Text = "📞 <action>calls you</action>";
 		await SendAsync();
 	}
 
