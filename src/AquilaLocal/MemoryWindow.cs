@@ -54,13 +54,13 @@ public sealed class MemoryWindow : AquilaWindow
 	private readonly TextBlock status = new TextBlock
 	{
 		TextWrapping = TextWrapping.Wrap,
-		Foreground = Brushes.LightGray
+		Foreground = Ui.Brush("Text.Secondary")
 	};
 
 	private readonly TextBlock details = new TextBlock
 	{
 		TextWrapping = TextWrapping.Wrap,
-		Foreground = Brushes.LightGray
+		Foreground = Ui.Brush("Text.Secondary")
 	};
 
 	private MemoryEntry? selected;
@@ -80,10 +80,6 @@ public sealed class MemoryWindow : AquilaWindow
 		base.MinHeight = 640.0;
 		base.WindowStartupLocation = WindowStartupLocation.CenterOwner;
 		base.Height = Math.Min(base.Height, SystemParameters.WorkArea.Height - 30.0);
-		base.Background = new SolidColorBrush(Color.FromRgb(16, 23, 32));
-		base.Foreground = (Brush)Application.Current.Resources["Ink"];
-		base.FontFamily = new FontFamily("Segoe UI");
-		base.FontSize = 13.0;
 		DockPanel dockPanel = (DockPanel)(base.Content = new DockPanel
 		{
 			Margin = new Thickness(22.0)
@@ -94,14 +90,14 @@ public sealed class MemoryWindow : AquilaWindow
 		stackPanel.Children.Add(new TextBlock
 		{
 			Text = "Memories",
-			FontSize = 24.0,
+			Style = Ui.Style("Type.Title"),
 			Margin = new Thickness(0.0, 0.0, 0.0, 8.0)
 		});
 		stackPanel.Children.Add(new TextBlock
 		{
 			Text = "Personal memories follow you across chats. Project memories are recalled only in the same folder. Pinned entries need your approval before a correction replaces them.",
 			TextWrapping = TextWrapping.Wrap,
-			Foreground = Brushes.LightGray
+			Foreground = Ui.Brush("Text.Secondary")
 		});
 		StackPanel stackPanel2 = new StackPanel
 		{
@@ -132,8 +128,8 @@ public sealed class MemoryWindow : AquilaWindow
 		{
 			Text = "Forget clears this topic's saved values and quotes, including history, and blocks automatic relearning of that topic. Original conversations and backups remain. Topic names are retained for the block.",
 			TextWrapping = TextWrapping.Wrap,
-			Foreground = Brushes.LightGray,
-			FontSize = 11.0,
+			Foreground = Ui.Brush("Text.Secondary"),
+			FontSize = 12.0,
 			Margin = new Thickness(0.0, 9.0, 0.0, 0.0)
 		});
 		Grid grid = new Grid
@@ -262,8 +258,8 @@ public sealed class MemoryWindow : AquilaWindow
 		panel.Children.Add(new TextBlock
 		{
 			Text = text,
-			FontSize = 10.0,
-			Foreground = Brushes.LightGray,
+			FontSize = 12.0,
+			Foreground = Ui.Brush("Text.Secondary"),
 			Margin = new Thickness(0.0, 14.0, 0.0, 7.0)
 		});
 	}

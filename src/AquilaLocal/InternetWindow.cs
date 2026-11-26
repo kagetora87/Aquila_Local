@@ -2,7 +2,6 @@ using System;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
-using System.Windows.Media;
 
 namespace AquilaLocal;
 
@@ -10,92 +9,82 @@ public sealed class InternetWindow : AquilaWindow
 {
 	public InternetWindow(Settings settings, Action save)
 	{
-		InternetWindow internetWindow = this;
+		InternetWindow window = this;
 		base.Title = "Aquila · Internet";
-		base.Width = 580.0;
-		base.Height = 560.0;
+		base.Width = 600.0;
+		base.Height = 680.0;
 		base.MinWidth = 480.0;
-		base.MinHeight = 450.0;
+		base.MinHeight = 480.0;
 		base.WindowStartupLocation = WindowStartupLocation.CenterOwner;
-		base.Background = new SolidColorBrush(Color.FromRgb(16, 23, 32));
-		base.Foreground = (Brush)Application.Current.Resources["Ink"];
-		base.FontFamily = new FontFamily("Segoe UI");
-		base.FontSize = 13.0;
-		StackPanel stackPanel = new StackPanel
+		StackPanel body = new StackPanel();
+		string[] modes = new string[3] { "Off", "Ask first", "Automatic" };
+		string[] titles = new string[3] { "Off", "Ask me first", "Automatic" };
+		string[] hints = new string[3]
 		{
-			Margin = new Thickness(24.0)
+			"Aquila never contacts the internet.",
+			"Aquila asks before each web search or page it wants to read.",
+			"Aquila looks things up on its own while answering. It never browses in the background."
 		};
-		base.Content = new ScrollViewer
+		RadioButton[] choices = new RadioButton[3];
+		for (int i = 0; i < 3; i++)
 		{
-			Content = stackPanel,
-			VerticalScrollBarVisibility = ScrollBarVisibility.Auto
-		};
-		stackPanel.Children.Add(new TextBlock
+			RadioButton radioButton = new RadioButton
+			{
+				Content = titles[i],
+				GroupName = "WebMode",
+				Style = Ui.Style("ChoiceCard"),
+				IsChecked = settings.WebMode == modes[i]
+			};
+			Ui.SetHint(radioButton, hints[i]);
+			AutomationProperties.SetName(radioButton, titles[i]);
+			choices[i] = radioButton;
+			body.Children.Add(radioButton);
+		}
+		if (Array.TrueForAll(choices, (RadioButton c) => c.IsChecked != true))
 		{
-			Text = "Internet access",
-			FontSize = 24.0
-		});
-		stackPanel.Children.Add(new TextBlock
-		{
-			Text = "Off sends no web requests. Ask first confirms each lookup. Automatic lets the assistant look things up while answering; it does not browse in the background.",
-			TextWrapping = TextWrapping.Wrap,
-			Margin = new Thickness(0.0, 12.0, 0.0, 12.0)
-		});
-		ComboBox mode = new ComboBox
-		{
-			ItemsSource = new string[3] { "Off", "Ask first", "Automatic" },
-			SelectedItem = settings.WebMode
-		};
-		stackPanel.Children.Add(mode);
-		AutomationProperties.SetName(mode, "Internet access mode");
-		stackPanel.Children.Add(new TextBlock
-		{
-			Text = "Brave Search API key",
-			Margin = new Thickness(0.0, 18.0, 0.0, 6.0)
-		});
+			choices[0].IsChecked = true;
+		}
 		PasswordBox key = new PasswordBox
 		{
-			MaxLength = 2000,
-			Height = 30.0
+			MaxLength = 2000
 		};
-		stackPanel.Children.Add(key);
+		Ui.SetPlaceholder(key, (settings.WebKeyProtected.Length == 0) ? "Paste a Brave Search API key" : "A key is saved · leave blank to keep it");
 		AutomationProperties.SetName(key, "Brave Search API key");
-		stackPanel.Children.Add(new TextBlock
-		{
-			Text = ((settings.WebKeyProtected.Length == 0) ? "No key saved. Enter one to enable general web search. Direct page reading needs no key." : "A key is saved. Leave blank to keep it."),
-			TextWrapping = TextWrapping.Wrap,
-			Margin = new Thickness(0.0, 7.0, 0.0, 7.0)
-		});
 		CheckBox clear = new CheckBox
 		{
-			Content = "Remove saved API key"
+			Content = "Remove the saved key",
+			Margin = new Thickness(0.0, 10.0, 0.0, 0.0),
+			Visibility = (settings.WebKeyProtected.Length == 0) ? Visibility.Collapsed : Visibility.Visible
 		};
-		stackPanel.Children.Add(clear);
-		stackPanel.Children.Add(new TextBlock
+		StackPanel keyPanel = new StackPanel();
+		keyPanel.Children.Add(Ui.Field("Search key (optional)", key, "Needed only for general web searches. Reading a page from a link needs no key. You can create one at api-dashboard.search.brave.com.", 0.0));
+		keyPanel.Children.Add(clear);
+		Expander expander = new Expander
 		{
-			Text = "Search queries go to Brave; page requests go to websites. Model inference stays local. Credentials are encrypted for this Windows user. Create a Search API key at api-dashboard.search.brave.com. Pages requiring login or JavaScript are not supported.",
-			TextWrapping = TextWrapping.Wrap,
-			Margin = new Thickness(0.0, 12.0, 0.0, 12.0),
-			FontSize = 11.0
+			Header = "Web search key",
+			Style = Ui.Style("Expander.Card"),
+			Content = keyPanel,
+			Margin = new Thickness(0.0, 12.0, 0.0, 0.0)
+		};
+		body.Children.Add(expander);
+		TextBlock privacy = Ui.Text("Searches go to Brave and page requests go to the websites themselves. Your conversations and the model stay on this computer. The key is encrypted for your Windows account. Pages that need a sign-in or JavaScript can't be read.", "Type.Caption");
+		privacy.Margin = new Thickness(4.0, 16.0, 4.0, 0.0);
+		body.Children.Add(privacy);
+		TextBlock status = new TextBlock();
+		Button cancel = Ui.Button("Cancel", "Btn.Secondary", delegate
+		{
+			window.Close();
 		});
-		TextBlock status = new TextBlock
-		{
-			TextWrapping = TextWrapping.Wrap
-		};
-		stackPanel.Children.Add(status);
-		Button button = new Button
-		{
-			Content = "Save",
-			HorizontalAlignment = HorizontalAlignment.Left
-		};
-		stackPanel.Children.Add(button);
-		button.Click += delegate
+		Button saveButton = Ui.Button("Save", "Btn.Primary");
+		saveButton.IsDefault = true;
+		saveButton.Click += delegate
 		{
 			string webMode = settings.WebMode;
 			string webKeyProtected = settings.WebKeyProtected;
 			try
 			{
-				settings.WebMode = (string)mode.SelectedItem;
+				int index = Array.FindIndex(choices, (RadioButton c) => c.IsChecked == true);
+				settings.WebMode = modes[Math.Max(0, index)];
 				if (clear.IsChecked == true)
 				{
 					settings.WebKeyProtected = "";
@@ -105,14 +94,16 @@ public sealed class InternetWindow : AquilaWindow
 					settings.WebKeyProtected = WebSecrets.Protect(key.Password.Trim());
 				}
 				save();
-				internetWindow.Close();
+				window.Close();
 			}
 			catch (Exception ex)
 			{
 				settings.WebMode = webMode;
 				settings.WebKeyProtected = webKeyProtected;
 				status.Text = ex.Message;
+				status.Foreground = Ui.Brush("Danger");
 			}
 		};
+		base.Content = Ui.DialogScaffold("Internet access", "Choose whether Aquila may look things up on the web.", body, status, cancel, saveButton);
 	}
 }

@@ -20,11 +20,11 @@ namespace AquilaLocal;
 /// </summary>
 public sealed class AnimationsWindow : AquilaWindow
 {
-	private static readonly Brush Muted = new SolidColorBrush(Color.FromRgb(151, 168, 187));
+	private static readonly Brush Muted = Ui.Brush("Text.Secondary");
 
-	private static readonly Brush Accent = new SolidColorBrush(Color.FromRgb(128, 222, 197));
+	private static readonly Brush Accent = Ui.Brush("Accent");
 
-	private static readonly Brush Card = new SolidColorBrush(Color.FromRgb(20, 31, 43));
+	private static readonly Brush Card = Ui.Brush("Surface.1");
 
 	private readonly SpriteAvatarOptions options;
 
@@ -57,7 +57,6 @@ public sealed class AnimationsWindow : AquilaWindow
 		base.MinWidth = 820.0;
 		base.MinHeight = 560.0;
 		base.WindowStartupLocation = WindowStartupLocation.CenterOwner;
-		base.Background = new SolidColorBrush(Color.FromRgb(16, 23, 32));
 		Grid grid = new Grid
 		{
 			Margin = new Thickness(22.0)
@@ -93,7 +92,7 @@ public sealed class AnimationsWindow : AquilaWindow
 		stackPanel.Children.Add(new TextBlock
 		{
 			Text = "Avatar animations",
-			FontSize = 22.0
+			Style = Ui.Style("Type.Title")
 		});
 		stackPanel.Children.Add(Note("Each animation is a set of pictures played in order. Name it in plain words. \"idle\", \"talking\", \"thinking\" and \"listening\" play automatically; any other name is a gesture that plays when the reply fits it.", 8.0));
 		Border border = new Border
@@ -143,13 +142,13 @@ public sealed class AnimationsWindow : AquilaWindow
 		grid.Children.Add(new TextBlock
 		{
 			Text = "Only obvious moments",
-			FontSize = 10.0,
+			FontSize = 12.0,
 			Foreground = Muted
 		});
 		grid.Children.Add(new TextBlock
 		{
 			Text = "Very expressive",
-			FontSize = 10.0,
+			FontSize = 12.0,
 			Foreground = Muted,
 			HorizontalAlignment = HorizontalAlignment.Right
 		});
@@ -349,7 +348,7 @@ public sealed class AnimationsWindow : AquilaWindow
 			{
 				Text = "When should it play? (optional, helps matching)",
 				Foreground = Muted,
-				FontSize = 11.0,
+				FontSize = 12.0,
 				Margin = new Thickness(0.0, 10.0, 0.0, 4.0)
 			});
 			TextBox when = new TextBox
@@ -429,7 +428,7 @@ public sealed class AnimationsWindow : AquilaWindow
 		}
 		stackPanel.Children.Add(new Border
 		{
-			Background = new SolidColorBrush(Color.FromRgb(16, 23, 32)),
+			Background = Ui.Brush("Bg.Window"),
 			CornerRadius = new CornerRadius(4.0),
 			Child = image
 		});
@@ -640,7 +639,7 @@ public sealed class AnimationsWindow : AquilaWindow
 		return new TextBlock
 		{
 			Text = text,
-			FontSize = 10.0,
+			FontSize = 12.0,
 			Foreground = Accent,
 			FontWeight = FontWeights.SemiBold,
 			Margin = new Thickness(0.0, 18.0, 0.0, 6.0)

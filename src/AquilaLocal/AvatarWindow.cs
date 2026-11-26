@@ -17,7 +17,7 @@ public sealed class AvatarWindow : AquilaWindow
 	private readonly TextBlock status = new TextBlock
 	{
 		TextWrapping = TextWrapping.Wrap,
-		Foreground = Brushes.LightGray
+		Foreground = Ui.Brush("Text.Secondary")
 	};
 
 	private readonly CheckBox enabled = new CheckBox
@@ -66,14 +66,14 @@ public sealed class AvatarWindow : AquilaWindow
 	private readonly TextBlock folderLabel = new TextBlock
 	{
 		TextTrimming = TextTrimming.CharacterEllipsis,
-		Foreground = Brushes.LightGray
+		Foreground = Ui.Brush("Text.Secondary")
 	};
 
 	private readonly TextBlock modelInfo = new TextBlock
 	{
 		TextWrapping = TextWrapping.Wrap,
-		Foreground = Brushes.LightGray,
-		FontSize = 11.0
+		Foreground = Ui.Brush("Text.Secondary"),
+		FontSize = 12.0
 	};
 
 	public AvatarWindow(Settings settings, AvatarHost host, Func<AvatarPresentation, bool, bool, string, string, Task> apply, Func<string, Task> preview)
@@ -85,10 +85,6 @@ public sealed class AvatarWindow : AquilaWindow
 		base.MinWidth = 480.0;
 		base.MinHeight = 550.0;
 		base.WindowStartupLocation = WindowStartupLocation.CenterOwner;
-		base.Background = new SolidColorBrush(Color.FromRgb(16, 23, 32));
-		base.Foreground = (Brush)Application.Current.Resources["Ink"];
-		base.FontFamily = new FontFamily("Segoe UI");
-		base.FontSize = 13.0;
 		StackPanel stackPanel = new StackPanel
 		{
 			Margin = new Thickness(22.0)
@@ -101,12 +97,12 @@ public sealed class AvatarWindow : AquilaWindow
 		stackPanel.Children.Add(new TextBlock
 		{
 			Text = "Avatar",
-			FontSize = 25.0
+			Style = Ui.Style("Type.Title")
 		});
 		stackPanel.Children.Add(new TextBlock
 		{
 			Text = "Local 3D companion · VRM 1.0",
-			Foreground = Brushes.LightGray,
+			Foreground = Ui.Brush("Text.Secondary"),
 			Margin = new Thickness(0.0, 8.0, 0.0, 12.0)
 		});
 		stackPanel.Children.Add(enabled);
@@ -211,8 +207,8 @@ public sealed class AvatarWindow : AquilaWindow
 		stackPanel.Children.Add(new TextBlock
 		{
 			Text = "Select a local .vrm file, then Apply / open. Changing characters restarts only the avatar. Folder lists show up to 200 VRM files directly inside that folder; unzip downloads first. Respect each creator's licence and embedded usage conditions. Listening and speaking remain visual previews; no microphone or audio is active.",
-			Foreground = Brushes.LightGray,
-			FontSize = 11.0,
+			Foreground = Ui.Brush("Text.Secondary"),
+			FontSize = 12.0,
 			TextWrapping = TextWrapping.Wrap,
 			Margin = new Thickness(0.0, 14.0, 0.0, 0.0)
 		});
@@ -320,8 +316,8 @@ public sealed class AvatarWindow : AquilaWindow
 		panel.Children.Add(new TextBlock
 		{
 			Text = value,
-			Foreground = Brushes.LightGray,
-			FontSize = 10.0,
+			Foreground = Ui.Brush("Text.Secondary"),
+			FontSize = 12.0,
 			Margin = new Thickness(0.0, 14.0, 0.0, 5.0)
 		});
 	}

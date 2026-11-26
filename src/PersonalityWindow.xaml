@@ -1,11 +1,11 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <local:AquilaWindow x:Class="AquilaLocal.PersonalityWindow" xmlns:local="clr-namespace:AquilaLocal" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Aquila · Personalities" Width="1040" Height="780" MinWidth="880" MinHeight="650" WindowStartupLocation="CenterOwner" Background="#101720" Foreground="{StaticResource Ink}" FontFamily="Segoe UI" FontSize="13" xmlns:aquilalocal="clr-namespace:AquilaLocal">
-  <DockPanel Margin="22">
+  <DockPanel Margin="24,20,24,20">
     <StackPanel DockPanel.Dock="Top" Margin="0,0,0,18">
-      <TextBlock Text="Personality profiles" FontSize="24" />
+      <TextBlock Text="Personalities" Style="{StaticResource Type.Title}" />
       <TextBlock Text="Choose a speaking style, or create your own with instructions and example replies. Profiles are separate from factual memory." Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,9,0,0" />
     </StackPanel>
-    <TextBlock Name="ProfileStatus" DockPanel.Dock="Bottom" Foreground="#80DEC5" TextWrapping="Wrap" Margin="0,14,0,0" MinHeight="35" />
+    <TextBlock Name="ProfileStatus" DockPanel.Dock="Bottom" Style="{StaticResource Type.Small}" Foreground="{StaticResource Accent}" TextWrapping="Wrap" Margin="0,14,0,0" MinHeight="35" />
     <Grid>
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="245" />
@@ -13,24 +13,24 @@
       </Grid.ColumnDefinitions>
       <DockPanel Margin="0,0,20,0">
         <StackPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
-          <Button Content="New profile" Margin="0,0,0,8" Click="New_Click" />
-          <Button Content="Duplicate selected" Click="Duplicate_Click" />
+          <Button Content="New personality" Style="{StaticResource Btn.Secondary}" HorizontalAlignment="Stretch" Margin="0,0,0,8" Click="New_Click" />
+          <Button Content="Duplicate" Style="{StaticResource Btn.Ghost}" HorizontalAlignment="Stretch" Click="Duplicate_Click" />
         </StackPanel>
         <ListBox Name="ProfileList" AutomationProperties.Name="Personality profiles" DisplayMemberPath="Name" SelectionChanged="Selection_Changed" />
       </DockPanel>
       <DockPanel Grid.Column="1">
-        <WrapPanel DockPanel.Dock="Bottom" Margin="0,15,0,0">
-          <Button Name="SaveProfileButton" Content="Save profile" Margin="0,0,8,0" Click="Save_Click" />
-          <Button Content="Use selected profile" Margin="0,0,8,0" Background="#263F48" Click="Use_Click" />
-          <Button Name="DeleteProfileButton" Content="Delete profile" Click="Delete_Click" />
+        <WrapPanel DockPanel.Dock="Bottom" Margin="0,16,0,0" HorizontalAlignment="Right">
+          <Button Name="DeleteProfileButton" Content="Delete" Style="{StaticResource Btn.DangerGhost}" Margin="0,0,8,0" Click="Delete_Click" />
+          <Button Name="SaveProfileButton" Content="Save" Margin="0,0,8,0" Click="Save_Click" />
+          <Button Content="Use this personality" Style="{StaticResource Btn.Primary}" Click="Use_Click" />
         </WrapPanel>
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
           <StackPanel>
-            <TextBlock Text="NAME" Style="{StaticResource Label}" Margin="0,0,0,7" />
+            <TextBlock Text="Name" Style="{StaticResource Label}" Margin="0,0,0,7" />
             <TextBox Name="ProfileNameBox" AutomationProperties.Name="Profile name" MaxLength="60" />
-            <TextBlock Text="STYLE INSTRUCTIONS" Style="{StaticResource Label}" />
+            <TextBlock Text="How it should talk" Style="{StaticResource Label}" />
             <TextBox Name="ProfileStyleBox" AutomationProperties.Name="Profile style" Height="160" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MaxLength="6000" />
-            <TextBlock Text="EXAMPLE EXCHANGES (OPTIONAL)" Style="{StaticResource Label}" />
+            <TextBlock Text="Example replies (optional)" Style="{StaticResource Label}" />
             <TextBox Name="ProfileExamplesBox" AutomationProperties.Name="Profile examples" Height="150" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MaxLength="6000" />
             <CheckBox Name="ProfileLearningCheck" Content="Allow automatic memory learning with this profile" Margin="0,16,0,0" />
             <TextBlock Text="Creative storyteller starts with learning paused to keep story details out of factual memory. Existing global instructions still apply. Changes affect future messages." Foreground="{StaticResource Muted}" TextWrapping="Wrap" FontSize="11" Margin="0,8,0,0" />

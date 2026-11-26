@@ -35,8 +35,8 @@ public sealed class VoiceWindow : AquilaWindow
 	private readonly TextBlock directionHint = new TextBlock
 	{
 		TextWrapping = TextWrapping.Wrap,
-		Foreground = Brushes.LightGray,
-		FontSize = 11.0,
+		Foreground = Ui.Brush("Text.Secondary"),
+		FontSize = 12.0,
 		Margin = new Thickness(0.0, 7.0, 0.0, 0.0)
 	};
 
@@ -73,7 +73,7 @@ public sealed class VoiceWindow : AquilaWindow
 	private readonly TextBlock status = new TextBlock
 	{
 		TextWrapping = TextWrapping.Wrap,
-		Foreground = Brushes.LightGray
+		Foreground = Ui.Brush("Text.Secondary")
 	};
 
 	private readonly Func<VoiceOptions, bool, Task> apply;
@@ -97,10 +97,6 @@ public sealed class VoiceWindow : AquilaWindow
 		base.MinWidth = 560.0;
 		base.MinHeight = 600.0;
 		base.WindowStartupLocation = WindowStartupLocation.CenterOwner;
-		base.Background = new SolidColorBrush(Color.FromRgb(16, 23, 32));
-		base.Foreground = (Brush)Application.Current.Resources["Ink"];
-		base.FontFamily = new FontFamily("Segoe UI");
-		base.FontSize = 13.0;
 		DockPanel dockPanel = (DockPanel)(base.Content = new DockPanel
 		{
 			Margin = new Thickness(22.0)
@@ -111,14 +107,14 @@ public sealed class VoiceWindow : AquilaWindow
 		stackPanel.Children.Add(new TextBlock
 		{
 			Text = "Voice & delivery",
-			FontSize = 25.0
+			Style = Ui.Style("Type.Title")
 		});
 		stackPanel.Children.Add(new TextBlock
 		{
 			Text = "Choose a preset or import a local voice sample for Kitten TTS 2.",
 			TextWrapping = TextWrapping.Wrap,
 			Margin = new Thickness(0.0, 10.0, 0.0, 15.0),
-			Foreground = Brushes.LightGray
+			Foreground = Ui.Brush("Text.Secondary")
 		});
 		StackPanel stackPanel2 = new StackPanel();
 		DockPanel.SetDock(stackPanel2, Dock.Bottom);
@@ -238,8 +234,8 @@ public sealed class VoiceWindow : AquilaWindow
 		{
 			Text = "Auto prefers CPU for Kitten when enough RAM is available and can use GPU when it has room. Keeping the model loaded reduces the next reply’s delay and uses more memory.",
 			TextWrapping = TextWrapping.Wrap,
-			Foreground = Brushes.LightGray,
-			FontSize = 11.0,
+			Foreground = Ui.Brush("Text.Secondary"),
+			FontSize = 12.0,
 			Margin = new Thickness(0.0, 7.0, 0.0, 0.0)
 		});
 		Label(stackPanel3, "MAXIMUM SPOKEN CHARACTERS PER REPLY (500–12,000)");
@@ -340,8 +336,8 @@ public sealed class VoiceWindow : AquilaWindow
 		p.Children.Add(new TextBlock
 		{
 			Text = text,
-			FontSize = 10.0,
-			Foreground = Brushes.LightGray,
+			FontSize = 12.0,
+			Foreground = Ui.Brush("Text.Secondary"),
 			Margin = new Thickness(0.0, 14.0, 0.0, 7.0)
 		});
 	}
