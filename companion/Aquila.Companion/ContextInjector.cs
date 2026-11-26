@@ -23,14 +23,14 @@ public static class ContextInjector
     /// takes from her own store, so nothing from another persona can get in.
     /// </summary>
     public static InjectedContext Assemble(PersonaConfig config, StateBlock summary, IReadOnlyDictionary<string, DriveValue> drives, string topDrive,
-        AppearanceCard card, string achievements = "", string aboutUser = "")
+        AppearanceCard card, string achievements = "", string aboutUser = "", string soundboard = "")
     {
         if (card.PersonaId != config.Id)
         {
             throw new InvalidOperationException($"An appearance card for '{card.PersonaId}' can't be given to '{config.Id}'.");
         }
         string pinned = summary.CappedTo(config.Memory.SummaryTokenCap).Render();
-        string system = SystemPrompt(config, summary, aboutUser);
+        string system = SystemPrompt(config, summary, aboutUser, soundboard);
         string driveBlock = DriveBlock(config, drives, topDrive);
         string appearance = AppearanceBlock(config.Name, card);
         string inner = driveBlock + "\n" + appearance + (achievements.Length > 0 ? "\n" + achievements : "");
@@ -138,7 +138,7 @@ public static class ContextInjector
         "Choose the emoji that fits this exact moment, their tone and your relationship (for example \u2764\ufe0f \ud83d\ude02 \ud83d\ude2e \ud83d\udc40 \ud83e\udd7a \ud83d\udd25 \ud83d\udc4d \ud83c\udf89 \ud83d\ude0f \ud83e\udd23 \ud83d\ude33). " +
         "A reaction never replaces your reply, and don't mention it in your reply.";
 
-    public static string SystemPrompt(PersonaConfig config, StateBlock summary, string aboutUser = "")
+    public static string SystemPrompt(PersonaConfig config, StateBlock summary, string aboutUser = "", string soundboard = "")
     {
         var sb = new StringBuilder();
         sb.Append("You are ").Append(config.Name).Append(".\n\n");
@@ -159,6 +159,10 @@ public static class ContextInjector
         }
         sb.Append(ReactionGuidance).Append('\n');
         sb.Append(ThoughtMarkup.Guidance(config.Name)).Append('\n');
+        if (soundboard.Trim().Length > 0)
+        {
+            sb.Append(soundboard.Trim()).Append('\n');
+        }
         sb.Append("Your appearance card is how you look and what you're wearing. Your permanent traits never change. Your clothes are yours to choose: when you change them, use the change_outfit tool with a short reason, so it goes into your wardrobe diary. Never describe yourself in a way that contradicts the card.\n");
         string pinned = summary.CappedTo(config.Memory.SummaryTokenCap).Render();
         if (pinned.Length > 0)

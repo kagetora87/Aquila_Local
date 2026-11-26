@@ -83,6 +83,8 @@ public partial class MainWindow : AquilaWindow
 
 	private readonly SpeechService speech;
 
+	private readonly SoundboardPlayer sounds = new SoundboardPlayer();
+
 	private VoiceWindow? voiceWindow;
 
 	private readonly Storage store;
@@ -1632,6 +1634,46 @@ public partial class MainWindow : AquilaWindow
 		return options;
 	}
 
+	/// <summary>Her voice first (if it's on), then any soundboard sounds she cued.</summary>
+	private async Task SpeakThenPlaySoundsAsync(ChatSession session, Turn turn)
+	{
+		await SpeakCompletedReply(session, turn);
+		await PlayCuedSoundsAsync(session.IsCompanion, turn.Answer);
+	}
+
+	/// <summary>Plays the soundboard sounds a persona's reply cues, when the soundboard is on.</summary>
+	private async Task PlayCuedSoundsAsync(bool persona, string reply, CancellationToken ct = default(CancellationToken))
+	{
+		if (!persona || !settings.SoundboardEnabled || featuresClosing || !AquilaLocal.Companion.Sounds.SoundCues.HasCue(reply))
+		{
+			return;
+		}
+		try
+		{
+			List<string> files = await Task.Run(() => companion.SoundsFor(reply), ct);
+			if (!featuresClosing)
+			{
+				await sounds.PlayAsync(files, settings.SoundboardVolume, ct);
+			}
+		}
+		catch (OperationCanceledException)
+		{
+		}
+		catch (Exception ex) when (ex is AquilaLocal.Companion.PersonaConfigException || ex is IOException || ex is UnauthorizedAccessException || ex is UriFormatException)
+		{
+			Notice("Soundboard: " + ex.Message);
+		}
+	}
+
+	private void Soundboard_Click(object sender, RoutedEventArgs e)
+	{
+		SoundboardWindow window = new SoundboardWindow(companion.Soundboard, settings, delegate
+		{
+			store.SaveSettings(settings);
+		}) { Owner = this };
+		window.ShowDialog();
+	}
+
 	private async Task SpeakCompletedReply(ChatSession session, Turn turn)
 	{
 		if ((!settings.Voice.Enabled && !session.IsCall) || turn.Status != "complete")
@@ -1747,6 +1789,7 @@ public partial class MainWindow : AquilaWindow
 	private void StopVoice_Click(object sender, RoutedEventArgs e)
 	{
 		speech.Stop();
+		sounds.Stop();
 	}
 
 	public MainWindow(string? dataRoot = null, string? speechAssets = null)
@@ -2124,7 +2167,7 @@ public partial class MainWindow : AquilaWindow
 				await speech.SpeakAsync(line, VoiceForPersona(personaId), ct);
 			};
 		}
-		SceneWindow window = new SceneWindow(companion, director, () => settings, speakLine, SaveMarkupLook);
+		SceneWindow window = new SceneWindow(companion, director, () => settings, speakLine, SaveMarkupLook, (string text, CancellationToken ct) => PlayCuedSoundsAsync(persona: true, text, ct));
 		window.Owner = this;
 		window.ShowDialog();
 	}
@@ -2363,7 +2406,7 @@ public partial class MainWindow : AquilaWindow
 				{
 					UiSounds.Play(UiSound.Reply);
 				}
-				SpeakCompletedReply(session, turn);
+				_ = SpeakThenPlaySoundsAsync(session, turn);
 			}
 			if (session.IsCompanion && turn.Status == "complete" && agent.CompanionRuntime != null && agent.CompanionTurn != null)
 			{

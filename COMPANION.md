@@ -207,6 +207,13 @@ set her up once.
 - Personas use both. Her thoughts never reach another persona in a scene (`SceneTranscript.Line`), and her voice reads only speech (`ThoughtMarkup.MaskForSpeech` in `VoiceDelivery.Plan`).
 - The eye button shows or hides her thoughts. The palette button sets first person ("I smile") or third person ("Vicki smiles") for her thoughts and actions (applies to new replies) and the two colours. Saved in settings (`ShowPersonaThoughts`, `ThoughtPerson`, `ThoughtColor`, `ActionColor`).
 
+## Soundboard
+
+- **Soundboard** in the sidebar: add sound files (wav, mp3, wma, m4a, aac), give each a name, a type and a short description, put them in order. Saved in `Data\soundboard\` as `01 - Name.ext` files plus `soundboard.json`; removed sounds go to `removed\`, not the bin.
+- When the soundboard is on and has sounds, each persona's system prompt lists them (`SoundCues.Prompt`). She cues one with `<sound>name</sound>`; the app matches the cue by name, close spelling, shared words in name/type/description, then meaning (`SoundCues.Match`), and plays it after her message, or after her voice when she's speaking. At most three per reply.
+- The cue shows in the chat as an orange action ("🔊 Door knock"), is never read aloud, and is left out of her memory. Works in scenes too.
+- Switch and volume are in the Soundboard window (`SoundboardEnabled`, `SoundboardVolume` in settings).
+
 ## Fail loud
 
 If her state can't be read (file missing, damaged, belongs to another persona, a drive missing or impossible,

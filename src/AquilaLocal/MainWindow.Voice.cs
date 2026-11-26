@@ -342,6 +342,7 @@ public partial class MainWindow
 		string name = callSession?.PersonaName ?? "";
 		listener?.Flush();
 		speech.Stop();
+		sounds.Stop();
 		callSession = null;
 		UiSounds.Play(UiSound.Stop);
 		if (settings.Listening.WakeEnabled && listener?.Listening == true)

@@ -69,6 +69,15 @@ public sealed class SceneDirector
 		int replyLimit = Math.Clamp(contextLimit / 8, 256, 1024);
 		CompanionRuntime runtime = host.Open(personaId);
 		runtime.AboutUser = host.LoadAboutYou().Render();
+		try
+		{
+			runtime.Soundboard = host.SoundboardPrompt(settings.SoundboardEnabled);
+		}
+		catch (PersonaConfigException)
+		{
+			// A broken soundboard list is reported in the main chat and the soundboard window; the scene goes on without sounds.
+			runtime.Soundboard = "";
+		}
 		List<SceneEvent> seen = scene.VisibleTo(personaId);
 		string recent = SceneTranscript.Render(seen.TakeLast(6), "");
 		bool spokeBefore = seen.Any((SceneEvent e) => e.Kind == SceneEventKinds.Said && e.SpeakerId == personaId);

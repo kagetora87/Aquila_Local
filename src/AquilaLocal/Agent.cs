@@ -91,6 +91,15 @@ public sealed class Agent(Engine engine, MemoryStore? memories = null, SemanticM
 			AquilaLocal.Companion.CompanionRuntime runtime = Companion.Open(session.PersonaId);
 			CompanionRuntime = runtime;
 			runtime.AboutUser = Companion.LoadAboutYou().Render();
+			try
+			{
+				runtime.Soundboard = Companion.SoundboardPrompt(settings.SoundboardEnabled);
+			}
+			catch (AquilaLocal.Companion.PersonaConfigException ex)
+			{
+				runtime.Soundboard = "";
+				Log(turn, "Soundboard not available this time: " + ex.Message);
+			}
 			bool chatStart = !session.Turns.Any((Turn t) => t != turn && t.Status == "complete");
 			Attachment? picture = Companion.AboutYouPicture();
 			if (picture != null && (chatStart || session.AboutYouPictureSeen != picture.ContentDigest) && !turn.Attachments.Any((Attachment a) => a.FromProfile))

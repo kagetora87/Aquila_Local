@@ -492,6 +492,10 @@ public sealed class MessageView : Border
 	public void Update(string content, string reasoning = "", IEnumerable<string>? logs = null, string status = "", bool renderMarkdown = true, string? copyText = null)
 	{
 		text = copyText ?? content;
+		if (!user)
+		{
+			content = AquilaLocal.Companion.Sounds.SoundCues.ForDisplay(content);
+		}
 		if (AquilaLocal.Companion.ThoughtMarkup.HasMarkup(content))
 		{
 			if (!user && !ShowPersonaThoughts)

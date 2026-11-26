@@ -40,6 +40,9 @@ public sealed class CompanionRuntime
     /// <summary>The user's own "About you" profile (shared by all companions; it isn't persona memory). Set by the app.</summary>
     public string AboutUser { get; set; } = "";
 
+    /// <summary>The soundboard list she may cue sounds from (empty when the soundboard is off or has no sounds).</summary>
+    public string Soundboard { get; set; } = "";
+
     private CompanionRuntime(PersonaConfig config, PersonaStore store, IEmbedder embedder, ISatisfactionScorer scorer)
     {
         Config = config;
@@ -124,7 +127,7 @@ public sealed class CompanionRuntime
         AppearanceCard card = Store.ReadAppearance();
         string top = DriveEngine.TopDrive(Config, drives);
         string achievements = ContextInjector.AchievementsBlock(Store.Achievements(ContextInjector.AchievementsShown), Store.AchievementCount());
-        return (ContextInjector.Assemble(Config, Store.ReadSummary(), drives, top, card, achievements, AboutUser), top, card);
+        return (ContextInjector.Assemble(Config, Store.ReadSummary(), drives, top, card, achievements, AboutUser, Soundboard), top, card);
     }
 
     /// <summary>
@@ -180,7 +183,7 @@ public sealed class CompanionRuntime
         }
         LoopResult result = loop.Run(new TurnObservation(userText, reply, prepared.TopDrive, similarity, mine), now);
         // She remembers what you said and did, never what you only thought.
-        long id = Memory.Add(chatId, turnId, now, ThoughtMarkup.StripThoughts(userText), reply, spoken);
+        long id = Memory.Add(chatId, turnId, now, ThoughtMarkup.StripThoughts(userText), Sounds.SoundCues.Strip(reply), spoken);
         return new CompletedTurn(result, id, Store.TurnsSinceSummary >= Config.Memory.SummarizeEveryTurns, mine);
     }
 

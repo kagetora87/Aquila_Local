@@ -90,12 +90,62 @@ public sealed class CompanionHost : IDisposable
 	/// <summary>Multi-persona scenes (Data\scenes): shared world and log, each persona's mind kept separate.</summary>
 	public AquilaLocal.Companion.Scenes.SceneLibrary Scenes { get; }
 
+	/// <summary>The soundboard (Data\soundboard): numbered sound files plus soundboard.json.</summary>
+	public AquilaLocal.Companion.Sounds.SoundboardLibrary Soundboard { get; }
+
+	/// <summary>What a persona is told about the soundboard; empty when it's off or has no sounds. A broken list throws.</summary>
+	public string SoundboardPrompt(bool enabled) => enabled ? AquilaLocal.Companion.Sounds.SoundCues.Prompt(Soundboard.Load()) : "";
+
+	/// <summary>The files of the sounds a reply cues, matched by name, type, description or meaning (unmatched cues are skipped).</summary>
+	public List<string> SoundsFor(string reply)
+	{
+		List<string> names = AquilaLocal.Companion.Sounds.SoundCues.Names(reply);
+		if (names.Count == 0)
+		{
+			return new List<string>();
+		}
+		AquilaLocal.Companion.Sounds.SoundboardSet set = Soundboard.Load();
+		List<string> files = new List<string>();
+		foreach (string name in names)
+		{
+			AquilaLocal.Companion.Sounds.SoundEntry? entry = AquilaLocal.Companion.Sounds.SoundCues.Match(name, set, Meaning);
+			if (entry != null && File.Exists(Soundboard.PathOf(entry)))
+			{
+				files.Add(Soundboard.PathOf(entry));
+			}
+		}
+		return files;
+	}
+
+	/// <summary>Similarity of meaning between two short texts (local embeddings); 0 when the embedder isn't available.</summary>
+	public double Meaning(string a, string b)
+	{
+		try
+		{
+			float[] x = Embed(a);
+			float[] y = Embed(b);
+			double dot = 0, nx = 0, ny = 0;
+			for (int i = 0; i < Math.Min(x.Length, y.Length); i++)
+			{
+				dot += x[i] * y[i];
+				nx += x[i] * x[i];
+				ny += y[i] * y[i];
+			}
+			return nx == 0 || ny == 0 ? 0 : dot / Math.Sqrt(nx * ny);
+		}
+		catch (Exception ex) when (ex is IOException || ex is InvalidOperationException || ex is UnauthorizedAccessException)
+		{
+			return 0;
+		}
+	}
+
 	private readonly Dictionary<string, float[]> interests = new Dictionary<string, float[]>();
 
 	public CompanionHost(string dataRoot, string? embeddingsDirectory = null)
 	{
 		Registry = new PersonaRegistry(Path.Combine(dataRoot, "personas"));
 		Scenes = new AquilaLocal.Companion.Scenes.SceneLibrary(Path.Combine(dataRoot, "scenes"));
+		Soundboard = new AquilaLocal.Companion.Sounds.SoundboardLibrary(Path.Combine(dataRoot, "soundboard"));
 		embedder = new MiniLmEmbedder(embeddingsDirectory ?? Path.Combine(AppContext.BaseDirectory, "embeddings"));
 		try
 		{

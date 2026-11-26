@@ -44,6 +44,9 @@ public sealed class SceneWindow : AquilaWindow
 	/// <summary>Saves how thoughts and actions look (shown or hidden, colours, first or third person).</summary>
 	private readonly Action? markupChanged;
 
+	/// <summary>Plays the soundboard sounds a line cues (null when there's no soundboard).</summary>
+	private readonly Func<string, CancellationToken, Task>? playSounds;
+
 	private ComboBox responder = new ComboBox();
 
 	private Button sendButton = new Button();
@@ -64,8 +67,9 @@ public sealed class SceneWindow : AquilaWindow
 
 	private const string NobodyLabel = "Nobody (just say it)";
 
-	public SceneWindow(CompanionHost host, SceneDirector director, Func<Settings> settings, Func<string, string, CancellationToken, Task>? speakLine, Action? markupChanged = null)
+	public SceneWindow(CompanionHost host, SceneDirector director, Func<Settings> settings, Func<string, string, CancellationToken, Task>? speakLine, Action? markupChanged = null, Func<string, CancellationToken, Task>? playSounds = null)
 	{
+		this.playSounds = playSounds;
 		this.markupChanged = markupChanged;
 		this.host = host;
 		this.director = director;
@@ -649,6 +653,10 @@ public sealed class SceneWindow : AquilaWindow
 		{
 			Ok(name + " is speaking aloud…");
 			await speakLine(personaId, said.Text, ct);
+		}
+		if (playSounds != null && AquilaLocal.Companion.Sounds.SoundCues.HasCue(said.Text))
+		{
+			await playSounds(said.Text, ct);
 		}
 	}
 

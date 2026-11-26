@@ -79,6 +79,12 @@ public class Settings
 	/// <summary>Show the personas' private thoughts (blue) in the chat.</summary>
 	public bool ShowPersonaThoughts { get; set; } = true;
 
+	/// <summary>Let personas play sounds from the soundboard.</summary>
+	public bool SoundboardEnabled { get; set; } = true;
+
+	/// <summary>Soundboard volume, 0 to 1.</summary>
+	public double SoundboardVolume { get; set; } = 0.8;
+
 	/// <summary>Colour of thoughts, "#RRGGBB".</summary>
 	public string ThoughtColor { get; set; } = "#6CB4FF";
 

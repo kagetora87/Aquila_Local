@@ -58,6 +58,12 @@
           </Button>
         </UniformGrid>
         <!-- Multi-persona scenes -->
+        <Button Name="SoundboardButton" DockPanel.Dock="Bottom" Style="{StaticResource Btn.Ghost}" HorizontalContentAlignment="Left" Margin="0,0,0,4" Padding="10,0" Click="Soundboard_Click" ToolTip="Soundboard: sounds your personas can play">
+          <StackPanel Orientation="Horizontal">
+            <TextBlock Text="&#xE8D6;" FontFamily="{StaticResource Font.Icon}" FontSize="14" VerticalAlignment="Center" Margin="0,0,10,0" />
+            <TextBlock Text="Soundboard" VerticalAlignment="Center" />
+          </StackPanel>
+        </Button>
         <Button Name="ScenesButton" DockPanel.Dock="Bottom" Style="{StaticResource Btn.Ghost}" HorizontalContentAlignment="Left" Margin="0,0,0,4" Padding="10,0" Click="Scenes_Click" ToolTip="Scenes: several personas together in one shared scene">
           <StackPanel Orientation="Horizontal">
             <TextBlock Text="&#xE716;" FontFamily="{StaticResource Font.Icon}" FontSize="14" VerticalAlignment="Center" Margin="0,0,10,0" />
