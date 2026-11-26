@@ -364,6 +364,8 @@ public sealed class Engine : IDisposable
 		}
 		inferenceLaunch.AddArguments(Arg);
 		ClearInheritedArgs(start);
+		// Record exactly how the engine was started (the API key is passed via the environment, not here).
+		Log("[aquila] launch: " + executable + " " + string.Join(" ", start.ArgumentList.Select((string a) => a.Contains(' ') ? ("\"" + a + "\"") : a)));
 		start.Environment["LLAMA_API_KEY"] = text;
 		this.Status?.Invoke("Loading model into memory…");
 		try
