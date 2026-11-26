@@ -450,9 +450,9 @@ public sealed class CompanionWindow : AquilaWindow
 			Build();
 		};
 		panel.Children.Add(history);
-		List<MemoryEntry> all = store.MemoryHistory();
+		List<AquilaLocal.Companion.MemoryEntry> all = store.MemoryHistory();
 		ListBox list = new ListBox { Height = 260 };
-		foreach (MemoryEntry e in all.Where((MemoryEntry e) => showHistory || e.Active))
+		foreach (AquilaLocal.Companion.MemoryEntry e in all.Where((AquilaLocal.Companion.MemoryEntry e) => showHistory || e.Active))
 		{
 			string prefix = e.Active ? "" : (e.Text.Length == 0 ? "[withdrawn] " : "[replaced] ");
 			string meta = $"{e.Layer} · {e.At.LocalDateTime:MMM d, yyyy h:mm tt} · {e.Author}" + (e.Supersedes.HasValue ? $" · replaces #{e.Supersedes} ({e.Reason})" : "");
@@ -484,7 +484,7 @@ public sealed class CompanionWindow : AquilaWindow
 		}));
 		Button correct = Ui.Button("Correct selected", "Btn.Secondary", delegate
 		{
-			if (Selected(list) is MemoryEntry e)
+			if (Selected(list) is AquilaLocal.Companion.MemoryEntry e)
 			{
 				Try(() => store.Supersede(e.Id, text2.Text, MemoryAuthors.Operator, reason.Text, DateTimeOffset.Now), "Correction recorded; the original is kept in her history.");
 			}
@@ -497,7 +497,7 @@ public sealed class CompanionWindow : AquilaWindow
 		buttons.Children.Add(correct);
 		Button withdraw = Ui.Button("Withdraw selected", "Btn.DangerGhost", delegate
 		{
-			if (Selected(list) is MemoryEntry e)
+			if (Selected(list) is AquilaLocal.Companion.MemoryEntry e)
 			{
 				Try(() => store.Supersede(e.Id, "", MemoryAuthors.Operator, reason.Text, DateTimeOffset.Now), "Withdrawn; it stays in her history.");
 			}
@@ -512,9 +512,9 @@ public sealed class CompanionWindow : AquilaWindow
 		return panel;
 	}
 
-	private static MemoryEntry? Selected(ListBox list)
+	private static AquilaLocal.Companion.MemoryEntry? Selected(ListBox list)
 	{
-		return (list.SelectedItem as FrameworkElement)?.Tag as MemoryEntry;
+		return (list.SelectedItem as FrameworkElement)?.Tag as AquilaLocal.Companion.MemoryEntry;
 	}
 
 	private void Try(Func<long> action, string done)
