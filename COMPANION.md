@@ -233,11 +233,14 @@ set her up once.
 ## Living mode (thoughts of her own)
 
 Off until you turn it on (sidebar: **Living mode**). While Aquila is open and you've left it alone for a while
-(10 minutes by default), each living persona has a thought about every 45 minutes (it varies a little):
+(10 minutes by default), each living persona has a thought after a random wait of 15 to 60 minutes:
 a daydream, a feeling, a reflection, something she's curious about, or a memory she's turning over. It comes
 from her personality sheet, her drives right now (ticked forward to the present, read only), her pinned
 memory, the last things you said to each other and her recent thoughts (so she doesn't repeat herself).
 
+- **Night:** from 11 PM to 8 AM she's asleep: thoughts become dreams (waits doubled, no lookups). If "Paint her
+  dreams" is on, the picture model chosen in Pictures paints each dream (with her appearance and references when
+  she's in it); the picture is in her journal and Data\pictures. "Have a dream now" tries it any time.
 - **Where it runs:** the chat model's spare slot (slot 1), the same one the summary and picture-prompt writers
   use. No second model, nothing added to your chat's context. Sending a message stops a thought in progress.
 - **Her memory:** each thought is remembered under the chat id `inner-life`. Recall shows it to her as

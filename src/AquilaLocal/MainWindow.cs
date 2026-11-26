@@ -2009,6 +2009,7 @@ public partial class MainWindow : AquilaWindow
 		}
 		ChatTitle.Text = current.Title;
 		ShowLocation();
+		RefreshContextMeter();
 		ImageSource? avatar = RefreshChatAvatar(current);
 		replyViews.Clear();
 		userViews.Clear();
@@ -2443,6 +2444,7 @@ public partial class MainWindow : AquilaWindow
 				pendingLearning = LearnInBackgroundAsync(session, turn);
 			}
 			MetricsText.Text = turn.Metrics;
+			RefreshContextMeter();
 			StatusText.Text = "Ready";
 			if (turn.Status == "limit")
 			{

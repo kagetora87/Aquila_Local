@@ -495,6 +495,8 @@ public sealed class Agent(Engine engine, MemoryStore? memories = null, SemanticM
 				{
 					turn.PromptTokens += requestInput;
 					turn.CompletionTokens += requestOutput;
+					// The last request of the turn is what the conversation fills in the context window now.
+					turn.ContextTokens = requestInput + requestOutput;
 					turn.UsageRequests++;
 					generated += (int)Math.Min(2147483647L, requestOutput);
 				}

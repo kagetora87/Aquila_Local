@@ -16,9 +16,9 @@ public sealed class LivingTests
     [Fact]
     public void She_thinks_only_when_you_are_away_and_the_model_is_free()
     {
-        var policy = new LivingPolicy { IntervalMinutes = 45, IdleMinutes = 10 };
-        DateTimeOffset due = LivingSchedule.NextThought(Now.AddHours(-1), Now.AddHours(-5), policy, 0);
-        Assert.Equal(Now.AddMinutes(-15), due);
+        var policy = new LivingPolicy { MinMinutes = 15, MaxMinutes = 60, IdleMinutes = 10 };
+        DateTimeOffset due = LivingSchedule.NextThought(Now.AddHours(-1), Now.AddHours(-5), policy, 1);
+        Assert.Equal(Now, due);
 
         Assert.Null(LivingSchedule.WhyNotNow(Now, due, Now.AddMinutes(-11), policy, busy: false, engineReady: true));
         Assert.Contains("away", LivingSchedule.WhyNotNow(Now, due, Now.AddMinutes(-3), policy, false, true));
@@ -28,12 +28,34 @@ public sealed class LivingTests
     }
 
     [Fact]
-    public void Thoughts_do_not_arrive_like_clockwork()
+    public void Thoughts_come_at_random_between_15_minutes_and_an_hour()
     {
-        var policy = new LivingPolicy { IntervalMinutes = 60 };
-        Assert.Equal(Now.AddMinutes(42), LivingSchedule.NextThought(Now, Now, policy, -1));
-        Assert.Equal(Now.AddMinutes(78), LivingSchedule.NextThought(Now, Now, policy, 1));
-        Assert.Equal(Now.AddMinutes(60), LivingSchedule.NextThought(null, Now, policy, 0));
+        var policy = new LivingPolicy();
+        Assert.Equal(Now.AddMinutes(15), LivingSchedule.NextThought(Now, Now, policy, 0));
+        Assert.Equal(Now.AddMinutes(60), LivingSchedule.NextThought(Now, Now, policy, 1));
+        Assert.Equal(Now.AddMinutes(37.5), LivingSchedule.NextThought(null, Now, policy, 0.5));
+        Assert.Equal(Now.AddMinutes(120), LivingSchedule.NextThought(Now, Now, policy, 1, night: true));
+        Assert.Equal(Now.AddMinutes(15), LivingSchedule.NextThought(Now, Now, new LivingPolicy { MinMinutes = 60, MaxMinutes = 15 }, 0));
+    }
+
+    [Theory]
+    [InlineData(23, true)]
+    [InlineData(3, true)]
+    [InlineData(8, false)]
+    [InlineData(20, false)]
+    public void At_night_she_is_asleep(int hour, bool night)
+    {
+        Assert.Equal(night, LivingSchedule.IsNight(hour, new LivingPolicy()));
+    }
+
+    [Fact]
+    public void Reads_her_dream_and_whether_she_is_in_it()
+    {
+        InnerThought d = InnerLifePrompt.Parse("{\"kind\":\"dream\",\"text\":\"I'm swimming through a library.\",\"she_is_in_it\":false}");
+        Assert.Equal(ThoughtKinds.Dream, d.Kind);
+        Assert.False(d.SheIsInIt);
+        Assert.True(InnerLifePrompt.Parse("{\"kind\":\"dream\",\"text\":\"x\"}").SheIsInIt);
+        Assert.Contains("asleep", InnerLifePrompt.DreamSystem("Vicki"));
     }
 
     [Theory]

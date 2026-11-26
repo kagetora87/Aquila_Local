@@ -99,7 +99,7 @@ public partial class MainWindow
 	{
 		if (!livingJitter.TryGetValue(personaId, out double j))
 		{
-			j = Random.Shared.NextDouble() * 2 - 1;
+			j = Random.Shared.NextDouble();
 			livingJitter[personaId] = j;
 		}
 		return j;
@@ -135,8 +135,9 @@ public partial class MainWindow
 				SetLivingStatus("No persona is set up yet.");
 				return;
 			}
-			PersonaEntry next = personas.OrderBy((PersonaEntry p) => LivingSchedule.NextThought(LastThoughtOf(p.Id), livingStarted, policy, JitterOf(p.Id))).First();
-			DateTimeOffset due = LivingSchedule.NextThought(LastThoughtOf(next.Id), livingStarted, policy, JitterOf(next.Id));
+			bool night = LivingSchedule.IsNight(now.LocalDateTime.Hour, policy);
+			PersonaEntry next = personas.OrderBy((PersonaEntry p) => LivingSchedule.NextThought(LastThoughtOf(p.Id), livingStarted, policy, JitterOf(p.Id), night)).First();
+			DateTimeOffset due = LivingSchedule.NextThought(LastThoughtOf(next.Id), livingStarted, policy, JitterOf(next.Id), night);
 			// An open Aquila window (pictures, a scene, settings…) means you're here.
 			if (OwnedWindows.Count > 0)
 			{
@@ -167,7 +168,8 @@ public partial class MainWindow
 	}
 
 	/// <summary>One thought for one persona. Returns her journal entry, or null if it was stopped or failed (the reason is in the status).</summary>
-	private async Task<JournalEntry?> LiveOnceAsync(string personaId, string name)
+	/// <param name="dream">True to dream now whatever the time (the "Have a dream now" button).</param>
+	private async Task<JournalEntry?> LiveOnceAsync(string personaId, string name, bool dream = false)
 	{
 		if (livingRunning)
 		{
@@ -182,7 +184,8 @@ public partial class MainWindow
 			SetLivingStatus(name + " is thinking…");
 			CompanionRuntime runtime = companion.Open(personaId);
 			PersonaConfig config = runtime.Config;
-			bool canLookUp = settings.Living.WebLookups;
+			bool asleep = dream || LivingSchedule.IsNight(now.LocalDateTime.Hour, settings.Living.Policy());
+			bool canLookUp = settings.Living.WebLookups && !asleep;
 
 			Dictionary<string, DriveValue> drives = runtime.Store.ReadDrives(config.Drives.Select((DriveSpec d) => d.Name));
 			foreach (DriveChange change in DriveEngine.Tick(config, drives, runtime.Store.LastTick, now))
@@ -203,9 +206,14 @@ public partial class MainWindow
 				now,
 				now - lastTalk,
 				companion.LoadAboutYou().Render(),
-				canLookUp);
+				canLookUp,
+				asleep);
 
-			string system = InnerLifePrompt.WriterSystem(name, canLookUp);
+			if (asleep)
+			{
+				SetLivingStatus(name + " is dreaming…");
+			}
+			string system = asleep ? InnerLifePrompt.DreamSystem(name) : InnerLifePrompt.WriterSystem(name, canLookUp);
 			InnerThought thought = InnerLifePrompt.Parse(await AskInnerLifeAsync(system, InnerLifePrompt.WriterUser(input), ct), name);
 			JournalEntry entry = new JournalEntry { PersonaId = personaId, At = now };
 			if (thought.LookUp.Length > 0 && canLookUp)
@@ -223,9 +231,28 @@ public partial class MainWindow
 					entry.Note = "The lookup didn't work: " + problem;
 				}
 			}
+			if (asleep)
+			{
+				thought = thought with { Kind = ThoughtKinds.Dream, LookUp = "" };
+			}
 			entry.Kind = thought.Kind;
 			entry.Text = thought.Text;
 			entry.Urge = thought.Urge;
+			if (thought.Kind == ThoughtKinds.Dream && settings.Living.DrawDreams)
+			{
+				try
+				{
+					entry.Picture = await DrawDreamAsync(runtime, personaId, name, thought, ct);
+				}
+				catch (Exception ex) when (ex is IOException || ex is PersonaConfigException || ex is HttpRequestException || ex is UnauthorizedAccessException || ex is InvalidOperationException)
+				{
+					entry.Note = ("The dream picture didn't work: " + ex.Message.Truncate(300)).Trim();
+				}
+				finally
+				{
+					PictureStatus(null);
+				}
+			}
 
 			if (settings.Living.MessageFirst)
 			{
@@ -273,6 +300,41 @@ public partial class MainWindow
 			livingCts?.Dispose();
 			livingCts = null;
 		}
+	}
+
+	/// <summary>
+	/// Paints her dream with the picture model chosen in Pictures (and her appearance and reference pictures when
+	/// she's in it). The best model pauses the chat model, which is fine: she's dreaming because you're away.
+	/// </summary>
+	private async Task<string> DrawDreamAsync(CompanionRuntime runtime, string personaId, string name, InnerThought dream, CancellationToken ct)
+	{
+		string model = settings.Pictures.Model;
+		(bool ready, string problem) = PictureDrawer.Kit.Check(model);
+		if (!ready)
+		{
+			throw new InvalidOperationException(problem);
+		}
+		SetLivingStatus(name + " is dreaming… painting the dream.");
+		string? appearance = null;
+		List<string> references = new List<string>();
+		if (dream.SheIsInIt)
+		{
+			try
+			{
+				appearance = AppearanceCaption.For(name, runtime.Store.ReadAppearance());
+			}
+			catch (AppearanceCardUnavailableException)
+			{
+				appearance = CompanionHost.Looks(runtime);
+			}
+			if (settings.Pictures.UseReferences)
+			{
+				references = AquilaLocal.Companion.Pictures.PictureFiles.References(companion.Folder(personaId)).Take(AquilaLocal.Companion.Pictures.PictureCommand.MaxReferences).ToList();
+			}
+		}
+		AquilaLocal.Companion.Pictures.PictureRequest request = new AquilaLocal.Companion.Pictures.PictureRequest("Her dream: " + dream.Text + " Paint it dreamlike: soft, surreal light and a slightly impossible feel.", dream.SheIsInIt, "scene");
+		string prompt = await WritePicturePromptAsync(request, "", dream.SheIsInIt ? name : null, appearance, references.Count > 0, "inside her dream", ct);
+		return await DrawAsync(model, AquilaLocal.Companion.Pictures.PicturePrompt.WithReferences(prompt, references.Count), request.Size(), references, name + " dream", ct);
 	}
 
 	/// <summary>One JSON answer from the chat model's second slot (the conversation's cache on slot 0 is untouched).</summary>
@@ -422,13 +484,13 @@ public partial class MainWindow
 			store.SaveSettings(settings);
 			lastThought.Clear();
 			ShowLivingButton();
-		}, async delegate(string personaId, string name)
+		}, async delegate(string personaId, string name, bool dream)
 		{
 			if (LivingBusy || !engine.Ready)
 			{
 				throw new InvalidOperationException(engine.Ready ? "Wait until the current reply finishes." : "The chat model isn't loaded yet.");
 			}
-			return await LiveOnceAsync(personaId, name);
+			return await LiveOnceAsync(personaId, name, dream);
 		})
 		{
 			Owner = this

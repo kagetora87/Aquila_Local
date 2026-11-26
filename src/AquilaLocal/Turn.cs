@@ -71,6 +71,9 @@ public class Turn
 	/// <summary>Pictures drawn for this reply (files in Data\pictures).</summary>
 	public List<string> Pictures { get; set; } = new List<string>();
 
+	/// <summary>How much of the context window the conversation filled after this reply (the last request's input plus output).</summary>
+	public long ContextTokens { get; set; }
+
 	public long PromptTokens { get; set; }
 
 	public long CompletionTokens { get; set; }
