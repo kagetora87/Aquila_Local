@@ -510,19 +510,25 @@
         <ControlTemplate TargetType="{x:Type Thumb}">
           <Grid RenderTransformOrigin="0.5,0.5" x:Name="Root">
             <Grid.RenderTransform>
-              <ScaleTransform x:Name="Scale" ScaleX="1" ScaleY="1" />
+              <ScaleTransform ScaleX="1" ScaleY="1" />
             </Grid.RenderTransform>
             <Ellipse x:Name="Knob" Fill="#FFFFFF" Stroke="#1A000000" StrokeThickness="1" />
             <Ellipse x:Name="Dot" Width="4" Height="4" Fill="{StaticResource Accent}" />
           </Grid>
           <ControlTemplate.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
-              <Setter TargetName="Scale" Property="ScaleX" Value="1.1" />
-              <Setter TargetName="Scale" Property="ScaleY" Value="1.1" />
+              <Setter TargetName="Root" Property="RenderTransform">
+                <Setter.Value>
+                  <ScaleTransform ScaleX="1.1" ScaleY="1.1" />
+                </Setter.Value>
+              </Setter>
             </Trigger>
             <Trigger Property="IsDragging" Value="True">
-              <Setter TargetName="Scale" Property="ScaleX" Value="0.95" />
-              <Setter TargetName="Scale" Property="ScaleY" Value="0.95" />
+              <Setter TargetName="Root" Property="RenderTransform">
+                <Setter.Value>
+                  <ScaleTransform ScaleX="0.95" ScaleY="0.95" />
+                </Setter.Value>
+              </Setter>
               <Setter TargetName="Dot" Property="Width" Value="8" />
               <Setter TargetName="Dot" Property="Height" Value="8" />
             </Trigger>
@@ -896,7 +902,7 @@
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                       <TextBlock x:Name="Chev" Text="&#xE76C;" FontFamily="{StaticResource Font.Icon}" FontSize="12" Foreground="{StaticResource Text.Tertiary}" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5" Margin="0,0,8,0">
                         <TextBlock.RenderTransform>
-                          <RotateTransform x:Name="ChevRotate" Angle="0" />
+                          <RotateTransform Angle="0" />
                         </TextBlock.RenderTransform>
                       </TextBlock>
                       <ContentPresenter x:Name="HeaderText" TextElement.Foreground="{StaticResource Text.Secondary}" TextElement.FontWeight="Medium" VerticalAlignment="Center" />
@@ -907,7 +913,11 @@
                       <Setter TargetName="HeaderText" Property="TextElement.Foreground" Value="{StaticResource Text.Primary}" />
                     </Trigger>
                     <Trigger Property="IsChecked" Value="True">
-                      <Setter TargetName="ChevRotate" Property="Angle" Value="90" />
+                      <Setter TargetName="Chev" Property="RenderTransform">
+                        <Setter.Value>
+                          <RotateTransform Angle="90" />
+                        </Setter.Value>
+                      </Setter>
                     </Trigger>
                   </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -940,9 +950,9 @@
                   <ControlTemplate TargetType="{x:Type ToggleButton}">
                     <Border Background="Transparent" Height="48" Padding="16,0">
                       <DockPanel>
-                        <TextBlock DockPanel.Dock="Right" Text="&#xE70D;" FontFamily="{StaticResource Font.Icon}" FontSize="12" Foreground="{StaticResource Text.Tertiary}" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5">
+                        <TextBlock x:Name="ChevIcon2" DockPanel.Dock="Right" Text="&#xE70D;" FontFamily="{StaticResource Font.Icon}" FontSize="12" Foreground="{StaticResource Text.Tertiary}" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5">
                           <TextBlock.RenderTransform>
-                            <RotateTransform x:Name="ChevRotate" Angle="0" />
+                            <RotateTransform Angle="0" />
                           </TextBlock.RenderTransform>
                         </TextBlock>
                         <ContentPresenter VerticalAlignment="Center" TextElement.FontWeight="Medium" />
@@ -950,7 +960,11 @@
                     </Border>
                     <ControlTemplate.Triggers>
                       <Trigger Property="IsChecked" Value="True">
-                        <Setter TargetName="ChevRotate" Property="Angle" Value="180" />
+                        <Setter TargetName="ChevIcon2" Property="RenderTransform">
+                          <Setter.Value>
+                            <RotateTransform Angle="180" />
+                          </Setter.Value>
+                        </Setter>
                       </Trigger>
                     </ControlTemplate.Triggers>
                   </ControlTemplate>
@@ -982,9 +996,9 @@
                 <ControlTemplate TargetType="{x:Type ToggleButton}">
                   <Border Background="Transparent" Height="24">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                      <TextBlock Text="&#xE76C;" FontFamily="{StaticResource Font.Icon}" FontSize="10" Foreground="{StaticResource Text.Tertiary}" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5" Margin="0,0,6,0">
+                      <TextBlock x:Name="ChevIcon3" Text="&#xE76C;" FontFamily="{StaticResource Font.Icon}" FontSize="10" Foreground="{StaticResource Text.Tertiary}" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5" Margin="0,0,6,0">
                         <TextBlock.RenderTransform>
-                          <RotateTransform x:Name="ChevRotate" Angle="0" />
+                          <RotateTransform Angle="0" />
                         </TextBlock.RenderTransform>
                       </TextBlock>
                       <ContentPresenter x:Name="HeaderText" TextElement.Foreground="{StaticResource Text.Tertiary}" TextElement.FontSize="12" VerticalAlignment="Center" />
@@ -995,7 +1009,11 @@
                       <Setter TargetName="HeaderText" Property="TextElement.Foreground" Value="{StaticResource Text.Secondary}" />
                     </Trigger>
                     <Trigger Property="IsChecked" Value="True">
-                      <Setter TargetName="ChevRotate" Property="Angle" Value="90" />
+                      <Setter TargetName="ChevIcon3" Property="RenderTransform">
+                        <Setter.Value>
+                          <RotateTransform Angle="90" />
+                        </Setter.Value>
+                      </Setter>
                     </Trigger>
                   </ControlTemplate.Triggers>
                 </ControlTemplate>
