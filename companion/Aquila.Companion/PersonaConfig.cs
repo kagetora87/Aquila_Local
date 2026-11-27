@@ -251,6 +251,19 @@ public sealed class PersonaConfig
     /// <summary>Her own avatar: a set name in Data\avatars (for example "vicki"), or a full folder path. Empty uses the shared avatar.</summary>
     public string Avatar { get; set; } = "";
 
+    /// <summary>Her age in years, shown on her card (0 = not set). Companions are always adults: 18 or older.</summary>
+    public int Age { get; set; }
+
+    /// <summary>"female" or "male": which words the app uses for them (she/her or he/him).</summary>
+    public string Gender { get; set; } = Genders.Female;
+
+    /// <summary>A line or two about them for their card in My Companions. Empty uses the start of the personality sheet.</summary>
+    public string Tagline { get; set; } = "";
+
+    public const int MinAge = 18;
+    public const int MaxAge = 120;
+    public const int MaxTaglineChars = 300;
+
     public static readonly JsonSerializerOptions Json = new()
     {
         WriteIndented = true,
@@ -308,6 +321,18 @@ public sealed class PersonaConfig
         if (string.IsNullOrWhiteSpace(Name))
         {
             throw new PersonaConfigException($"Persona '{Id}' has no name.");
+        }
+        if (Age != 0 && (Age < MinAge || Age > MaxAge))
+        {
+            throw new PersonaConfigException($"{Name}'s age must be between {MinAge} and {MaxAge} (companions are always adults), or left empty.");
+        }
+        if (Gender != Genders.Female && Gender != Genders.Male)
+        {
+            throw new PersonaConfigException($"{Name}'s gender must be \"{Genders.Female}\" or \"{Genders.Male}\".");
+        }
+        if (Tagline.Length > MaxTaglineChars)
+        {
+            throw new PersonaConfigException($"{Name}'s card description is {Tagline.Length} characters; keep it under {MaxTaglineChars}.");
         }
         if (Drives.Count == 0 || Drives.Count > Companion.Drives.MaxDrives)
         {
@@ -442,4 +467,22 @@ public sealed class PersonaConfig
         }
         return missing;
     }
+}
+
+/// <summary>A companion's gender, and the words that go with it.</summary>
+public static class Genders
+{
+    public const string Female = "female";
+    public const string Male = "male";
+
+    public static bool IsMale(string gender) => gender == Male;
+
+    /// <summary>"she" / "he".</summary>
+    public static string Subject(string gender) => IsMale(gender) ? "he" : "she";
+
+    /// <summary>"her" / "him".</summary>
+    public static string Object(string gender) => IsMale(gender) ? "him" : "her";
+
+    /// <summary>"her" / "his".</summary>
+    public static string Possessive(string gender) => IsMale(gender) ? "his" : "her";
 }

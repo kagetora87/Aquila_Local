@@ -72,5 +72,39 @@ public class ChatSession
 	[System.Text.Json.Serialization.JsonIgnore]
 	public string Speaker => IsCompanion ? PersonaName : "Aquila";
 
+	/// <summary>Finds the picture for a chat's row (her profile picture, or Aquila's crest). Set once by the main window.</summary>
+	[System.Text.Json.Serialization.JsonIgnore]
+	public static Func<ChatSession, System.Windows.Media.ImageSource?>? PictureFor { get; set; }
+
+	[System.Text.Json.Serialization.JsonIgnore]
+	public System.Windows.Media.ImageSource? Picture => PictureFor?.Invoke(this);
+
+	[System.Text.Json.Serialization.JsonIgnore]
+	public string Initial => Speaker.Length > 0 ? char.ToUpperInvariant(Speaker[0]).ToString() : "?";
+
+	/// <summary>"Today", "Yesterday", "Tuesday" (this week) or "Mar 4".</summary>
+	[System.Text.Json.Serialization.JsonIgnore]
+	public string When
+	{
+		get
+		{
+			DateTime day = Updated.LocalDateTime.Date;
+			DateTime today = DateTime.Today;
+			if (day >= today)
+			{
+				return "Today";
+			}
+			if (day == today.AddDays(-1))
+			{
+				return "Yesterday";
+			}
+			if (day > today.AddDays(-7))
+			{
+				return day.ToString("dddd", System.Globalization.CultureInfo.CurrentCulture);
+			}
+			return day.Year == today.Year ? day.ToString("MMM d", System.Globalization.CultureInfo.CurrentCulture) : day.ToString("MMM d, yyyy", System.Globalization.CultureInfo.CurrentCulture);
+		}
+	}
+
 	public string Subtitle => (IsCompanion ? PersonaName + " · " : "") + Updated.LocalDateTime.ToString("MMM d · h:mm tt");
 }

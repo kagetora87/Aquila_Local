@@ -2015,6 +2015,7 @@ public partial class MainWindow : AquilaWindow
 		chats = new ObservableCollection<ChatSession>(store.LoadChats());
 		ChatsList.ItemsSource = chats;
 		ShowSettings();
+		BuildRail();
 		StatusText.Text = "No model loaded";
 		if (chats.Count > 0)
 		{
@@ -2761,11 +2762,10 @@ public partial class MainWindow : AquilaWindow
 		NewButton.IsEnabled = !value;
 		ChatsList.IsEnabled = !value;
 		SetupControls.IsEnabled = !value;
-		VoiceButton.IsEnabled = !value;
 		VoiceReplayButton.IsEnabled = !value;
 		PictureMomentButton.IsEnabled = !value && !drawingMoment;
-		MemoriesButton.IsEnabled = !value;
-		CompanionButton.IsEnabled = !value;
+		ScenesButton.IsEnabled = !value;
+		SetRailBusy(value);
 		RefreshContextControls();
 		CommandManager.InvalidateRequerySuggested();
 		AttachButton.IsEnabled = !value && !attaching;

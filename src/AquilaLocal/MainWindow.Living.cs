@@ -75,7 +75,13 @@ public partial class MainWindow
 
 	private void ShowLivingButton()
 	{
-		ShowOnLabel(LivingButtonText, settings.Living.Enabled ? "Living mode · " : "Living mode", settings.Living.Enabled ? "on" : null, "");
+		// The little badge next to her name: a green dot while Living mode is on.
+		bool on = settings.Living.Enabled;
+		LivingDot.Fill = Ui.Brush(on ? "On" : "Text.Disabled");
+		LivingGlyph.Foreground = Ui.Brush(on ? "Accent" : "Text.Tertiary");
+		LivingButton.ToolTip = on
+			? "Living mode is on: your companions think, dream and keep a journal while you're away. Click to open it."
+			: "Living mode is off. Click to open it and switch it on.";
 	}
 
 	/// <summary>The personas who live: the chosen ones, or every persona that's set up.</summary>

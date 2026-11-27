@@ -40,6 +40,9 @@ public class Settings
 	/// <summary>Sidebar width in pixels, set by dragging its edge.</summary>
 	public double SidebarWidth { get; set; } = 272.0;
 
+	/// <summary>The icon rail on the far left shows its names (and the chats panel steps aside).</summary>
+	public bool RailExpanded { get; set; }
+
 	/// <summary>Width of the avatar pane on the right, set by dragging its edge.</summary>
 	public double AvatarWidth { get; set; } = 360.0;
 

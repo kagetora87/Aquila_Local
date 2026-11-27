@@ -441,6 +441,15 @@ public sealed class CompanionWindow : AquilaWindow
 		CheckBox unlocked = new CheckBox { Content = "Drift unlocked", IsChecked = config.Drift.Unlocked, Margin = new Thickness(0, 6, 0, 0) };
 		panel.Children.Add(unlocked);
 
+		panel.Children.Add(Label("Age, and the words used for them"));
+		TextBox age = new TextBox { Text = config.Age > 0 ? config.Age.ToString(System.Globalization.CultureInfo.InvariantCulture) : "", Width = 80, MaxLength = 3, ToolTip = "Companions are always adults: 18 or older. Leave empty to not show an age." };
+		ComboBox gender = new ComboBox { ItemsSource = new[] { "Female (she/her)", "Male (he/him)" }, SelectedIndex = Genders.IsMale(config.Gender) ? 1 : 0, Width = 180, Margin = new Thickness(10, 0, 0, 0) };
+		panel.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Children = { age, gender } });
+		panel.Children.Add(Label("Card description (shown in My Companions)"));
+		TextBox tagline = Multiline(config.Tagline, 60);
+		tagline.MaxLength = PersonaConfig.MaxTaglineChars;
+		panel.Children.Add(tagline);
+
 		panel.Children.Add(Label("Her voice (when replies are spoken)"));
 		List<(string Key, string Label)> choices = new List<(string Key, string Label)> { ("", "Same as Aquila's voice (set in Voice…)") };
 		try
@@ -569,6 +578,21 @@ public sealed class CompanionWindow : AquilaWindow
 					throw new PersonaConfigException("\u201C" + favourite.Text.Trim() + "\u201D isn't a colour Aquila knows. Use a name like teal or a code like #4FC3F7.");
 				}
 				edited.FavoriteColor = favourite.Text.Trim();
+				string ageText = age.Text.Trim();
+				if (ageText.Length == 0)
+				{
+					edited.Age = 0;
+				}
+				else if (!int.TryParse(ageText, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int years) || years < PersonaConfig.MinAge || years > PersonaConfig.MaxAge)
+				{
+					throw new PersonaConfigException("Age must be a number from " + PersonaConfig.MinAge + " to " + PersonaConfig.MaxAge + ": companions are always adults.");
+				}
+				else
+				{
+					edited.Age = years;
+				}
+				edited.Gender = gender.SelectedIndex == 1 ? Genders.Male : Genders.Female;
+				edited.Tagline = tagline.Text.Trim();
 				string avatarKey = avatarChoices[Math.Max(0, avatarBox.SelectedIndex)].Key;
 				edited.Avatar = avatarKey == ChooseFolder ? edited.Avatar : avatarKey;
 				Dictionary<string, string> renamed = driveEditor.ApplyTo(edited);
