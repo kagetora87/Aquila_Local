@@ -47,6 +47,9 @@ public class ChatSession
 
 	public string Title { get; set; } = "New conversation";
 
+	/// <summary>The person named this chat themselves, so it's never renamed from the first message.</summary>
+	public bool Renamed { get; set; }
+
 	public DateTimeOffset Updated { get; set; } = DateTimeOffset.Now;
 
 	public List<Turn> Turns { get; set; } = new List<Turn>();

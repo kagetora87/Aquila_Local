@@ -70,6 +70,19 @@ public partial class MainWindow
 		return result;
 	}
 
+	/// <summary>Writes "prefix" + state into a label, with the state in bright green when it's switched on.</summary>
+	internal static void ShowOnLabel(System.Windows.Controls.TextBlock label, string prefix, string? onWord, string offText)
+	{
+		label.Inlines.Clear();
+		if (onWord == null)
+		{
+			label.Text = prefix + offText;
+			return;
+		}
+		label.Inlines.Add(new System.Windows.Documents.Run(prefix));
+		label.Inlines.Add(new System.Windows.Documents.Run(onWord) { Foreground = Ui.Brush("On"), FontWeight = FontWeights.SemiBold });
+	}
+
 	private void ApplyUiSoundSettings()
 	{
 		UiSounds.Enabled = settings.UiSounds;
@@ -95,7 +108,7 @@ public partial class MainWindow
 		{
 			dotState = dot;
 			Motion.StopPulse(StatusDot);
-			StatusDot.Fill = Ui.Brush((dot == "off") ? "Text.Tertiary" : "Accent");
+			StatusDot.Fill = Ui.Brush((dot == "off") ? "Text.Tertiary" : "On");
 			if (dot == "busy")
 			{
 				Motion.Pulse(StatusDot, 0.3, TimeSpan.FromMilliseconds(1200.0));
@@ -109,7 +122,7 @@ public partial class MainWindow
 		ModelChipText.Text = (model.Length == 0) ? "Choose a model" : ShortModelName(model);
 		ModelChip.ToolTip = (model.Length == 0) ? "Choose the model Aquila uses" : (settings.ModelPath + "\nClick to change model settings.");
 		WebChip.Visibility = (settings.WebMode == "Off") ? Visibility.Collapsed : Visibility.Visible;
-		WebChipText.Text = (settings.WebMode == "Automatic") ? "Web: on" : "Web: ask first";
+		ShowOnLabel(WebChipText, "Web: ", (settings.WebMode == "Automatic") ? "on" : null, "ask first");
 		Welcome.Visibility = empty ? Visibility.Visible : Visibility.Collapsed;
 		WelcomeNoModel.Visibility = ready ? Visibility.Collapsed : Visibility.Visible;
 		WelcomeReady.Visibility = ready ? Visibility.Visible : Visibility.Collapsed;

@@ -28,6 +28,10 @@ public class Turn
 	/// <summary>Living mode: she wrote this message to you first, on her own (there's no message from you).</summary>
 	public bool Unprompted { get; set; }
 
+	/// <summary>Why she spoke without a message from you (a new chat opening, a picture you had her draw).
+	/// It's her stage note for that turn, kept in the turn's context so later replies know what happened.</summary>
+	public string Cue { get; set; } = "";
+
 	/// <summary>You said this aloud (it was transcribed from the microphone) rather than typed it.</summary>
 	public bool Spoken { get; set; }
 

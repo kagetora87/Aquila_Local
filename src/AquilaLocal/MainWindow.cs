@@ -483,7 +483,7 @@ public partial class MainWindow : AquilaWindow
 		{
 			ReloadSpriteAvatar();
 			SaveAvatarSettings();
-		})
+		}, companion.AvatarsRoot)
 		{
 			Owner = this
 		};
@@ -535,6 +535,84 @@ public partial class MainWindow : AquilaWindow
 			listBoxItem.IsSelected = true;
 			listBoxItem.Focus();
 		}
+	}
+
+	// ---------------- Renaming a chat (click its title, or right-click it in the list) ----------------
+
+	private void RenameChat_Click(object sender, RoutedEventArgs e)
+	{
+		if ((sender as FrameworkElement)?.DataContext is ChatSession chat && chat != current && !busy && !attaching)
+		{
+			ChatsList.SelectedItem = chat;
+		}
+		Dispatcher.BeginInvoke(new Action(StartRenaming), System.Windows.Threading.DispatcherPriority.Input);
+	}
+
+	private void ChatTitle_Click(object sender, MouseButtonEventArgs e)
+	{
+		StartRenaming();
+	}
+
+	private void StartRenaming()
+	{
+		if (current == null)
+		{
+			return;
+		}
+		ChatTitleBox.Text = current.Title;
+		ChatTitle.Visibility = Visibility.Hidden;
+		ChatTitleBox.Visibility = Visibility.Visible;
+		ChatTitleBox.Focus();
+		Keyboard.Focus(ChatTitleBox);
+		ChatTitleBox.SelectAll();
+	}
+
+	private void ChatTitleBox_KeyDown(object sender, KeyEventArgs e)
+	{
+		if (e.Key == Key.Return)
+		{
+			e.Handled = true;
+			FinishRenaming(keep: true);
+		}
+		else if (e.Key == Key.Escape)
+		{
+			e.Handled = true;
+			FinishRenaming(keep: false);
+		}
+	}
+
+	private void ChatTitleBox_LostFocus(object sender, KeyboardFocusChangedEventArgs e)
+	{
+		FinishRenaming(keep: true);
+	}
+
+	private void FinishRenaming(bool keep)
+	{
+		if (ChatTitleBox.Visibility != Visibility.Visible)
+		{
+			return;
+		}
+		ChatTitleBox.Visibility = Visibility.Collapsed;
+		ChatTitle.Visibility = Visibility.Visible;
+		string name = ChatTitleBox.Text.Replace('\n', ' ').Replace('\r', ' ').Trim();
+		if (!keep || current == null || name.Length == 0 || name == current.Title)
+		{
+			Composer.Focus();
+			return;
+		}
+		current.Title = name.Truncate(80);
+		current.Renamed = true;
+		ChatTitle.Text = current.Title;
+		ChatsList.Items.Refresh();
+		try
+		{
+			store.SaveChat(current);
+		}
+		catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+		{
+			Notice("Could not save the new name: " + ex.Message);
+		}
+		Composer.Focus();
 	}
 
 	private ChatSession? DeleteTarget(object? parameter)
@@ -1998,7 +2076,30 @@ public partial class MainWindow : AquilaWindow
 				chats.Insert(0, chatSession);
 			}
 			ChatsList.SelectedItem = chatSession;
+			if (personaId.Length > 0 && chatSession.Turns.Count == 0)
+			{
+				ChatSession opening = chatSession;
+				base.Dispatcher.BeginInvoke(new Action(delegate
+				{
+					_ = OpenChatAsync(opening);
+				}), DispatcherPriority.Background);
+			}
 		}
+	}
+
+	/// <summary>A new chat with her: she opens it herself, in her own words, from who she is, what she remembers and how
+	/// long it's been. Only when the model is already loaded (a new chat never starts loading it by itself).</summary>
+	private async Task OpenChatAsync(ChatSession session)
+	{
+		if (current != session || session.Turns.Count > 0 || busy || attaching || !engine.Ready)
+		{
+			return;
+		}
+		Turn? lastTalk = chats.Where((ChatSession c) => c != session && c.PersonaId == session.PersonaId).SelectMany((ChatSession c) => c.Turns).Where((Turn t) => t.Status == "complete").OrderByDescending((Turn t) => t.Created).FirstOrDefault();
+		string since = (lastTalk == null) ? "This is the very first time you two are talking." : ("You last talked on " + AquilaLocal.Companion.ContextInjector.When(lastTalk.Created, DateTimeOffset.Now) + ".");
+		string cue = "[No message from them yet. They've just opened a new chat with you. " + since
+			+ " Start the conversation yourself, in your own voice: something that fits who you are, how you feel right now, the time of day, and what you remember about them and where things stand (a plan, something they mentioned, something on your mind). Don't open with a generic greeting or by asking how you can help. Keep it short.]";
+		await SendAsync(cue);
 	}
 
 	private void New_Click(object sender, RoutedEventArgs e)
@@ -2309,8 +2410,11 @@ public partial class MainWindow : AquilaWindow
 		view.SetNotices(items);
 	}
 
-	private async Task SendAsync()
+	/// <summary>Sends what's in the message box; with a cue, she speaks first instead (no message from you),
+	/// told only why (a new chat opening, a picture you had her draw).</summary>
+	private async Task SendAsync(string? cue = null, Attachment? cuePicture = null)
 	{
+		bool cued = cue != null;
 		await inferenceStartup;
 		if (pendingLearning != null)
 		{
@@ -2324,7 +2428,7 @@ public partial class MainWindow : AquilaWindow
 			pendingCompanion = null;
 			await summarizing;
 		}
-		if (busy || attaching || (string.IsNullOrWhiteSpace(Composer.Text) && pendingAttachments.Count == 0) || current == null || !ReadSettings())
+		if (busy || attaching || (!cued && string.IsNullOrWhiteSpace(Composer.Text) && pendingAttachments.Count == 0) || current == null || (cued && !current.IsCompanion) || !ReadSettings())
 		{
 			return;
 		}
@@ -2338,7 +2442,7 @@ public partial class MainWindow : AquilaWindow
 			Notice("This message is too long. Please use a smaller excerpt.");
 			return;
 		}
-		if (current.IsCompanion && AquilaLocal.Companion.PersonaTuning.IsCommand(Composer.Text))
+		if (!cued && current.IsCompanion && AquilaLocal.Companion.PersonaTuning.IsCommand(Composer.Text))
 		{
 			// /tune is handled here and never sent to the model.
 			try
@@ -2360,15 +2464,25 @@ public partial class MainWindow : AquilaWindow
 		NoticeBox.Visibility = Visibility.Collapsed;
 		InterruptLiving();
 		ChatSession session = current;
-		Turn turn = new Turn
+		Turn turn = cued ? new Turn
+		{
+			User = "",
+			Cue = cue!,
+			Unprompted = true,
+			Attachments = (cuePicture != null) ? new List<Attachment> { cuePicture } : new List<Attachment>(),
+			Status = "generating"
+		} : new Turn
 		{
 			User = (string.IsNullOrWhiteSpace(Composer.Text) ? "Please review the attached files." : Composer.Text.Trim()),
 			Attachments = pendingAttachments.ToList(),
 			Status = "generating",
 			Spoken = pendingSpoken
 		};
-		pendingSpoken = false;
-		if (session.Turns.Count == 0)
+		if (!cued)
+		{
+			pendingSpoken = false;
+		}
+		if (!cued && !session.Renamed && session.Turns.All((Turn t) => t.Unprompted))
 		{
 			session.Title = AquilaLocal.Companion.ThoughtMarkup.Plain(turn.User).Replace('\n', ' ').Replace('\r', ' ').Truncate(42);
 		}
@@ -2382,11 +2496,14 @@ public partial class MainWindow : AquilaWindow
 		ChatTitle.Text = session.Title;
 		ImageSource? replyAvatar = RefreshChatAvatar(session);
 		Welcome.Visibility = Visibility.Collapsed;
-		MessageView messageView = new MessageView("You", animate: true);
-		messageView.ShowPictures(turn.Attachments);
-		messageView.Update(Attachments.VisibleText(turn), "", null, "", renderMarkdown: false);
-		Messages.Children.Add(messageView);
-		userViews[turn.Id] = messageView;
+		if (!cued)
+		{
+			MessageView messageView = new MessageView("You", animate: true);
+			messageView.ShowPictures(turn.Attachments);
+			messageView.Update(Attachments.VisibleText(turn), "", null, "", renderMarkdown: false);
+			Messages.Children.Add(messageView);
+			userViews[turn.Id] = messageView;
+		}
 		live = new MessageView(session.Speaker, animate: true, replyAvatar);
 		ShowReply(live, turn, generating: true);
 		Messages.Children.Add(live);
@@ -2394,9 +2511,12 @@ public partial class MainWindow : AquilaWindow
 		UiSounds.Play(UiSound.Send);
 		sendStarted = DateTime.UtcNow;
 		activeTurn = turn;
-		Composer.Clear();
-		pendingAttachments.Clear();
-		RenderAttachmentChips();
+		if (!cued)
+		{
+			Composer.Clear();
+			pendingAttachments.Clear();
+			RenderAttachmentChips();
+		}
 		followBottom = true;
 		SetBusy(value: true);
 		operation = new CancellationTokenSource();
@@ -2514,6 +2634,10 @@ public partial class MainWindow : AquilaWindow
 			live?.SetGenerating(false);
 			RenderLive(final: true);
 			store.SaveChat(session);
+			if (session == current)
+			{
+				ShowOutfit();
+			}
 			activeTurn = null;
 			live = null;
 			operation.Dispose();
@@ -2701,6 +2825,99 @@ public partial class MainWindow : AquilaWindow
 			});
 			internetWindow.Owner = this;
 			internetWindow.ShowDialog();
+		}
+	}
+
+	private void Import_Click(object sender, RoutedEventArgs e)
+	{
+		MoreMenu.IsOpen = false;
+		if (busy || attaching)
+		{
+			Notice("Wait for the current reply to finish, then import.");
+			return;
+		}
+		OpenFileDialog dialog = new OpenFileDialog
+		{
+			Title = "Choose chats to import",
+			Filter = "Chats (*.json;*.jsonl;*.md;*.txt)|*.json;*.jsonl;*.md;*.txt|All files (*.*)|*.*",
+			Multiselect = true
+		};
+		if (dialog.ShowDialog(this) != true)
+		{
+			return;
+		}
+		List<ImportedChat> found = new List<ImportedChat>();
+		foreach (string file in dialog.FileNames)
+		{
+			try
+			{
+				found.AddRange(ChatImporter.Read(file));
+			}
+			catch (Exception ex) when (ex is InvalidDataException || ex is IOException || ex is UnauthorizedAccessException || ex is System.Text.Json.JsonException || ex is InvalidOperationException || ex is KeyNotFoundException)
+			{
+				AquilaDialog.Alert(this, "Couldn't import " + Path.GetFileName(file), ex.Message);
+				return;
+			}
+		}
+		List<AquilaLocal.Companion.PersonaEntry> personas = new List<AquilaLocal.Companion.PersonaEntry>();
+		try
+		{
+			personas = companion.Registry.Load().Personas.Where((AquilaLocal.Companion.PersonaEntry p) => companion.IsSetUp(p.Id)).ToList();
+		}
+		catch (AquilaLocal.Companion.PersonaConfigException ex)
+		{
+			Notice("Companions couldn't be listed, so the chats will be imported as regular chats: " + ex.Message);
+		}
+		int messages = found.Sum((ImportedChat c) => c.Messages.Count);
+		string summary = (found.Count == 1)
+			? ("Found “" + found[0].Title.Truncate(80) + "” (" + found[0].Format + ", " + messages.ToString("N0") + " messages).")
+			: ("Found " + found.Count.ToString("N0") + " conversations with " + messages.ToString("N0") + " messages in all. Each becomes its own chat.");
+		ImportChatWindow ask = new ImportChatWindow(summary, personas) { Owner = this };
+		if (ask.ShowDialog() != true)
+		{
+			return;
+		}
+		AquilaLocal.Companion.PersonaEntry? persona = ask.Persona;
+		ChatSession? first = null;
+		try
+		{
+			foreach (ImportedChat chat in found.AsEnumerable().Reverse())
+			{
+				ChatSession session = new ChatSession
+				{
+					Title = (chat.Title.Length > 0 ? chat.Title : "Imported chat").Truncate(80),
+					Renamed = true,
+					PersonaId = persona?.Id ?? "",
+					PersonaName = persona?.Name ?? ""
+				};
+				foreach ((string user, string answer, DateTimeOffset? at) in ChatImporter.Pair(chat.Messages))
+				{
+					session.Turns.Add(new Turn
+					{
+						User = user,
+						Answer = answer,
+						Unprompted = user.Length == 0,
+						Status = (answer.Length > 0) ? "complete" : "interrupted",
+						Created = at ?? DateTimeOffset.Now
+					});
+				}
+				if (session.Turns.Count == 0)
+				{
+					continue;
+				}
+				store.SaveChat(session);
+				chats.Insert(0, session);
+				first = session;
+			}
+		}
+		catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+		{
+			Notice("Importing stopped: " + ex.Message);
+		}
+		if (first != null)
+		{
+			ChatsList.SelectedItem = first;
+			UiSounds.Play(UiSound.Ready);
 		}
 	}
 

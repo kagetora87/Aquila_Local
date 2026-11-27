@@ -119,7 +119,7 @@ public sealed class Agent(Engine engine, MemoryStore? memories = null, SemanticM
 			}
 			int index = session.Turns.IndexOf(turn);
 			List<Turn> earlier = session.Turns.Take(index < 0 ? session.Turns.Count : index).Where((Turn t) => t.Status == "complete").ToList();
-			string userText = turn.User;
+			string userText = (turn.User.Length > 0) ? turn.User : turn.Cue;
 			AquilaLocal.Companion.PreparedTurn prepared = await Task.Run(delegate
 			{
 				folded.UnionWith(runtime.Store.FoldedTurnIds(session.Id));
@@ -186,6 +186,10 @@ public sealed class Agent(Engine engine, MemoryStore? memories = null, SemanticM
 		// The system prompt therefore stays byte-identical between turns, so llama.cpp can reuse its
 		// prompt cache and only read the new message instead of re-reading the whole conversation.
 		List<string> contextParts = new List<string>();
+		if (turn.Cue.Length > 0)
+		{
+			contextParts.Add(turn.Cue);
+		}
 		if (web != null)
 		{
 			contextParts.Add("Current date (UTC): " + DateTime.UtcNow.ToString("yyyy-MM-dd"));
@@ -321,7 +325,8 @@ public sealed class Agent(Engine engine, MemoryStore? memories = null, SemanticM
 		recent.Reverse();
 		foreach (Turn item in recent)
 		{
-			messages.Add(Attachments.UserMessage(item, withContext: !persona));
+			// Her own openings have no message from you: their context says what prompted them.
+			messages.Add(Attachments.UserMessage(item, withContext: !persona || item.Unprompted));
 			messages.Add(Message("assistant", item.Answer));
 		}
 		messages.Add(persona ? WithInnerState(Attachments.UserMessage(turn), turn.InnerState) : Attachments.UserMessage(turn));

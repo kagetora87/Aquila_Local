@@ -100,6 +100,11 @@
               <Setter Property="ContextMenu">
                 <Setter.Value>
                   <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                    <MenuItem Header="Rename…" Click="RenameChat_Click">
+                      <MenuItem.Icon>
+                        <TextBlock Text="&#xE8AC;" FontFamily="{StaticResource Font.Icon}" FontSize="14" />
+                      </MenuItem.Icon>
+                    </MenuItem>
                     <MenuItem Header="Delete chat…" Foreground="{StaticResource Danger}" Command="{x:Static local:MainWindow.DeleteChatCommand}" CommandParameter="{Binding}" CommandTarget="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType={x:Type ContextMenu}}}">
                       <MenuItem.Icon>
                         <TextBlock Text="&#xE74D;" FontFamily="{StaticResource Font.Icon}" FontSize="14" Foreground="{StaticResource Danger}" />
@@ -151,7 +156,6 @@
       <Border BorderBrush="{StaticResource Stroke.Subtle}" BorderThickness="0,1,0,1" Padding="24,0,16,0">
         <DockPanel>
           <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-            <Button Name="PictureMomentButton" Style="{StaticResource Btn.Icon}" Width="36" Height="36" Margin="0,0,4,0" Content="&#xE722;" ToolTip="Picture this moment: she draws what she imagines you two are doing right now" Visibility="Collapsed" Click="PictureMoment_Click" />
             <Button Name="VoiceReplayButton" Style="{StaticResource Btn.Icon}" Width="36" Height="36" Content="&#xE767;" ToolTip="Read the last reply aloud" Click="ReplayVoice_Click" />
             <Button Name="VoiceStopButton" Style="{StaticResource Btn.Icon}" Width="36" Height="36" Margin="4,0,0,0" ToolTip="Stop speaking" Click="StopVoice_Click" Visibility="{Binding IsEnabled, RelativeSource={RelativeSource Self}, Converter={StaticResource BoolToVisibility}}" >
               <Border Width="10" Height="10" CornerRadius="2" Background="{StaticResource Text.Secondary}" />
@@ -161,7 +165,10 @@
           </StackPanel>
           <StackPanel Orientation="Horizontal" VerticalAlignment="Center" ClipToBounds="True">
             <Ellipse Name="ChatAvatar" Width="28" Height="28" Margin="0,0,10,0" VerticalAlignment="Center" Visibility="Collapsed" />
-            <TextBlock Name="ChatTitle" Text="New conversation" Style="{StaticResource Type.Subtitle}" TextTrimming="CharacterEllipsis" MaxWidth="340" VerticalAlignment="Center" />
+            <Grid VerticalAlignment="Center">
+              <TextBlock Name="ChatTitle" Text="New conversation" Style="{StaticResource Type.Subtitle}" TextTrimming="CharacterEllipsis" MaxWidth="340" VerticalAlignment="Center" Background="Transparent" Cursor="IBeam" ToolTip="Click to rename this chat" MouseLeftButtonUp="ChatTitle_Click" />
+              <TextBox Name="ChatTitleBox" Width="340" FontSize="16" VerticalAlignment="Center" Visibility="Collapsed" AutomationProperties.Name="Chat name" KeyDown="ChatTitleBox_KeyDown" LostKeyboardFocus="ChatTitleBox_LostFocus" />
+            </Grid>
             <Border Name="ContextChip" Style="{StaticResource Chip}" Margin="10,0,0,0" VerticalAlignment="Center" ToolTip="How full this conversation's context window is: everything the model reads each time it replies.">
               <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                 <Grid Width="56" Height="6" VerticalAlignment="Center" Margin="0,0,8,0">
@@ -173,13 +180,9 @@
             </Border>
             <Border Name="StatusChip" Style="{StaticResource Chip}" Margin="12,0,0,0" VerticalAlignment="Center">
               <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                <Ellipse Name="StatusDot" Width="8" Height="8" Fill="{StaticResource Text.Tertiary}" VerticalAlignment="Center" Margin="0,0,8,0" />
                 <TextBlock Name="StatusText" Text="No model loaded" FontSize="12" Foreground="{StaticResource Text.Secondary}" MaxWidth="260" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
               </StackPanel>
             </Border>
-            <Button Name="ModelChip" Style="{StaticResource Btn.HeaderChip}" Margin="8,0,0,0" VerticalAlignment="Center" Click="ModelChip_Click">
-              <TextBlock Name="ModelChipText" Text="No model" TextTrimming="CharacterEllipsis" MaxWidth="170" />
-            </Button>
             <Button Name="WebChip" Style="{StaticResource Btn.HeaderChip}" Margin="8,0,0,0" VerticalAlignment="Center" Visibility="Collapsed" Click="Internet_Click" ToolTip="Aquila may contact the internet. Click to change.">
               <StackPanel Orientation="Horizontal">
                 <TextBlock Text="&#xE774;" FontFamily="{StaticResource Font.Icon}" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0" />
@@ -196,6 +199,12 @@
               <StackPanel Orientation="Horizontal">
                 <TextBlock Text="&#xEDE1;" FontFamily="{StaticResource Font.Icon}" FontSize="14" Width="28" VerticalAlignment="Center" />
                 <TextBlock Text="Export chat" VerticalAlignment="Center" />
+              </StackPanel>
+            </Button>
+            <Button Style="{StaticResource Btn.Menu}" Click="Import_Click" ToolTip="Bring in conversations from Aquila exports, SillyTavern, ChatGPT or Claude.ai">
+              <StackPanel Orientation="Horizontal">
+                <TextBlock Text="&#xE8B5;" FontFamily="{StaticResource Font.Icon}" FontSize="14" Width="28" VerticalAlignment="Center" />
+                <TextBlock Text="Import chats…" VerticalAlignment="Center" />
               </StackPanel>
             </Button>
             <Button Name="CompactButton" Style="{StaticResource Btn.Menu}" ToolTip="Summarise earlier turns so a long chat can keep going. The full history you see is kept." Click="Compact_Click">
@@ -276,14 +285,25 @@
               <RowDefinition Height="36" />
             </Grid.RowDefinitions>
             <local:MarkupComposer x:Name="Composer" local:Ui.Placeholder="Message Aquila…" AutomationProperties.Name="Message" FontSize="15" MinHeight="44" MaxHeight="200" Padding="2,4" PreviewKeyDown="Composer_KeyDown" TextChanged="Composer_TextChanged" GotKeyboardFocus="Composer_FocusChanged" LostKeyboardFocus="Composer_FocusChanged" />
-            <Button Name="AttachButton" Grid.Row="1" Style="{StaticResource Btn.Icon}" Width="36" Height="36" HorizontalAlignment="Left" Content="&#xE723;" ToolTip="Attach files" Click="Attach_Click" />
-            <Button Name="MicButton" Grid.Row="1" Style="{StaticResource Btn.Icon}" Width="36" Height="36" Margin="40,0,0,0" HorizontalAlignment="Left" Content="&#xE720;" ToolTip="Talk instead of typing (right-click for settings)" Click="Mic_Click" ContextMenuOpening="Mic_ContextMenuOpening">
-              <Button.ContextMenu>
-                <ContextMenu />
-              </Button.ContextMenu>
+            <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Left">
+              <Button Name="AttachButton" Style="{StaticResource Btn.Icon}" Width="36" Height="36" Content="&#xE723;" ToolTip="Attach files" Click="Attach_Click" />
+              <Button Name="MicButton" Style="{StaticResource Btn.Icon}" Width="36" Height="36" Margin="4,0,0,0" Content="&#xE720;" ToolTip="Talk instead of typing (right-click for settings)" Click="Mic_Click" ContextMenuOpening="Mic_ContextMenuOpening">
+                <Button.ContextMenu>
+                  <ContextMenu />
+                </Button.ContextMenu>
+              </Button>
+              <Button Name="PictureMomentButton" Style="{StaticResource Btn.Icon}" Width="36" Height="36" Margin="4,0,0,0" Content="&#xE722;" ToolTip="Picture this moment: she draws what she imagines you two are doing right now" Visibility="Collapsed" Click="PictureMoment_Click" />
+              <local:MarkupToggles x:Name="MarkupBar" Margin="8,0,0,0" VerticalAlignment="Center" />
+            </StackPanel>
+            <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Name="ModelChip" Style="{StaticResource Btn.Ghost}" Height="32" MinHeight="0" Padding="10,0" Margin="0,0,8,0" VerticalAlignment="Center" Click="ModelChip_Click">
+              <StackPanel Orientation="Horizontal">
+                <Ellipse Name="StatusDot" Width="8" Height="8" Fill="{StaticResource Text.Tertiary}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                <TextBlock Name="ModelChipText" Text="No model" FontSize="13" Foreground="{StaticResource Text.Secondary}" TextTrimming="CharacterEllipsis" MaxWidth="200" VerticalAlignment="Center" />
+                <TextBlock Text="&#xE70D;" FontFamily="{StaticResource Font.Icon}" FontSize="10" Foreground="{StaticResource Text.Tertiary}" Margin="6,1,0,0" VerticalAlignment="Center" />
+              </StackPanel>
             </Button>
-            <local:MarkupToggles x:Name="MarkupBar" Grid.Row="1" Margin="84,0,0,0" HorizontalAlignment="Left" />
-            <Grid Grid.Row="1" HorizontalAlignment="Right">
+            <Grid>
               <Button Name="SendButton" Style="{StaticResource Btn.Primary}" local:Ui.Radius="18" Width="36" Height="36" MinHeight="0" Padding="0" ToolTip="Send (Enter)" Click="Send_Click" IsEnabled="False" RenderTransformOrigin="0.5,0.5">
                 <TextBlock Text="&#xE74A;" FontFamily="{StaticResource Font.Icon}" FontSize="16" />
               </Button>
@@ -291,6 +311,7 @@
                 <Border Width="12" Height="12" CornerRadius="3" Background="{StaticResource Text.Primary}" />
               </Button>
             </Grid>
+            </StackPanel>
           </Grid>
         </Grid>
         <TextBlock Name="ComposerHint" Style="{StaticResource Type.Caption}" Margin="4,6,4,0" Text="Enter to send · Shift+Enter for a new line · Drop files to attach" />
@@ -315,6 +336,13 @@
               <StackPanel Orientation="Horizontal">
                 <TextBlock Text="&#xE707;" FontFamily="{StaticResource Font.Icon}" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0" />
                 <TextBlock Name="LocationChipText" Text="Where are we?" TextTrimming="CharacterEllipsis" MaxWidth="300" VerticalAlignment="Center" />
+              </StackPanel>
+            </Button>
+            <!-- What she's wearing right now (her wardrobe diary's latest entry) -->
+            <Button Name="OutfitChip" Style="{StaticResource Btn.HeaderChip}" Margin="0,6,0,0" HorizontalAlignment="Center" Visibility="Collapsed" Click="Outfit_Click">
+              <StackPanel Orientation="Horizontal">
+                <TextBlock Text="&#xE8EC;" FontFamily="{StaticResource Font.Icon}" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0" />
+                <TextBlock Name="OutfitChipText" TextTrimming="CharacterEllipsis" MaxWidth="300" VerticalAlignment="Center" />
               </StackPanel>
             </Button>
           <!-- Others in the room (group scenes), in the order they arrived -->

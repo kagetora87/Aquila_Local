@@ -76,6 +76,8 @@
   <SolidColorBrush x:Key="Warning.SubtleStroke" Color="#5E4A2B" />
   <SolidColorBrush x:Key="Warning.Ink" Color="#F4DDB6" />
   <SolidColorBrush x:Key="Info" Color="#8FB8F2" />
+  <!-- Bright green for things that are switched on, and the "model ready" dot. -->
+  <SolidColorBrush x:Key="On" Color="#4ADE80" />
   <SolidColorBrush x:Key="Focus" Color="#74E0C6" />
   <SolidColorBrush x:Key="Selection" Color="#2F6A60" />
   <SolidColorBrush x:Key="Hover.Fill" Color="#0FFFFFFF" />

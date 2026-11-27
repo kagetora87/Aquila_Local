@@ -45,8 +45,9 @@ public sealed class AnimationsWindow : AquilaWindow
 		Margin = new Thickness(0.0, 8.0, 0.0, 0.0)
 	};
 
-	public AnimationsWindow(SpriteAvatarOptions options, string root, GestureMatcher matcher, Action changed)
+	public AnimationsWindow(SpriteAvatarOptions options, string root, GestureMatcher matcher, Action changed, string? profilesRoot = null)
 	{
+		ProfilesRoot = profilesRoot;
 		this.options = options;
 		this.root = root;
 		this.matcher = matcher;
@@ -124,6 +125,12 @@ public sealed class AnimationsWindow : AquilaWindow
 		{
 			Run(() => (AvatarPlaceholders.EnsureIn(root) == 0) ? "All placeholder sets are already there." : "Missing placeholder sets were added.");
 		}));
+		if (ProfilesRoot != null)
+		{
+			Button save = Button("Save as profile…", SaveProfile);
+			save.ToolTip = "Save a copy of all these animations as a named avatar profile that any persona can use (Companions, Settings, Her avatar).";
+			wrapPanel.Children.Add(save);
+		}
 		stackPanel.Children.Add(wrapPanel);
 		stackPanel.Children.Add(Label("HOW EXPRESSIVE"));
 		Slider slider = new Slider
@@ -600,11 +607,90 @@ public sealed class AnimationsWindow : AquilaWindow
 		Reload();
 	}
 
-	private string? Ask(string prompt)
+	/// <summary>Where saved avatar profiles go (Data\avatars). Each persona can pick one in her settings.</summary>
+	public string? ProfilesRoot { get; }
+
+	/// <summary>Copies every animation here into Data\avatars\name, so it can be chosen as a persona's avatar.</summary>
+	private void SaveProfile()
+	{
+		if (ProfilesRoot == null)
+		{
+			return;
+		}
+		string? name = Ask("Name this avatar profile, for example \"Vicki casual\". Aquila saves a copy of every animation here under that name. Any persona can then use it: Companions, Settings, \"Her avatar\".", "Save avatar profile", "Save profile");
+		if (string.IsNullOrWhiteSpace(name))
+		{
+			return;
+		}
+		try
+		{
+			string safe = SpriteLibrary.SafeName(name);
+			string target = Path.Combine(ProfilesRoot, safe);
+			if (string.Equals(Path.GetFullPath(target).TrimEnd('\\'), Path.GetFullPath(root).TrimEnd('\\'), StringComparison.OrdinalIgnoreCase))
+			{
+				status.Text = "These animations already are the profile \"" + safe + "\". Changes here are saved to it as you make them.";
+				return;
+			}
+			bool replacing = Directory.Exists(target) && Directory.EnumerateFileSystemEntries(target).Any();
+			if (replacing && !AquilaDialog.Confirm(this, "Replace the profile \"" + safe + "\"?", "There's already an avatar profile with that name. Its animations will be replaced by these ones. Personas using it will show the new ones.", "Replace", "Cancel", DialogKind.Danger))
+			{
+				return;
+			}
+			Directory.CreateDirectory(ProfilesRoot);
+			string incoming = target + ".saving";
+			if (Directory.Exists(incoming))
+			{
+				Directory.Delete(incoming, recursive: true);
+			}
+			int files = CopyFolder(root, incoming);
+			if (replacing)
+			{
+				string old = target + ".old";
+				if (Directory.Exists(old))
+				{
+					Directory.Delete(old, recursive: true);
+				}
+				Directory.Move(target, old);
+				Directory.Move(incoming, target);
+				Directory.Delete(old, recursive: true);
+			}
+			else
+			{
+				if (Directory.Exists(target))
+				{
+					Directory.Delete(target);
+				}
+				Directory.Move(incoming, target);
+			}
+			status.Text = "Saved the profile \"" + safe + "\" (" + files + " files). Pick it for a persona in Companions, Settings, \"Her avatar\".";
+		}
+		catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is ArgumentException)
+		{
+			status.Text = "The profile wasn't saved: " + ex.Message;
+		}
+	}
+
+	private static int CopyFolder(string from, string to)
+	{
+		Directory.CreateDirectory(to);
+		int count = 0;
+		foreach (string file in Directory.EnumerateFiles(from))
+		{
+			File.Copy(file, Path.Combine(to, Path.GetFileName(file)));
+			count++;
+		}
+		foreach (string dir in Directory.EnumerateDirectories(from))
+		{
+			count += CopyFolder(dir, Path.Combine(to, Path.GetFileName(dir)));
+		}
+		return count;
+	}
+
+	private string? Ask(string prompt, string title = "New animation", string next = "Next: choose pictures or a video…")
 	{
 		Window window = new AquilaWindow
 		{
-			Title = "New animation",
+			Title = title,
 			Width = 460.0,
 			SizeToContent = SizeToContent.Height,
 			Owner = this,
@@ -622,7 +708,7 @@ public sealed class AnimationsWindow : AquilaWindow
 			Margin = new Thickness(0.0, 10.0, 0.0, 0.0)
 		};
 		stackPanel.Children.Add(box);
-		Button button = Button("Next: choose pictures or a video…", delegate
+		Button button = Button(next, delegate
 		{
 			window.DialogResult = true;
 		});

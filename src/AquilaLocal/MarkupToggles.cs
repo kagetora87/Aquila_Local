@@ -34,8 +34,8 @@ public sealed class MarkupToggles : StackPanel
 	{
 		Orientation = Orientation.Horizontal;
 		VerticalAlignment = VerticalAlignment.Center;
-		thought = Pill("Thought", MarkupKind.Thought, "Type a private thought. She won't know it. Press again to stop. (Ctrl+T)");
-		action = Pill("Action", MarkupKind.Action, "Type something you do. She sees it. Press again to stop. (Ctrl+J)");
+		thought = Pill("Thought", MarkupKind.Thought, "Type a private thought. She won't know it. Press again to stop. (Ctrl+T, or type _like this_)");
+		action = Pill("Action", MarkupKind.Action, "Type something you do. She sees it. Press again to stop. (Ctrl+J, or type *like this*)");
 		eye = Ui.Button("\uE890", "Btn.Icon", delegate
 		{
 			ShowThoughts = !showThoughts;

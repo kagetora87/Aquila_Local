@@ -78,8 +78,16 @@ public sealed class CompanionWindow : AquilaWindow
 		status.Foreground = Ui.Brush("Text.Secondary");
 	}
 
+	/// <summary>Sections the person has open, kept open when the window rebuilds after a change (adding a memory etc.).</summary>
+	private readonly HashSet<string> openSections = new HashSet<string>();
+
+	private string builtFor = "";
+
 	private void Build()
 	{
+		// Rebuilding after a change (Add entry, Save…) keeps the person where they were: same sections open, same scroll.
+		double keepScroll = (builtFor == personaId) ? ((Content as DockPanel)?.Children.OfType<ScrollViewer>().FirstOrDefault()?.VerticalOffset ?? 0.0) : 0.0;
+		builtFor = personaId;
 		StackPanel body = new StackPanel();
 		List<PersonaEntry> entries;
 		try
@@ -160,7 +168,16 @@ public sealed class CompanionWindow : AquilaWindow
 		{
 			Close();
 		});
-		base.Content = Ui.DialogScaffold("Companions", "Companions are personas with their own personality, drives, private memory and chat history. Nothing one companion remembers is ever shown to another. Type /tune in a companion chat to adjust her on the fly.", body, status, close, primary);
+		DockPanel scaffold = Ui.DialogScaffold("Companions", "Companions are personas with their own personality, drives, private memory and chat history. Nothing one companion remembers is ever shown to another. Type /tune in a companion chat to adjust her on the fly.", body, status, close, primary);
+		base.Content = scaffold;
+		if (keepScroll > 0.0 && scaffold.Children.OfType<ScrollViewer>().FirstOrDefault() is ScrollViewer scroll)
+		{
+			scroll.Loaded += delegate
+			{
+				scroll.UpdateLayout();
+				scroll.ScrollToVerticalOffset(keepScroll);
+			};
+		}
 	}
 
 	private void BuildPersona(StackPanel body, Button primary)
@@ -1174,9 +1191,22 @@ public sealed class CompanionWindow : AquilaWindow
 
 	// ---- helpers -------------------------------------------------------------------------------------
 
-	private static Expander Section(string title, UIElement content, bool expanded)
+	private Expander Section(string title, UIElement content, bool expanded)
 	{
-		return new Expander { Header = title, Content = content, IsExpanded = expanded, Style = Ui.Style("Expander.Card"), Margin = new Thickness(0, 0, 0, 12) };
+		Expander section = new Expander { Header = title, Content = content, IsExpanded = expanded || openSections.Contains(title), Style = Ui.Style("Expander.Card"), Margin = new Thickness(0, 0, 0, 12) };
+		if (section.IsExpanded)
+		{
+			openSections.Add(title);
+		}
+		section.Expanded += delegate
+		{
+			openSections.Add(title);
+		};
+		section.Collapsed += delegate
+		{
+			openSections.Remove(title);
+		};
+		return section;
 	}
 
 	private static TextBlock Label(string text)

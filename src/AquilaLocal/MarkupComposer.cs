@@ -291,12 +291,123 @@ public sealed class MarkupComposer : RichTextBox
 		{
 			return;
 		}
+		if ((e.Text == "*" || e.Text == "_") && TryCloseMarker(e.Text[0]))
+		{
+			e.Handled = true;
+			return;
+		}
 		if (Selection.IsEmpty && KindAtCaret() == mode)
 		{
 			return;
 		}
 		e.Handled = true;
 		Insert(e.Text, mode);
+	}
+
+	/// <summary>
+	/// Typing *like this* makes an action and _like this_ a thought, the moment the closing symbol is typed. Only that
+	/// stretch changes: what you type afterwards is ordinary speech again. The opening symbol has to start a word, so
+	/// snake_case names and sums like 2*3 stay as they are.
+	/// </summary>
+	private bool TryCloseMarker(char symbol)
+	{
+		if (mode != MarkupKind.Speech || !Selection.IsEmpty || CaretPosition.Paragraph is not Paragraph p)
+		{
+			return false;
+		}
+		List<(char C, MarkupKind Kind)> before = CharactersBefore(p, CaretPosition);
+		int open = -1;
+		for (int i = before.Count - 1; i >= 0; i--)
+		{
+			if (before[i].Kind != MarkupKind.Speech)
+			{
+				break;
+			}
+			if (before[i].C == symbol)
+			{
+				open = i;
+				break;
+			}
+		}
+		if (open < 0 || open == before.Count - 1 || (open > 0 && char.IsLetterOrDigit(before[open - 1].C)))
+		{
+			return false;
+		}
+		string content = new string(before.Skip(open + 1).Select(((char C, MarkupKind Kind) x) => x.C).ToArray());
+		if (char.IsWhiteSpace(content[0]) || char.IsWhiteSpace(content[^1]))
+		{
+			return false;
+		}
+		TextPointer? start = PointerAt(p, open);
+		if (start == null)
+		{
+			return false;
+		}
+		placing = true;
+		try
+		{
+			BeginChange();
+			new TextRange(start, CaretPosition).Text = "";
+			CaretPosition = start;
+			EndChange();
+		}
+		finally
+		{
+			placing = false;
+		}
+		Insert(content, symbol == '*' ? MarkupKind.Action : MarkupKind.Thought);
+		return true;
+	}
+
+	/// <summary>The paragraph's characters up to the caret, each with whether it's speech, a thought or an action.</summary>
+	private static List<(char C, MarkupKind Kind)> CharactersBefore(Paragraph p, TextPointer end)
+	{
+		List<(char, MarkupKind)> chars = new List<(char, MarkupKind)>();
+		TextPointer? t = p.ContentStart;
+		while (t != null && t.CompareTo(end) < 0)
+		{
+			if (t.GetPointerContext(LogicalDirection.Forward) == TextPointerContext.Text)
+			{
+				string run = t.GetTextInRun(LogicalDirection.Forward);
+				int room = t.GetOffsetToPosition(end);
+				if (run.Length > room)
+				{
+					run = run.Substring(0, room);
+				}
+				MarkupKind kind = MarkupColors.KindOf(t.Parent is TextElement el ? el.Foreground : null);
+				foreach (char c in run)
+				{
+					chars.Add((c, kind));
+				}
+				t = t.GetPositionAtOffset(run.Length, LogicalDirection.Forward);
+				continue;
+			}
+			t = t.GetNextContextPosition(LogicalDirection.Forward);
+		}
+		return chars;
+	}
+
+	/// <summary>The position just before the paragraph's character number <paramref name="index"/>.</summary>
+	private static TextPointer? PointerAt(Paragraph p, int index)
+	{
+		int seen = 0;
+		TextPointer? t = p.ContentStart;
+		while (t != null && t.CompareTo(p.ContentEnd) < 0)
+		{
+			if (t.GetPointerContext(LogicalDirection.Forward) == TextPointerContext.Text)
+			{
+				string run = t.GetTextInRun(LogicalDirection.Forward);
+				if (index - seen < run.Length)
+				{
+					return t.GetPositionAtOffset(index - seen, LogicalDirection.Forward);
+				}
+				seen += run.Length;
+				t = t.GetPositionAtOffset(run.Length, LogicalDirection.Forward);
+				continue;
+			}
+			t = t.GetNextContextPosition(LogicalDirection.Forward);
+		}
+		return null;
 	}
 
 	private void Insert(string text, MarkupKind kind)

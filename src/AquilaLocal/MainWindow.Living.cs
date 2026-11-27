@@ -75,7 +75,7 @@ public partial class MainWindow
 
 	private void ShowLivingButton()
 	{
-		LivingButtonText.Text = settings.Living.Enabled ? "Living mode · on" : "Living mode";
+		ShowOnLabel(LivingButtonText, settings.Living.Enabled ? "Living mode · " : "Living mode", settings.Living.Enabled ? "on" : null, "");
 	}
 
 	/// <summary>The personas who live: the chosen ones, or every persona that's set up.</summary>

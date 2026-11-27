@@ -31,7 +31,45 @@ public partial class MainWindow
 	/// "Picture this moment": she draws what she imagines the two of you are doing right now, from the last few
 	/// messages, where you are and how she looks, the same way her make_picture tool does. It's shown under her latest reply.
 	/// </summary>
-	private async void PictureMoment_Click(object sender, RoutedEventArgs e)
+	/// <summary>A small "are you sure?" right at the mouse, so a stray click doesn't start a picture.</summary>
+	private void PictureMoment_Click(object sender, RoutedEventArgs e)
+	{
+		if (busy || drawingMoment || current == null || !current.IsCompanion)
+		{
+			return;
+		}
+		System.Windows.Controls.Primitives.Popup ask = new System.Windows.Controls.Primitives.Popup
+		{
+			Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint,
+			StaysOpen = false,
+			AllowsTransparency = true,
+			PopupAnimation = System.Windows.Controls.Primitives.PopupAnimation.Fade
+		};
+		System.Windows.Controls.StackPanel panel = new System.Windows.Controls.StackPanel();
+		panel.Children.Add(Ui.Text("Picture this moment?", "Type.Body"));
+		System.Windows.Controls.StackPanel buttons = new System.Windows.Controls.StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 10, 0, 0) };
+		System.Windows.Controls.Button no = Ui.Button("No", "Btn.Secondary", delegate
+		{
+			ask.IsOpen = false;
+		});
+		System.Windows.Controls.Button yes = Ui.Button("Yes", "Btn.Primary", delegate
+		{
+			ask.IsOpen = false;
+			_ = PictureMomentAsync();
+		});
+		yes.Margin = new Thickness(8, 0, 0, 0);
+		buttons.Children.Add(no);
+		buttons.Children.Add(yes);
+		panel.Children.Add(buttons);
+		ask.Child = new System.Windows.Controls.Border { Style = Ui.Style("Popup.Surface"), Padding = new Thickness(14, 12, 14, 12), Child = panel };
+		ask.Opened += delegate
+		{
+			yes.Focus();
+		};
+		ask.IsOpen = true;
+	}
+
+	private async Task PictureMomentAsync()
 	{
 		ChatSession? session = current;
 		if (busy || drawingMoment || session == null || !session.IsCompanion)
@@ -49,6 +87,7 @@ public partial class MainWindow
 			Notice("Load the model first: " + session.PersonaName + " writes the picture's description herself.");
 			return;
 		}
+		(string File, string Result)? drawn = null;
 		drawingMoment = true;
 		// Hold new messages while she draws: the picture uses the model and may pause it.
 		SetBusy(value: true);
@@ -61,8 +100,13 @@ public partial class MainWindow
 				framing = "scene"
 			});
 			// Failures are already shown as a notice by the picture tool itself.
-			await MakePictureForTurnAsync(session, last, request, CancellationToken.None);
+			int before = last.Pictures.Count;
+			string result = await MakePictureForTurnAsync(session, last, request, CancellationToken.None);
 			store.SaveChat(session);
+			if (last.Pictures.Count > before)
+			{
+				drawn = (last.Pictures[^1], result);
+			}
 		}
 		catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is InvalidOperationException)
 		{
@@ -73,6 +117,40 @@ public partial class MainWindow
 			drawingMoment = false;
 			SetBusy(value: false);
 		}
+		if (drawn.HasValue && current == session)
+		{
+			await ReactToMomentAsync(session, drawn.Value.File, drawn.Value.Result);
+		}
+	}
+
+	/// <summary>She's told they asked her to picture the moment, and what she drew, and replies to it in her own words.
+	/// With a vision model she also sees the picture itself.</summary>
+	private async Task ReactToMomentAsync(ChatSession session, string file, string result)
+	{
+		int shows = result.IndexOf("It shows: ", StringComparison.Ordinal);
+		string what = (shows >= 0) ? result.Substring(shows + "It shows: ".Length) : "";
+		int tail = what.IndexOf(" Don't describe it", StringComparison.Ordinal);
+		if (tail >= 0)
+		{
+			what = what.Substring(0, tail);
+		}
+		Attachment? picture = null;
+		if (!string.IsNullOrWhiteSpace(settings.ProjectorPath))
+		{
+			try
+			{
+				picture = Attachments.Read(file);
+				picture.Name = "The picture you just drew of this moment:";
+			}
+			catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is NotSupportedException || ex is InvalidOperationException || ex is ArgumentException)
+			{
+				picture = null;
+			}
+		}
+		string cue = "[No message from them. They just pressed \"Picture this moment\", asking you to picture what the two of you are doing right now, and you drew it. It's shown in the chat under your last message."
+			+ ((what.Length > 0) ? (" Your picture shows: " + what.Trim()) : "")
+			+ " React to it now, in your own voice and in the moment: how you feel about it, what you notice or like, or what it makes you want to do. Keep it short. Don't describe the picture back to them or mention prompts or tools.]";
+		await SendAsync(cue, picture);
 	}
 
 	/// <summary>The make_picture tool: returns what the model is told (never throws for an ordinary failure).</summary>
@@ -237,6 +315,52 @@ public partial class MainWindow
 		}
 		LocationChip.Visibility = Visibility.Visible;
 		LocationChipText.Text = current.Location.Length > 0 ? current.Location : "Where are we?";
+		ShowOutfit();
+	}
+
+	/// <summary>What she's wearing, under the location: the latest entry of her wardrobe diary.</summary>
+	private void ShowOutfit()
+	{
+		if (current == null || !current.IsCompanion || current.PersonaId.Length == 0)
+		{
+			OutfitChip.Visibility = Visibility.Collapsed;
+			return;
+		}
+		try
+		{
+			AquilaLocal.Companion.PersonaStore herStore = companion.Open(current.PersonaId).Store;
+			if (!herStore.HasAppearance)
+			{
+				OutfitChip.Visibility = Visibility.Collapsed;
+				return;
+			}
+			AquilaLocal.Companion.Wardrobe w = herStore.ReadAppearance().Wardrobe.Wardrobe;
+			string colour = w.Color.Trim();
+			string outfit = w.Outfit.Trim();
+			OutfitChipText.Text = (colour.Length > 0 && !outfit.Contains(colour, StringComparison.OrdinalIgnoreCase)) ? (colour + " " + outfit) : outfit;
+			OutfitChip.ToolTip = "What she's wearing: " + AquilaLocal.Companion.ContextInjector.WardrobeText(w) + "\nClick to see her wardrobe diary or change it.";
+			OutfitChip.Visibility = outfit.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+		}
+		catch (Exception ex) when (ex is AquilaLocal.Companion.PersonaConfigException || ex is IOException || ex is UnauthorizedAccessException || ex is InvalidOperationException || ex is Microsoft.Data.Sqlite.SqliteException)
+		{
+			OutfitChip.Visibility = Visibility.Visible;
+			OutfitChipText.Text = "Outfit unknown";
+			OutfitChip.ToolTip = "Her outfit couldn't be read: " + ex.Message;
+		}
+	}
+
+	private void Outfit_Click(object sender, RoutedEventArgs e)
+	{
+		if (current == null || !current.IsCompanion)
+		{
+			return;
+		}
+		if (busy)
+		{
+			Notice("Wait for the reply to finish, then open her wardrobe diary.");
+			return;
+		}
+		OpenCompanions(current.PersonaId, null, new List<long>());
 	}
 
 	/// <summary>A new chat with her starts where the last one left off.</summary>

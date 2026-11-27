@@ -1,7 +1,9 @@
 """Owned offline neural speech worker. JSON lines and fixed local assets."""
 import os, sys, json, pathlib, argparse, contextlib, socket, gc, time, wave, ctypes
 sys.stdout.reconfigure(encoding='utf-8'); sys.stderr.reconfigure(encoding='utf-8')
-os.environ.update(HF_HUB_OFFLINE='1', TRANSFORMERS_OFFLINE='1', HF_HUB_DISABLE_TELEMETRY='1', DO_NOT_TRACK='1', ORT_DISABLE_TELEMETRY='1', TOKENIZERS_PARALLELISM='false', OMP_NUM_THREADS='2', MKL_NUM_THREADS='2', PYTHONNOUSERSITE='1')
+# CPU speech threads: a quarter of the logical processors, 2 to 8 (8 on a 16-core laptop). Two made CPU speech crawl.
+THREADS = max(2, min(8, (os.cpu_count() or 8) // 4))
+os.environ.update(HF_HUB_OFFLINE='1', TRANSFORMERS_OFFLINE='1', HF_HUB_DISABLE_TELEMETRY='1', DO_NOT_TRACK='1', ORT_DISABLE_TELEMETRY='1', TOKENIZERS_PARALLELISM='false', OMP_NUM_THREADS=str(THREADS), MKL_NUM_THREADS=str(THREADS), PYTHONNOUSERSITE='1')
 parser = argparse.ArgumentParser()
 parser.add_argument('--assets', required=True)
 parser.add_argument('--output', required=True)
@@ -24,7 +26,7 @@ socket.create_connection = blocked
 with contextlib.redirect_stdout(sys.stderr):
     import numpy as np
     import torch
-torch.set_num_threads(2)
+torch.set_num_threads(THREADS)
 torch.set_num_interop_threads(1)
 model = None
 backend = None
