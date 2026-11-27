@@ -19,7 +19,7 @@ public sealed record CreatorOption(string Kind, string Key, string Label, string
 }
 
 /// <summary>A small picture to make once: its file id, a name to show while it's made, and its prompt.</summary>
-public sealed record TileJob(string Id, string Name, string Prompt, string? Path = null);
+public sealed record TileJob(string Id, string Name, string Prompt);
 
 /// <summary>The choices offered in Create Companion's picture steps, and the small pictures that show them.</summary>
 public static class CreatorOptions
@@ -78,8 +78,8 @@ public static class CreatorOptions
     /// <summary>Art styles: the label, and the words for the "art style" trait every picture keeps.</summary>
     public static readonly IReadOnlyList<(string Label, string Text)> ArtStyles = new[]
     {
-        ("Realistic photo", "photorealistic photography, natural light"),
         ("Anime", "anime illustration, clean line art, soft cel shading"),
+        ("Realistic photo", "photorealistic photography, natural light"),
         ("3D render", "stylised 3D render, soft studio lighting"),
         ("Painted", "digital painting, soft brushwork")
     };
@@ -94,13 +94,13 @@ public static class CreatorOptions
     public static string TilePrompt(CreatorOption o, string gender)
     {
         string person = "a young adult " + (Genders.IsMale(gender) ? "man" : "woman");
-        const string Studio = "plain light grey studio background, soft even light, realistic photography";
+        const string Studio = "plain light grey background, soft even light, clean line art, soft cel shading";
         return o.Kind switch
         {
-            CreatorKinds.Gender => $"Portrait photo of a young adult {o.Text}, warm friendly smile, simple casual top, {Studio}.",
-            CreatorKinds.Ethnicity => $"Portrait photo of a young adult {o.Text} {(Genders.IsMale(gender) ? "man" : "woman")}, friendly relaxed expression, simple casual top, {Studio}.",
-            CreatorKinds.Hair => $"Head and shoulders photo of {person} with {o.Text}, natural hair colour, simple casual top, {Studio}.",
-            _ => $"Full body photo of {person} with {o.Text}, wearing simple fitted casual clothes, standing relaxed, {Studio}."
+            CreatorKinds.Gender => $"Anime illustration, portrait of a young adult {o.Text}, warm friendly smile, simple casual top, {Studio}.",
+            CreatorKinds.Ethnicity => $"Anime illustration, portrait of a young adult {o.Text} {(Genders.IsMale(gender) ? "man" : "woman")}, friendly relaxed expression, simple casual top, {Studio}.",
+            CreatorKinds.Hair => $"Anime illustration, head and shoulders of {person} with {o.Text}, natural hair colour, simple casual top, {Studio}.",
+            _ => $"Anime illustration, full body of {person} with {o.Text}, wearing simple fitted casual clothes, standing relaxed, {Studio}."
         };
     }
 

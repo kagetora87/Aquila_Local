@@ -210,7 +210,7 @@ public partial class MainWindow
 			h.Margin = new Thickness(0, 4, 0, 0);
 			body.Children.Add(h);
 		}
-		List<TileJob> missing = CreatorOptions.TileJobs().Where((TileJob j) => !File.Exists(Presets.TilePath(j.Id))).ToList();
+		List<TileJob> missing = CreatorOptions.TileJobs().Where((TileJob j) => !File.Exists(Presets.StyledTilePath(j.Id))).ToList();
 		if (missing.Count > 0 || makingTiles)
 		{
 			body.Children.Add(TileBanner(missing));
@@ -222,7 +222,7 @@ public partial class MainWindow
 			CreatorOption option = o;
 			bool on = chosen?.Key == o.Key;
 			bool big = kind == CreatorKinds.Gender;
-			Button tile = ChoiceTile(Presets.TilePath(CreatorOptions.TileId(o, gender)), o.Label, on, big ? 220 : 150, big ? 280 : 190);
+			Button tile = ChoiceTile(Presets.StyledTilePath(CreatorOptions.TileId(o, gender)), o.Label, on, big ? 220 : 150, big ? 280 : 190);
 			tile.Click += delegate
 			{
 				draft.Choose(kind, option.Key);

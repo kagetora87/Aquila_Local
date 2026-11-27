@@ -64,10 +64,8 @@ public sealed class PresetLibrary
 
     public string TilesFolder => Path.Combine(Root, "tiles");
 
-    public string TilePath(string id) => Path.Combine(TilesFolder, id + ".png");
-
-    /// <summary>A preset's tile; in a folder named after the tile style, so a style change draws them all again.</summary>
-    public string PresetTilePath(string id) => Path.Combine(TilesFolder, "anime", id + ".png");
+    /// <summary>A preset or creator tile; in a folder named after the tile style, so a style change draws them all again.</summary>
+    public string StyledTilePath(string id) => Path.Combine(TilesFolder, "anime", id + ".png");
 
     public static readonly IReadOnlyList<GenPreset> BuiltIn = new List<GenPreset>
     {
@@ -221,7 +219,7 @@ public sealed class PresetLibrary
             throw new PersonaConfigException("That preset wasn't found.");
         }
         Save(custom);
-        string tile = PresetTilePath(id);
+        string tile = StyledTilePath(id);
         if (File.Exists(tile))
         {
             File.Delete(tile);
@@ -237,7 +235,7 @@ public sealed class PresetLibrary
     }
 
     /// <summary>Presets whose small picture hasn't been made yet.</summary>
-    public List<GenPreset> MissingTiles() => Load().Where(p => !File.Exists(PresetTilePath(p.Id))).ToList();
+    public List<GenPreset> MissingTiles() => Load().Where(p => !File.Exists(StyledTilePath(p.Id))).ToList();
 
     /// <summary>
     /// The prompt for a preset's small picture: an adult model in casual clothes doing the action, a model
@@ -304,7 +302,7 @@ public sealed record GenerateRecipe(GenPreset? Action, GenPreset? Outfit, GenPre
     /// </summary>
     public string DirectPrompt(string name, string gender, string appearance)
     {
-        string prompt = "Photo of " + Describe(name, gender) + " Appearance: " + appearance.Trim().TrimEnd('.') + ". Framing: " + Shot + ". Realistic photography, natural light, detailed.";
+        string prompt = "Picture of " + Describe(name, gender) + " Appearance: " + appearance.Trim().TrimEnd('.') + ". Framing: " + Shot + ". Soft natural light, detailed.";
         return prompt.Length > PicturePrompt.MaxPromptChars ? prompt[..PicturePrompt.MaxPromptChars] : prompt;
     }
 

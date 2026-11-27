@@ -107,7 +107,7 @@ public sealed class CreatorTests
         Assert.Contains("dark brown", p);
         Assert.Contains("scar through his left eyebrow", p);
         Assert.Contains("wearing glasses.", p);
-        Assert.Contains("photorealistic", p);
+        Assert.Contains("anime illustration", p);
     }
 
     [Fact]

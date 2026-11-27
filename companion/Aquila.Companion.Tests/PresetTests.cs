@@ -43,12 +43,12 @@ public sealed class PresetTests : IDisposable
         PresetLibrary again = new(root);
         Assert.Contains(again.Load(PresetKinds.Scene), p => p.Id == added.Id && p.Custom);
         Assert.Contains(again.MissingTiles(), p => p.Id == added.Id);
-        Directory.CreateDirectory(Path.GetDirectoryName(again.PresetTilePath(added.Id))!);
-        File.WriteAllText(again.PresetTilePath(added.Id), "x");
+        Directory.CreateDirectory(Path.GetDirectoryName(again.StyledTilePath(added.Id))!);
+        File.WriteAllText(again.StyledTilePath(added.Id), "x");
         Assert.DoesNotContain(again.MissingTiles(), p => p.Id == added.Id);
         again.Remove(added.Id);
         Assert.DoesNotContain(again.Load(), p => p.Id == added.Id);
-        Assert.False(File.Exists(again.PresetTilePath(added.Id)));
+        Assert.False(File.Exists(again.StyledTilePath(added.Id)));
     }
 
     [Fact]
@@ -130,7 +130,7 @@ public sealed class PresetTests : IDisposable
     {
         GenerateRecipe r = new(null, null, null, new string('x', 3000));
         string prompt = r.DirectPrompt("Vicki", Genders.Female, "grey-green eyes, black hair");
-        Assert.StartsWith("Photo of Vicki", prompt);
+        Assert.StartsWith("Picture of Vicki", prompt);
         Assert.True(prompt.Length <= PicturePrompt.MaxPromptChars);
         Assert.Contains("grey-green eyes", new GenerateRecipe(null, null, null, "").DirectPrompt("Vicki", Genders.Female, "grey-green eyes"));
     }
