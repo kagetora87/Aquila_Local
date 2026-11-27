@@ -42,11 +42,12 @@ public partial class MainWindow
 		UpdateSendEnabled();
 	}
 
-	/// <summary>On short windows the avatar shrinks so the chat list keeps room for several rows.</summary>
+	/// <summary>The avatar fills its pane's width at a portrait shape, but never taller than the window allows.</summary>
 	private void FitSidebar()
 	{
-		double height = base.ActualHeight;
-		AvatarSlot.Height = (height < 720.0) ? 96.0 : ((height < 800.0) ? 120.0 : 184.0);
+		double width = (AvatarColumn.ActualWidth > 0.0) ? AvatarColumn.ActualWidth : AvatarColumn.Width.Value;
+		double tallest = Math.Max(120.0, base.ActualHeight - 120.0);
+		AvatarSlot.Height = Math.Clamp((width - 40.0) * 1.35, 120.0, tallest);
 	}
 
 	/// <summary>"Qwen3.8-27B-Turbo-…-IQ4_XS" becomes "Qwen3.8-27B": the name up to the size.</summary>

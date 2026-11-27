@@ -1813,6 +1813,8 @@ public partial class MainWindow : AquilaWindow
 		MarkupBar.Attach(Composer);
 		StartLiving();
 		SidebarColumn.Width = new GridLength(Math.Clamp(settings.SidebarWidth, SidebarColumn.MinWidth, SidebarColumn.MaxWidth));
+		AvatarColumn.Width = new GridLength(Math.Clamp(settings.AvatarWidth, AvatarColumn.MinWidth, AvatarColumn.MaxWidth));
+		FitSidebar();
 		MarkupBar.ShowThoughts = settings.ShowPersonaThoughts;
 		MarkupBar.ShowThoughtsChanged += delegate(bool show)
 		{

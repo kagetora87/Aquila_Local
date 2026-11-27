@@ -40,6 +40,9 @@ public class Settings
 	/// <summary>Sidebar width in pixels, set by dragging its edge.</summary>
 	public double SidebarWidth { get; set; } = 272.0;
 
+	/// <summary>Width of the avatar pane on the right, set by dragging its edge.</summary>
+	public double AvatarWidth { get; set; } = 360.0;
+
 	public int ThinkingBudget { get; set; } = 1024;
 
 	[JsonIgnore]
