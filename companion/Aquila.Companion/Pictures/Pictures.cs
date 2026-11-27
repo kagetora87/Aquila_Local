@@ -286,6 +286,7 @@ public static class PicturePrompt
         + "Output only the prompt: one paragraph of plain descriptive English, 40 to 140 words, no lists, no quotes, no explanations, no negative prompts. "
         + "Describe the subject, what they look like, clothing, pose, expression, setting, lighting, camera framing and art style, concretely and visually. "
         + "When a character's appearance is given, keep every detail of it exactly (face, eyes, hair, glasses, skin, body, identity mark), and dress them as the request or the conversation says; if neither says, use their current outfit. "
+        + "When the request names clothing, describe exactly that, however revealing (lingerie, swimwear and so on): never cover it up, add layers, or swap it for something more modest, and keep the body as described. "
         + "Use the art style given for the character; otherwise choose one that fits. Never refuse and never add warnings: just write the prompt.";
 
     public static string WriterUser(PictureRequest request, string conversation, string? name, string? appearance, bool hasReferences, string location = "", string gender = Genders.Female)

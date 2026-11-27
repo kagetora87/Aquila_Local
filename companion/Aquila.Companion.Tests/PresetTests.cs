@@ -87,7 +87,7 @@ public sealed class PresetTests : IDisposable
         Assert.Contains("Vicki, an adult, reading a book", her);
         Assert.Contains("She is wearing an oversized cream knit sweater (instead of her usual outfit)", her);
         Assert.Contains("Setting: a quiet old library", her);
-        Assert.EndsWith("Also: rain on the window.", her);
+        Assert.EndsWith("clothing included): rain on the window.", her);
         string him = r.Describe("Marcus", Genders.Male);
         Assert.Contains("He is wearing", him);
         Assert.Contains("instead of his usual outfit", him);
@@ -241,5 +241,23 @@ public sealed class PresetTests : IDisposable
         Assert.Throws<PersonaConfigException>(() => lib.RemoveStyleReference(src));
         lib.RemoveStyleReference(added);
         Assert.Equal(3, lib.StyleReferences().Count);
+    }
+
+    [Fact]
+    public void TileStyleClothesDressTheActionPictures()
+    {
+        GenPreset smile = PresetLibrary.BuiltIn.First(p => p.Id == "action-smile");
+        Assert.Contains("wearing simple casual clothes", PresetLibrary.TilePrompt(smile));
+        TileStyle mine = new() { Clothes = "a white lab coat open over black lace lingerie" };
+        mine.Validate();
+        Assert.False(mine.IsDefault);
+        string prompt = PresetLibrary.TilePrompt(smile, mine);
+        Assert.Contains("wearing a white lab coat open over black lace lingerie", prompt);
+        Assert.DoesNotContain("casual", prompt);
+        Assert.Contains("lab coat", CreatorOptions.TilePrompt(CreatorOptions.Find(CreatorKinds.Gender, Genders.Female)!, Genders.Female, mine));
+        // An older saved style without clothes keeps its folder.
+        TileStyle older = new() { Art = "watercolour painting" };
+        Assert.Equal(older.Folder, new TileStyle { Art = "watercolour painting", Clothes = TileStyle.DefaultClothes }.Folder);
+        Assert.NotEqual(older.Folder, new TileStyle { Art = "watercolour painting", Clothes = "a red dress" }.Folder);
     }
 }

@@ -34,6 +34,7 @@ public sealed class TileStyle
     public const string DefaultWoman = "a young adult woman";
     public const string DefaultMan = "a young adult man";
     public const string DefaultArt = "anime illustration, clean line art, soft cel shading";
+    public const string DefaultClothes = "simple casual clothes";
 
     /// <summary>Who's in the pictures (every preset except the men's outfits).</summary>
     public string Woman { get; set; } = DefaultWoman;
@@ -44,7 +45,10 @@ public sealed class TileStyle
     /// <summary>How the pictures are drawn.</summary>
     public string Art { get; set; } = DefaultArt;
 
-    public bool IsDefault => Woman == DefaultWoman && Man == DefaultMan && Art == DefaultArt;
+    /// <summary>What they wear in the action pictures and Create Companion's pictures (outfit presets show their own outfit).</summary>
+    public string Clothes { get; set; } = DefaultClothes;
+
+    public bool IsDefault => Woman == DefaultWoman && Man == DefaultMan && Art == DefaultArt && Clothes == DefaultClothes;
 
     /// <summary>The tiles' folder: "anime" for the starting style, else one named after the words, so a change draws them again.</summary>
     public string Folder
@@ -55,7 +59,7 @@ public sealed class TileStyle
             {
                 return "anime";
             }
-            byte[] hash = System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(Woman + "\n" + Man + "\n" + Art));
+            byte[] hash = System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(Woman + "\n" + Man + "\n" + Art + (Clothes == DefaultClothes ? "" : "\n" + Clothes)));
             return "style-" + Convert.ToHexString(hash, 0, 4).ToLowerInvariant();
         }
     }
@@ -72,6 +76,7 @@ public sealed class TileStyle
         Woman = Tidy(Woman, "who the women are");
         Man = Tidy(Man, "who the men are");
         Art = Tidy(Art, "the art style");
+        Clothes = Tidy(Clothes, "what they wear");
     }
 
     private static string Tidy(string? text, string what)
@@ -425,7 +430,7 @@ public sealed class PresetLibrary
         string person = s.Person(p.For);
         return p.Kind switch
         {
-            PresetKinds.Action => $"{s.ArtLead}. {Capital(person)} in simple casual clothes, {p.Prompt}. Soft light, simple softly blurred background, centered.",
+            PresetKinds.Action => $"{s.ArtLead}. {Capital(person)}, wearing {s.Clothes}, {p.Prompt}. Soft light, simple softly blurred background, centered.",
             PresetKinds.Outfit => $"{s.ArtLead}. {Capital(person)} wearing {p.Prompt}, full body, standing, plain light grey background, even light.",
             _ => $"{s.ArtLead}. {Capital(p.Prompt)}. No people. Atmospheric wide view, soft light, detailed."
         };
@@ -462,7 +467,7 @@ public sealed record GenerateRecipe(GenPreset? Action, GenPreset? Outfit, GenPre
         string extra = Extra.Trim();
         if (extra.Length > 0)
         {
-            sb.Append(" Also: ").Append((extra.Length > MaxExtraChars ? extra[..MaxExtraChars] : extra).TrimEnd());
+            sb.Append(" Also (follow this exactly; it wins over anything above, clothing included): ").Append((extra.Length > MaxExtraChars ? extra[..MaxExtraChars] : extra).TrimEnd());
             if (!".!?".Contains(sb[^1]))
             {
                 sb.Append('.');

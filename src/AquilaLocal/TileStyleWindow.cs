@@ -32,6 +32,8 @@ public sealed class TileStyleWindow : AquilaWindow
 
 	private readonly TextBox art;
 
+	private readonly TextBox clothes;
+
 	private readonly ComboBox sample;
 
 	private readonly Image preview = new Image { Stretch = Stretch.Uniform };
@@ -75,6 +77,8 @@ public sealed class TileStyleWindow : AquilaWindow
 		form.Children.Add(Ui.Field("The woman in the pictures", woman, "Used for every preset except the men's outfits, and for the women in Create Companion. For example: \"a young adult woman with long hair and a gentle smile\".", 0));
 		man = Box(current.Man);
 		form.Children.Add(Ui.Field("The man in the pictures", man, "Used for the men's outfits and the men in Create Companion."));
+		clothes = Box(current.Clothes);
+		form.Children.Add(Ui.Field("What they wear", clothes, "In the action pictures and Create Companion's pictures. For example: \"a white lab coat open over black lace lingerie\". (Outfit presets show their own outfit.) Keep clothing here, not in the descriptions above, so the two don't fight."));
 		art = Box(current.Art);
 		form.Children.Add(Ui.Field("Art style", art, "How they're drawn. For example: \"anime illustration, clean line art, soft cel shading\"."));
 		WrapPanel styles = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
@@ -94,6 +98,7 @@ public sealed class TileStyleWindow : AquilaWindow
 			woman.Text = TileStyle.DefaultWoman;
 			man.Text = TileStyle.DefaultMan;
 			art.Text = TileStyle.DefaultArt;
+			clothes.Text = TileStyle.DefaultClothes;
 		});
 		reset.HorizontalAlignment = HorizontalAlignment.Left;
 		reset.Margin = new Thickness(0, 10, 0, 0);
@@ -237,7 +242,7 @@ public sealed class TileStyleWindow : AquilaWindow
 
 	private TileStyle Edited()
 	{
-		TileStyle s = new TileStyle { Woman = woman.Text, Man = man.Text, Art = art.Text };
+		TileStyle s = new TileStyle { Woman = woman.Text, Man = man.Text, Art = art.Text, Clothes = clothes.Text };
 		s.Validate();
 		return s;
 	}
@@ -343,7 +348,7 @@ public sealed class TileStyleWindow : AquilaWindow
 		{
 			TileStyle s = Edited();
 			TileStyle old = library.Style;
-			if (s.Woman == old.Woman && s.Man == old.Man && s.Art == old.Art)
+			if (s.Woman == old.Woman && s.Man == old.Man && s.Art == old.Art && s.Clothes == old.Clothes)
 			{
 				Close();
 				return;

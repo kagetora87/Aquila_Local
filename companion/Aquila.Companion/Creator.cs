@@ -100,10 +100,10 @@ public static class CreatorOptions
         const string Studio = "plain light grey background, soft even light";
         return o.Kind switch
         {
-            CreatorKinds.Gender => $"{s.ArtLead}. Portrait of {person}, warm friendly smile, simple casual top, {Studio}.",
-            CreatorKinds.Ethnicity => $"{s.ArtLead}. Portrait of {person}, {o.Text}, friendly relaxed expression, simple casual top, {Studio}.",
-            CreatorKinds.Hair => $"{s.ArtLead}. Head and shoulders of {person} with {o.Text}, natural hair colour, simple casual top, {Studio}.",
-            _ => $"{s.ArtLead}. Full body of {person} with {o.Text}, wearing simple fitted casual clothes, standing relaxed, {Studio}."
+            CreatorKinds.Gender => $"{s.ArtLead}. Portrait of {person}, warm friendly smile, wearing {s.Clothes}, {Studio}.",
+            CreatorKinds.Ethnicity => $"{s.ArtLead}. Portrait of {person}, {o.Text}, friendly relaxed expression, wearing {s.Clothes}, {Studio}.",
+            CreatorKinds.Hair => $"{s.ArtLead}. Head and shoulders of {person} with {o.Text}, natural hair colour, wearing {s.Clothes}, {Studio}.",
+            _ => $"{s.ArtLead}. Full body of {person} with {o.Text}, wearing {s.Clothes}, standing relaxed, {Studio}."
         };
     }
 

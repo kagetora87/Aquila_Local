@@ -31,6 +31,12 @@ public partial class MainWindow
 	private string genOutfit = "";
 	private string genScene = "";
 	private string genExtra = "";
+
+	/// <summary>Dress them in their usual outfit (from their appearance card) when no outfit preset is picked.</summary>
+	private bool genKeepOutfit = true;
+
+	/// <summary>Use their reference pictures this time (null: as set in Pictures).</summary>
+	private bool? genUseRefs;
 	private string genMotion = "";
 	private string genShot = "";
 	private string genTab = PresetKinds.Action;
@@ -131,7 +137,15 @@ public partial class MainWindow
 		TextBox extra = new TextBox { Text = genExtra, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Height = 74, VerticalContentAlignment = VerticalAlignment.Top, MaxLength = GenerateRecipe.MaxExtraChars, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
 		Ui.SetPlaceholder(extra, "Anything else: expression, a prop, the light, the time of day…");
 		extra.TextChanged += delegate { genExtra = extra.Text; };
-		left.Children.Add(Ui.Field("Extra details", extra, "", 14));
+		left.Children.Add(Ui.Field("Extra details", extra, "Anything here wins over their usual looks, clothing included.", 14));
+		CheckBox keepOutfit = new CheckBox { Content = "Wear their usual outfit", IsChecked = genKeepOutfit, Margin = new Thickness(0, 8, 0, 0), ToolTip = "Off: their everyday clothes from the appearance card are left out, so the clothes come only from Extra details or an Outfit preset. (Picking an Outfit preset always replaces them.)" };
+		keepOutfit.Checked += delegate { genKeepOutfit = true; };
+		keepOutfit.Unchecked += delegate { genKeepOutfit = false; };
+		left.Children.Add(keepOutfit);
+		CheckBox useRefs = new CheckBox { Content = "Use their reference pictures", IsChecked = genUseRefs ?? settings.Pictures.UseReferences, Margin = new Thickness(0, 6, 0, 0), ToolTip = "Keeps their face the same, but the picture engine also tends to copy the clothes in those pictures. Turn it off, or use reference pictures that show the outfit you want." };
+		useRefs.Checked += delegate { genUseRefs = true; };
+		useRefs.Unchecked += delegate { genUseRefs = false; };
+		left.Children.Add(useRefs);
 
 		genMotionBox = new TextBox { Text = genMotion, MaxLength = VideoRequest.MaxMotionChars };
 		genMotionBox.TextChanged += delegate { genMotion = genMotionBox.Text; };
@@ -750,7 +764,7 @@ public partial class MainWindow
 	}
 
 	/// <summary>Their looks for the prompt: the appearance card (or the persona file before set-up), without their usual outfit when another was picked.</summary>
-	private (string Name, string Gender, string Appearance, List<string> References) LooksFor(string personaId, bool withOutfit)
+	private (string Name, string Gender, string Appearance, List<string> References) LooksFor(string personaId, bool withOutfit, bool? useReferences = null)
 	{
 		PersonaConfig config = companion.Registry.LoadConfig(personaId);
 		string appearance;
@@ -770,7 +784,7 @@ public partial class MainWindow
 		{
 			appearance = SeedCaption.For(config.Name, config.Seed.Appearance, withOutfit);
 		}
-		List<string> references = settings.Pictures.UseReferences ? PictureFiles.References(companion.Folder(personaId)).Take(PictureCommand.MaxReferences).ToList() : new List<string>();
+		List<string> references = (useReferences ?? settings.Pictures.UseReferences) ? PictureFiles.References(companion.Folder(personaId)).Take(PictureCommand.MaxReferences).ToList() : new List<string>();
 		return (config.Name, config.Gender, appearance, references);
 	}
 
@@ -825,7 +839,7 @@ public partial class MainWindow
 		ShowGenStatus("Getting ready…");
 		try
 		{
-			(string name, string gender, string appearance, List<string> references) = LooksFor(generateFor, withOutfit: recipe.Outfit == null);
+			(string name, string gender, string appearance, List<string> references) = LooksFor(generateFor, withOutfit: recipe.Outfit == null && genKeepOutfit, genUseRefs);
 			PictureRequest request = recipe.Request(name, gender);
 			if (video)
 			{
