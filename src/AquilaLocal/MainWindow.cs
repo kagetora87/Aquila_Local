@@ -1730,6 +1730,99 @@ public partial class MainWindow : AquilaWindow
 		return options;
 	}
 
+	/// <summary>While her voice is being made on the graphics card, the chat model is paused; this finishes when it's back.</summary>
+	private Task? pendingSpeechResume;
+
+	/// <summary>
+	/// Speaks a reply. Kitten and cloned voices run on the graphics card when that's switched on: the chat model's place in
+	/// the conversation is saved, the model is unloaded, her voice is made (faster than real time), the speech model is
+	/// unloaded, and the chat model loads again while the last part is still playing. Calls and scenes don't pause.
+	/// </summary>
+	private async Task SpeakTurnAsync(ChatSession? session, Turn turn, VoiceOptions options)
+	{
+		bool pause = options.SpeakOnGraphicsCard && options.UsesKitten && options.Device != "cpu" && engine.Ready && session?.IsCall != true && !featuresClosing;
+		if (pause)
+		{
+			// Let the reply's own follow-up work that uses the model (her memory summary, learning) finish first.
+			while (busy && !featuresClosing)
+			{
+				await Task.Delay(100);
+			}
+			foreach (Task? job in new[] { pendingCompanion, pendingLearning, pendingSpeechResume })
+			{
+				if (job != null)
+				{
+					try
+					{
+						await job;
+					}
+					catch
+					{
+					}
+				}
+			}
+			pause = engine.Ready && !busy && !featuresClosing;
+		}
+		if (!pause)
+		{
+			await speech.SpeakAsync(turn, options);
+			return;
+		}
+		TaskCompletionSource resumed = new TaskCompletionSource();
+		pendingSpeechResume = resumed.Task;
+		bool restore = false;
+		try
+		{
+			StatusText.Text = "Pausing the chat model so her voice can use the graphics card…";
+			restore = await engine.ParkAsync(CancellationToken.None);
+		}
+		catch (Exception ex) when (ex is IOException || ex is System.Net.Http.HttpRequestException || ex is UnauthorizedAccessException)
+		{
+			Notice("Voice: couldn't pause the chat model (" + ex.Message.Truncate(200) + "), so she speaks on the processor this time.");
+			resumed.TrySetResult();
+			await speech.SpeakAsync(turn, options);
+			return;
+		}
+		int resumeStarted = 0;
+		Task Resume()
+		{
+			if (Interlocked.Exchange(ref resumeStarted, 1) == 1)
+			{
+				return resumed.Task;
+			}
+			return base.Dispatcher.InvokeAsync(async delegate
+			{
+				try
+				{
+					if (!featuresClosing)
+					{
+						StatusText.Text = "Loading the chat model again…";
+						await engine.ResumeAsync(settings, restore, CancellationToken.None);
+						StatusText.Text = engine.Ready ? "Ready" : "No model loaded";
+					}
+				}
+				catch (Exception ex) when (ex is IOException || ex is System.Net.Http.HttpRequestException || ex is InvalidOperationException || ex is UnauthorizedAccessException || ex is System.ComponentModel.Win32Exception)
+				{
+					Notice("The chat model didn't load again after she spoke: " + ex.Message.Truncate(300) + " Load it from the Model panel.");
+				}
+				finally
+				{
+					resumed.TrySetResult();
+				}
+			}).Task.Unwrap();
+		}
+		options.Device = "prefer-gpu";
+		try
+		{
+			await speech.SpeakAsync(turn, options, default(CancellationToken), null, Resume);
+		}
+		finally
+		{
+			// Normally done the moment her voice is made; this covers a stop before anything was made.
+			await Resume();
+		}
+	}
+
 	/// <summary>Her voice first (if it's on), then any soundboard sounds she cued.</summary>
 	private async Task SpeakThenPlaySoundsAsync(ChatSession session, Turn turn)
 	{
@@ -1779,7 +1872,7 @@ public partial class MainWindow : AquilaWindow
 		VoiceOptions options = VoiceFor(session);
 		try
 		{
-			await speech.SpeakAsync(turn, options);
+			await SpeakTurnAsync(session, turn, options);
 			if (!featuresClosing && chats.Contains(session))
 			{
 				store.SaveChat(session);
@@ -1867,7 +1960,7 @@ public partial class MainWindow : AquilaWindow
 		VoiceOptions options = VoiceFor(session);
 		try
 		{
-			await speech.SpeakAsync(turn, options);
+			await SpeakTurnAsync(session, turn, options);
 			if (!featuresClosing && chats.Contains(session))
 			{
 				store.SaveChat(session);
@@ -2419,6 +2512,11 @@ public partial class MainWindow : AquilaWindow
 	private async Task SendAsync(string? cue = null, Attachment? cuePicture = null)
 	{
 		bool cued = cue != null;
+		if (pendingSpeechResume is { IsCompleted: false })
+		{
+			StatusText.Text = "Loading the chat model again…";
+			await pendingSpeechResume;
+		}
 		await inferenceStartup;
 		if (pendingLearning != null)
 		{

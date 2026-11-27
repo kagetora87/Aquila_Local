@@ -71,6 +71,10 @@ public partial class MainWindow
 
 	private async Task PictureMomentAsync()
 	{
+		if (pendingSpeechResume is { IsCompleted: false })
+		{
+			await pendingSpeechResume;
+		}
 		ChatSession? session = current;
 		if (busy || drawingMoment || session == null || !session.IsCompanion)
 		{

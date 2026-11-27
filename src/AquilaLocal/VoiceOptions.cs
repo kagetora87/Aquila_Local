@@ -44,6 +44,10 @@ public sealed class VoiceOptions
 
 	public bool KeepLoaded { get; set; }
 
+	/// <summary>Kitten and cloned voices: pause the chat model while she speaks, so her voice runs on the graphics card
+	/// (faster than real time) instead of the processor (about 4x slower). On by default.</summary>
+	public bool SpeakOnGraphicsCard { get; set; } = true;
+
 	public int MaxCharacters { get; set; } = 6000;
 
 	[JsonIgnore]
@@ -113,6 +117,7 @@ public sealed class VoiceOptions
 		case "auto":
 		case "cpu":
 		case "gpu":
+		case "prefer-gpu":
 			flag = true;
 			break;
 		default:

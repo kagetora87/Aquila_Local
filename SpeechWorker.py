@@ -38,13 +38,15 @@ def available_ram():
     return value.available if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(value)) else 0
 def load(engine, device):
     global model, backend, engine_loaded
-    if device not in ('auto', 'cpu', 'gpu'): raise ValueError('Unsupported speech device.')
+    # prefer-gpu: the app paused the chat model so the voice can use the graphics card; fall back to CPU if it doesn't fit.
+    if device not in ('auto', 'cpu', 'gpu', 'prefer-gpu'): raise ValueError('Unsupported speech device.')
     if device == 'auto' and model is not None and engine_loaded == engine: return
     selected = 'cpu'
-    prefer_gpu = device == 'gpu' or device == 'auto' and (engine == 'qwen' or available_ram() < 6 * 1024**3)
+    prefer_gpu = device in ('gpu', 'prefer-gpu') or device == 'auto' and (engine == 'qwen' or available_ram() < 6 * 1024**3)
     if prefer_gpu and torch.cuda.is_available():
         free, _ = torch.cuda.mem_get_info()
-        margin = 6
+        # Measured peaks on an RTX 5090 laptop: Kitten (and clones) 4.8 GB, Qwen 5.6 GB, with CUDA's own overhead.
+        margin = 6 if engine == 'qwen' else 5.25
         # Do not count our own warm model as a competing allocation.
         if free >= margin * 1024**3 or model is not None and backend == 'cuda:0' and engine_loaded == engine:
             selected = 'cuda:0'

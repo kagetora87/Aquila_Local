@@ -22,6 +22,12 @@ public sealed class VoiceWindow : AquilaWindow
 		Content = "Keep expressive model loaded between replies"
 	};
 
+	private readonly CheckBox onGraphics = new CheckBox
+	{
+		Content = "Speak on the graphics card (pauses the chat model while she speaks)",
+		ToolTip = "Much faster speech for Kitten and cloned voices. The chat model is paused while her voice is made and loads again right after (about 10 seconds); a message you send meanwhile waits for it. Not used on calls or in scenes."
+	};
+
 	private readonly CheckBox autoTags = new CheckBox
 	{
 		Content = "Apply voice tags automatically"
@@ -141,6 +147,7 @@ public sealed class VoiceWindow : AquilaWindow
 		dockPanel.Children.Add(footer);
 		enabled.Style = Ui.Style("Switch");
 		keep.Style = Ui.Style("Switch");
+		onGraphics.Style = Ui.Style("Switch");
 		ScrollViewer scrollViewer = new ScrollViewer
 		{
 			VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
@@ -233,6 +240,9 @@ public sealed class VoiceWindow : AquilaWindow
 		Name(device, "Speech compute");
 		keep.IsChecked = options.KeepLoaded;
 		stackPanel3.Children.Add(keep);
+		onGraphics.IsChecked = options.SpeakOnGraphicsCard;
+		onGraphics.Margin = new Thickness(0.0, 8.0, 0.0, 0.0);
+		stackPanel3.Children.Add(onGraphics);
 		stackPanel3.Children.Add(new TextBlock
 		{
 			Text = "Auto prefers CPU for Kitten when enough RAM is available and can use GPU when it has room. Keeping the model loaded reduces the next reply’s delay and uses more memory.",
@@ -308,6 +318,7 @@ public sealed class VoiceWindow : AquilaWindow
 		voiceOptions.Intensity = intensity.Value;
 		voiceOptions.Volume = (float)volume.Value;
 		voiceOptions.KeepLoaded = keep.IsChecked == true;
+		voiceOptions.SpeakOnGraphicsCard = onGraphics.IsChecked == true;
 		voiceOptions.MaxCharacters = result;
 		voiceOptions.Validate();
 		return voiceOptions;

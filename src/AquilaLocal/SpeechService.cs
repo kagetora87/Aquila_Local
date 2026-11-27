@@ -92,7 +92,9 @@ public sealed class SpeechService : IAsyncDisposable
 		}
 	}
 
-	public async Task SpeakAsync(Turn turn, VoiceOptions options, CancellationToken ct = default(CancellationToken), VoiceReference? preview = null)
+	/// <param name="generated">Called once every part of the reply has been made (or making it stopped), after the speech
+	/// model has been unloaded: the graphics memory is free again while the last part is still playing.</param>
+	public async Task SpeakAsync(Turn turn, VoiceOptions options, CancellationToken ct = default(CancellationToken), VoiceReference? preview = null, Func<Task>? generated = null)
 	{
 		options.Validate();
 		await lifecycle.WaitAsync(ct);
@@ -113,7 +115,7 @@ public sealed class SpeechService : IAsyncDisposable
 			}
 			stop?.Dispose();
 			stop = CancellationTokenSource.CreateLinkedTokenSource(ct);
-			task = (running = RunAsync(turn, options, preview, stop.Token));
+			task = (running = RunAsync(turn, options, preview, stop.Token, generated));
 		}
 		finally
 		{
@@ -248,8 +250,25 @@ public sealed class SpeechService : IAsyncDisposable
 		worker.Stop();
 	}
 
-	private async Task RunAsync(Turn turn, VoiceOptions options, VoiceReference? reference, CancellationToken cancel)
+	private async Task RunAsync(Turn turn, VoiceOptions options, VoiceReference? reference, CancellationToken cancel, Func<Task>? generated = null)
 	{
+		int releasedFlag = 0;
+		async Task Release()
+		{
+			if (generated == null || Interlocked.Exchange(ref releasedFlag, 1) == 1)
+			{
+				return;
+			}
+			worker.Stop();
+			try
+			{
+				await generated();
+			}
+			catch (Exception ex)
+			{
+				Report("Voice: " + ex.Message.Truncate(300));
+			}
+		}
 		using CancellationTokenSource scope = CancellationTokenSource.CreateLinkedTokenSource(cancel);
 		CancellationToken ct = scope.Token;
 		string utterance = (CurrentUtterance = Guid.NewGuid().ToString("N"));
@@ -297,6 +316,7 @@ public sealed class SpeechService : IAsyncDisposable
 					{
 						channel.Writer.TryComplete(error);
 					}
+					await Release();
 				}, ct);
 				await foreach ((string, string) item in channel.Reader.ReadAllAsync(ct))
 				{
@@ -338,6 +358,7 @@ public sealed class SpeechService : IAsyncDisposable
 			catch
 			{
 			}
+			await Release();
 			this.Frame?.Invoke(new SpeechFrame(utterance, "neutral", Playing: false, 0f));
 			if (CurrentUtterance == utterance)
 			{

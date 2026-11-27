@@ -71,7 +71,7 @@ public partial class MainWindow
 		livingCts?.Cancel();
 	}
 
-	private bool LivingBusy => busy || attaching || pendingCompanion is { IsCompleted: false } || pendingLearning is { IsCompleted: false } || voiceMode == VoiceMode.Call;
+	private bool LivingBusy => busy || attaching || pendingSpeechResume is { IsCompleted: false } || pendingCompanion is { IsCompleted: false } || pendingLearning is { IsCompleted: false } || voiceMode == VoiceMode.Call;
 
 	private void ShowLivingButton()
 	{
