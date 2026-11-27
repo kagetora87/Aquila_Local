@@ -215,6 +215,9 @@ public sealed class PersonaConfig
     /// <summary>Her favourite colour, shown with her name beside the avatar: a colour name (teal) or a hex code (#4FC3F7). Empty uses the app's accent.</summary>
     public string FavoriteColor { get; set; } = "";
 
+    /// <summary>Her own avatar: a set name in Data\avatars (for example "vicki"), or a full folder path. Empty uses the shared avatar.</summary>
+    public string Avatar { get; set; } = "";
+
     public static readonly JsonSerializerOptions Json = new()
     {
         WriteIndented = true,

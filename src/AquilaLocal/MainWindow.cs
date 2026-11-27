@@ -47,6 +47,9 @@ public partial class MainWindow : AquilaWindow
 
 	private string spriteRoot = "";
 
+	/// <summary>The avatar used when the chat's persona has none of her own.</summary>
+	private string sharedSpriteRoot = "";
+
 	private DispatcherTimer? listeningTimer;
 
 	internal Func<ChatSession, bool>? ConfirmDeleteForVerification;
@@ -223,6 +226,7 @@ public partial class MainWindow : AquilaWindow
 	{
 		SpriteAvatarOptions options = settings.Sprite;
 		spriteRoot = string.IsNullOrWhiteSpace(options.Folder) ? Path.Combine(store.Root, "avatar") : options.Folder;
+		sharedSpriteRoot = spriteRoot;
 		spriteView = new SpriteAvatarView();
 		gestures = new GestureMatcher(Path.Combine(AppContext.BaseDirectory, "embeddings"))
 		{

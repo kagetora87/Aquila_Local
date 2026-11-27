@@ -26,18 +26,23 @@ public partial class MainWindow
 		AvatarName.Foreground = Ui.Brush("Accent");
 		if (!persona)
 		{
+			UseSpriteRoot(sharedSpriteRoot);
 			return;
 		}
 		string colour = "";
+		string avatarSetting = "";
 		try
 		{
-			colour = companion.Registry.LoadConfig(key).FavoriteColor.Trim();
+			PersonaConfig config = companion.Registry.LoadConfig(key);
+			colour = config.FavoriteColor.Trim();
+			avatarSetting = config.Avatar;
 		}
 		catch (Exception ex) when (ex is PersonaConfigException || ex is System.IO.IOException || ex is UnauthorizedAccessException)
 		{
-			SayColourProblem("Couldn't read " + current!.PersonaName + "'s settings for her colour: " + ex.Message);
+			SayColourProblem("Couldn't read " + current!.PersonaName + "'s settings for her colour and avatar: " + ex.Message);
 			return;
 		}
+		UseSpriteRoot(companion.AvatarFolder(avatarSetting) ?? sharedSpriteRoot);
 		if (colour.Length == 0)
 		{
 			return;
@@ -59,6 +64,32 @@ public partial class MainWindow
 			colourProblemShown = problem;
 			Notice(problem);
 		}
+	}
+
+	/// <summary>Switches the avatar to another set of animations (a persona's own, or the shared one).
+	/// A new, empty set starts with the placeholder pictures so she's never blank.</summary>
+	private void UseSpriteRoot(string root)
+	{
+		if (spriteView == null || root.Length == 0 || string.Equals(System.IO.Path.GetFullPath(root), System.IO.Path.GetFullPath(spriteRoot), StringComparison.OrdinalIgnoreCase))
+		{
+			return;
+		}
+		try
+		{
+			if (!System.IO.Directory.Exists(root) || SpriteLibrary.Load(root).Count == 0)
+			{
+				AvatarPlaceholders.EnsureIn(root);
+			}
+		}
+		catch (Exception ex) when (ex is System.IO.IOException || ex is UnauthorizedAccessException || ex is ArgumentException)
+		{
+			SayColourProblem("Couldn't open the avatar folder " + root + ": " + ex.Message);
+			return;
+		}
+		// The Animations window edits one set; close it so it never edits the wrong one.
+		animationsWindow?.Close();
+		spriteRoot = root;
+		ReloadSpriteAvatar();
 	}
 
 	internal static bool TryColour(string text, out Color colour)

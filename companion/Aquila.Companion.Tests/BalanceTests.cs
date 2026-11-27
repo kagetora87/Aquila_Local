@@ -42,6 +42,7 @@ public sealed class BalanceTests
     {
         PersonaConfig config = TestPersona.Config();
         Assert.Contains("not an interview", ContextInjector.SystemPrompt(config, new StateBlock()));
+        Assert.Contains("say honestly that it's hazy", ContextInjector.SystemPrompt(config, new StateBlock()));
     }
 
     [Fact]

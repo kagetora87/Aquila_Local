@@ -151,8 +151,26 @@ public sealed class CompanionHost : IDisposable
 
 	private readonly Dictionary<string, float[]> interests = new Dictionary<string, float[]>();
 
+	/// <summary>Aquila's Data folder.</summary>
+	public string DataRoot { get; }
+
+	/// <summary>Where each persona's own avatar sets live: Data\avatars\&lt;name&gt;.</summary>
+	public string AvatarsRoot => Path.Combine(DataRoot, "avatars");
+
+	/// <summary>The folder a persona's avatar setting points at, or null for the shared avatar.</summary>
+	public string? AvatarFolder(string setting)
+	{
+		string s = (setting ?? "").Trim();
+		if (s.Length == 0)
+		{
+			return null;
+		}
+		return Path.IsPathRooted(s) ? s : Path.Combine(AvatarsRoot, s);
+	}
+
 	public CompanionHost(string dataRoot, string? embeddingsDirectory = null)
 	{
+		DataRoot = dataRoot;
 		Registry = new PersonaRegistry(Path.Combine(dataRoot, "personas"));
 		Scenes = new AquilaLocal.Companion.Scenes.SceneLibrary(Path.Combine(dataRoot, "scenes"));
 		Soundboard = new AquilaLocal.Companion.Sounds.SoundboardLibrary(Path.Combine(dataRoot, "soundboard"));

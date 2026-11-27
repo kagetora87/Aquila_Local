@@ -453,6 +453,61 @@ public sealed class CompanionWindow : AquilaWindow
 		ShowSwatch();
 		panel.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Children = { favourite, swatch } });
 
+		panel.Children.Add(Label("Her avatar (the animated pictures beside the chat)"));
+		// Choices: the shared avatar, any set in Data\avatars, a new set of her own, or a folder anywhere.
+		string ownName = SpriteLibrary.SafeName(config.Name.Length > 0 ? config.Name : personaId);
+		List<(string Key, string Label)> avatarChoices = new List<(string Key, string Label)> { ("", "The shared avatar (Data\\avatar)") };
+		try
+		{
+			if (Directory.Exists(host.AvatarsRoot))
+			{
+				foreach (string dir in Directory.EnumerateDirectories(host.AvatarsRoot).OrderBy((string d) => d, StringComparer.OrdinalIgnoreCase))
+				{
+					string n = Path.GetFileName(dir);
+					avatarChoices.Add((n, n + " (Data\\avatars\\" + n + ")"));
+				}
+			}
+		}
+		catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+		{
+		}
+		if (!avatarChoices.Any(((string Key, string Label) c) => string.Equals(c.Key, ownName, StringComparison.OrdinalIgnoreCase)))
+		{
+			avatarChoices.Add((ownName, "A new avatar of her own (Data\\avatars\\" + ownName + ", starts with placeholder pictures)"));
+		}
+		if (config.Avatar.Length > 0 && !avatarChoices.Any(((string Key, string Label) c) => string.Equals(c.Key, config.Avatar, StringComparison.OrdinalIgnoreCase)))
+		{
+			avatarChoices.Add((config.Avatar, config.Avatar));
+		}
+		const string ChooseFolder = "\u0001choose";
+		avatarChoices.Add((ChooseFolder, "Choose a folder…"));
+		ComboBox avatarBox = new ComboBox { ItemsSource = avatarChoices.Select(((string Key, string Label) c) => c.Label).ToList(), Width = 420, HorizontalAlignment = HorizontalAlignment.Left };
+		avatarBox.SelectedIndex = Math.Max(0, avatarChoices.FindIndex(((string Key, string Label) c) => string.Equals(c.Key, config.Avatar, StringComparison.OrdinalIgnoreCase)));
+		int lastAvatar = avatarBox.SelectedIndex;
+		avatarBox.SelectionChanged += delegate
+		{
+			if (avatarBox.SelectedIndex < 0 || avatarChoices[avatarBox.SelectedIndex].Key != ChooseFolder)
+			{
+				lastAvatar = avatarBox.SelectedIndex;
+				return;
+			}
+			OpenFolderDialog pick = new OpenFolderDialog { Title = "Choose the folder with her animations (one subfolder per animation)" };
+			if (pick.ShowDialog(this) == true)
+			{
+				avatarChoices.Insert(avatarChoices.Count - 1, (pick.FolderName, pick.FolderName));
+				avatarBox.ItemsSource = avatarChoices.Select(((string Key, string Label) c) => c.Label).ToList();
+				avatarBox.SelectedIndex = avatarChoices.Count - 2;
+			}
+			else
+			{
+				avatarBox.SelectedIndex = lastAvatar;
+			}
+		};
+		panel.Children.Add(avatarBox);
+		TextBlock avatarNote = Ui.Text("Her chats show this avatar, and Animations… edits it while her chat is open.", "Type.Caption");
+		avatarNote.TextWrapping = TextWrapping.Wrap;
+		panel.Children.Add(avatarNote);
+
 		panel.Children.Add(Label("Drives"));
 		string[] columns = { "Weight", "Start", "Decay /h", "Rest", "Rise /h", "Step", "Floor", "Ceiling" };
 		Grid grid = new Grid();
@@ -549,6 +604,8 @@ public sealed class CompanionWindow : AquilaWindow
 					throw new PersonaConfigException("\u201C" + favourite.Text.Trim() + "\u201D isn't a colour Aquila knows. Use a name like teal or a code like #4FC3F7.");
 				}
 				edited.FavoriteColor = favourite.Text.Trim();
+				string avatarKey = avatarChoices[Math.Max(0, avatarBox.SelectedIndex)].Key;
+				edited.Avatar = avatarKey == ChooseFolder ? edited.Avatar : avatarKey;
 				foreach (DriveSpec d in edited.Drives)
 				{
 					TextBox[] b = fields[d.Name];

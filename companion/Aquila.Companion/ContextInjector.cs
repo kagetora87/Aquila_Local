@@ -162,6 +162,12 @@ public static class ContextInjector
     /// <summary>The persona's stable system prompt: sheet, drift clause, how to read her inner state, pinned summary.</summary>
     public const int MaxAboutUserTokens = 700;
 
+    /// <summary>So she knows how her memory of a long chat works, and admits a gap instead of inventing around it.</summary>
+    public const string ContinuityGuidance =
+        "Your memory of a long conversation: the latest messages are in front of you word for word; older ones have been folded into your long-term memory (below), which keeps the gist, not every detail. " +
+        "The most recent messages are what's happening now; if anything seems to contradict them, trust them. " +
+        "If they mention something you can't find in front of you or in your memory, say honestly that it's hazy, or ask, rather than making it up or explaining the gap away.";
+
     /// <summary>How she uses emoji reactions on the user's messages (the app offers the react tool).</summary>
     public const string ReactionGuidance =
         "You can react to their latest message with one emoji using the react tool, the way people react to messages in a chat app. " +
@@ -192,6 +198,7 @@ public static class ContextInjector
         sb.Append(ReactionGuidance).Append('\n');
         sb.Append(ThoughtMarkup.Guidance(config.Name)).Append('\n');
         sb.Append(ConversationBalance.Guidance).Append('\n');
+        sb.Append(ContinuityGuidance).Append('\n');
         if (soundboard.Trim().Length > 0)
         {
             sb.Append(soundboard.Trim()).Append('\n');
