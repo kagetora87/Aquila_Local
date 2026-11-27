@@ -122,6 +122,8 @@ public partial class App : Application
 		int num = Array.IndexOf(e.Args, "--data-dir");
 		string dataRoot = ((num >= 0 && num + 1 < e.Args.Length) ? Path.GetFullPath(e.Args[num + 1]) : null);
 		int num2 = Array.IndexOf(e.Args, "--speech-assets");
+		// Close the app with its main window, even if a dialog failed half-built (it would otherwise keep it running unseen).
+		base.ShutdownMode = ShutdownMode.OnMainWindowClose;
 		new MainWindow(dataRoot, (num2 >= 0 && num2 + 1 < e.Args.Length) ? Path.GetFullPath(e.Args[num2 + 1]) : null).Show();
 	}
 

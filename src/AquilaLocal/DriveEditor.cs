@@ -87,6 +87,11 @@ public sealed class DriveEditor
 
 	private void RefreshAdd()
 	{
+		// The first cards are added before the Add button exists; the constructor calls this again after.
+		if (add == null)
+		{
+			return;
+		}
 		add.IsEnabled = list.Count < Drives.MaxDrives;
 		add.ToolTip = list.Count < Drives.MaxDrives ? W("A new drive of {p} own") : W("{S} has the most drives allowed (") + Drives.MaxDrives + ")";
 	}
