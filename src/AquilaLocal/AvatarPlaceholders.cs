@@ -69,7 +69,7 @@ public static class AvatarPlaceholders
 		{
 			var (name, description, speed) = sets[i];
 			string text = Path.Combine(root, name);
-			if (SpriteLibrary.FramesIn(text).Count > 0)
+			if (SpriteLibrary.FramesIn(text).Count > 0 || SpriteLibrary.VideoIn(text) != null)
 			{
 				continue;
 			}

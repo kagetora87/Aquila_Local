@@ -37,6 +37,11 @@ public sealed class SpriteAnimation
 
 	public List<string> Frames { get; init; } = new List<string>();
 
+	/// <summary>A video clip that plays instead of the pictures, or null for a picture animation.</summary>
+	public string? Video { get; init; }
+
+	public bool IsVideo => Video != null;
+
 	public SpriteMeta Meta { get; init; } = new SpriteMeta();
 
 	public SpriteKind Kind => SpriteLibrary.KindOf(Name);
@@ -59,6 +64,11 @@ public static class SpriteLibrary
 {
 	public static readonly string[] ImageExtensions = new string[5] { ".png", ".jpg", ".jpeg", ".bmp", ".gif" };
 
+	/// <summary>Clips Windows can play by itself (WebM needs the free Web Media Extensions, which Windows 11 has).</summary>
+	public static readonly string[] VideoExtensions = new string[6] { ".mp4", ".m4v", ".webm", ".wmv", ".mov", ".avi" };
+
+	private const string VideoName = "video";
+
 	private const string MetaFile = "animation.json";
 
 	private static readonly JsonSerializerOptions Json = new JsonSerializerOptions
@@ -69,6 +79,21 @@ public static class SpriteLibrary
 	public static bool IsImage(string path)
 	{
 		return ImageExtensions.Contains(Path.GetExtension(path).ToLowerInvariant());
+	}
+
+	public static bool IsVideo(string path)
+	{
+		return VideoExtensions.Contains(Path.GetExtension(path).ToLowerInvariant());
+	}
+
+	/// <summary>The animation's video clip, if it has one (the first video file in its folder).</summary>
+	public static string? VideoIn(string folder)
+	{
+		if (!Directory.Exists(folder))
+		{
+			return null;
+		}
+		return Directory.EnumerateFiles(folder).Where(IsVideo).OrderBy((string f) => f, StringComparer.OrdinalIgnoreCase).FirstOrDefault();
 	}
 
 	public static SpriteKind KindOf(string name)
@@ -129,14 +154,16 @@ public static class SpriteLibrary
 		}
 		foreach (string item in Directory.EnumerateDirectories(root))
 		{
-			List<string> list2 = FramesIn(item);
-			if (list2.Count != 0)
+			string? video = VideoIn(item);
+			List<string> list2 = (video != null) ? new List<string>() : FramesIn(item);
+			if (list2.Count != 0 || video != null)
 			{
 				list.Add(new SpriteAnimation
 				{
 					Name = Path.GetFileName(item),
 					Folder = item,
 					Frames = list2,
+					Video = video,
 					Meta = ReadMeta(item)
 				});
 			}
@@ -196,12 +223,42 @@ public static class SpriteLibrary
 		{
 			File.Delete(item);
 		}
+		RemoveVideos(text);
 		foreach (string item2 in list)
 		{
 			File.Move(item2, Path.Combine(text, Path.GetFileName(item2)), overwrite: true);
 		}
 		Directory.Delete(text2, recursive: true);
 		return text;
+	}
+
+	/// <summary>Creates (or replaces) an animation that plays a video clip. The clip is copied in as
+	/// video.mp4 (or .webm, …); any pictures or older clip in that animation are removed.</summary>
+	public static string SaveVideo(string root, string name, string file)
+	{
+		if (!IsVideo(file))
+		{
+			throw new ArgumentException("\"" + Path.GetFileName(file) + "\" isn't a video Aquila can play. Use " + string.Join(", ", VideoExtensions) + ".");
+		}
+		string text = Path.Combine(root, SafeName(name));
+		Directory.CreateDirectory(text);
+		string text2 = Path.Combine(text, ".incoming" + Path.GetExtension(file).ToLowerInvariant());
+		File.Copy(file, text2, overwrite: true);
+		foreach (string item in FramesIn(text))
+		{
+			File.Delete(item);
+		}
+		RemoveVideos(text);
+		File.Move(text2, Path.Combine(text, VideoName + Path.GetExtension(file).ToLowerInvariant()), overwrite: true);
+		return text;
+	}
+
+	private static void RemoveVideos(string folder)
+	{
+		foreach (string item in Directory.EnumerateFiles(folder).Where(IsVideo).ToList())
+		{
+			File.Delete(item);
+		}
 	}
 
 	public static string Rename(SpriteAnimation animation, string newName)
@@ -230,7 +287,7 @@ public static class SpriteLibrary
 	}
 
 	/// <summary>
-	/// Imports a folder of pictures. Subfolders become animations as they are. Loose pictures are grouped
+	/// Imports a folder of pictures or video clips. Subfolders become animations as they are. Loose pictures are grouped
 	/// by name, so wave_1.png, wave_2.png, eating-01.png, eating-02.png become "wave" and "eating".
 	/// Returns the names of the animations created.
 	/// </summary>
@@ -240,10 +297,18 @@ public static class SpriteLibrary
 		foreach (string item in Directory.EnumerateDirectories(source))
 		{
 			List<string> list2 = FramesIn(item);
-			if (list2.Count > 0)
+			string? video = VideoIn(item);
+			if (list2.Count > 0 || video != null)
 			{
 				string name = Path.GetFileName(item);
-				SaveFrames(root, name, list2);
+				if (video != null)
+				{
+					SaveVideo(root, name, video);
+				}
+				else
+				{
+					SaveFrames(root, name, list2);
+				}
 				SpriteMeta spriteMeta = ReadMeta(item);
 				WriteMeta(Path.Combine(root, SafeName(name)), spriteMeta);
 				list.Add(SafeName(name));
@@ -256,6 +321,13 @@ public static class SpriteLibrary
 			list3.Sort((string x, string y) => NaturalCompare(Path.GetFileName(x), Path.GetFileName(y)));
 			SaveFrames(root, item2.Key, list3);
 			list.Add(SafeName(item2.Key));
+		}
+		// Loose clips: each becomes its own animation, named after the file ("waving hello.mp4").
+		foreach (string item3 in Directory.EnumerateFiles(source).Where(IsVideo))
+		{
+			string name2 = GroupName(Path.GetFileNameWithoutExtension(item3));
+			SaveVideo(root, name2, item3);
+			list.Add(SafeName(name2));
 		}
 		return list;
 	}

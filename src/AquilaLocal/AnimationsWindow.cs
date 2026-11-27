@@ -203,7 +203,7 @@ public sealed class AnimationsWindow : AquilaWindow
 		list.Children.Clear();
 		if (preview.Animations.Count == 0)
 		{
-			list.Children.Add(Note("No animations yet. Use \"Add placeholders\" for a starter set, or \"New animation…\" to add your own pictures.", 0.0));
+			list.Children.Add(Note("No animations yet. Use \"Add placeholders\" for a starter set, or \"New animation…\" to add your own pictures or a video clip.", 0.0));
 			return;
 		}
 		foreach (SpriteAnimation animation in preview.Animations)
@@ -235,22 +235,18 @@ public sealed class AnimationsWindow : AquilaWindow
 		{
 			preview.Preview(animation.Name);
 		}));
-		stackPanel2.Children.Add(Button("Replace pictures…", delegate
+		stackPanel2.Children.Add(Button(animation.IsVideo ? "Replace video…" : "Replace pictures…", delegate
 		{
 			string[] array = PickPictures();
 			if (array != null)
 			{
-				Run(delegate
-				{
-					SpriteLibrary.SaveFrames(root, animation.Name, array);
-					return $"\"{animation.Name}\" now has {array.Length} pictures.";
-				});
+				Run(() => SaveMedia(animation.Name, array, isNew: false));
 			}
 		}));
 		Button deleteButton;
 		stackPanel2.Children.Add(deleteButton = Button("Delete", delegate
 		{
-			if (AquilaDialog.Confirm(this, "Delete this animation?", "\"" + animation.Name + "\" and its pictures will be removed from the avatar folder.", "Delete", "Cancel", DialogKind.Danger))
+			if (AquilaDialog.Confirm(this, "Delete this animation?", "\"" + animation.Name + "\" and its " + (animation.IsVideo ? "video" : "pictures") + " will be removed from the avatar folder.", "Delete", "Cancel", DialogKind.Danger))
 			{
 				Run(delegate
 				{
@@ -285,6 +281,16 @@ public sealed class AnimationsWindow : AquilaWindow
 			Margin = new Thickness(0.0, 10.0, 0.0, 0.0)
 		};
 		stackPanel.Children.Add(wrapPanel);
+		if (animation.IsVideo)
+		{
+			wrapPanel.Children.Add(new TextBlock
+			{
+				Text = "\u25B6  " + Path.GetFileName(animation.Video),
+				Foreground = Muted,
+				FontSize = 12.0,
+				ToolTip = "Press Play to watch it in the preview. It plays muted."
+			});
+		}
 		for (int i = 0; i < animation.Frames.Count; i++)
 		{
 			wrapPanel.Children.Add(Thumb(animation, i));
@@ -380,11 +386,7 @@ public sealed class AnimationsWindow : AquilaWindow
 			string[] files = DroppedPictures(e);
 			if (files.Length != 0)
 			{
-				Run(delegate
-				{
-					SpriteLibrary.SaveFrames(root, animation.Name, files.OrderBy((string f) => Path.GetFileName(f), Comparer<string>.Create(SpriteLibrary.NaturalCompare)).ToList());
-					return $"\"{animation.Name}\" now has {files.Length} pictures.";
-				});
+				Run(() => SaveMedia(animation.Name, files, isNew: false));
 			}
 		};
 		return border;
@@ -495,11 +497,7 @@ public sealed class AnimationsWindow : AquilaWindow
 		string[] files = PickPictures();
 		if (files != null)
 		{
-			Run(delegate
-			{
-				SpriteLibrary.SaveFrames(root, text, files.OrderBy((string f) => Path.GetFileName(f), Comparer<string>.Create(SpriteLibrary.NaturalCompare)).ToList());
-				return $"Added \"{SpriteLibrary.SafeName(text)}\" with {files.Length} pictures.";
-			});
+			Run(() => SaveMedia(text, files, isNew: true));
 		}
 	}
 
@@ -507,7 +505,7 @@ public sealed class AnimationsWindow : AquilaWindow
 	{
 		OpenFolderDialog openFolderDialog = new OpenFolderDialog
 		{
-			Title = "Choose a folder of avatar pictures"
+			Title = "Choose a folder of avatar pictures or videos"
 		};
 		if (openFolderDialog.ShowDialog(this) == true)
 		{
@@ -515,17 +513,41 @@ public sealed class AnimationsWindow : AquilaWindow
 			Run(delegate
 			{
 				List<string> list = SpriteLibrary.Import(folder, root);
-				return (list.Count == 0) ? "No pictures were found in that folder." : ("Imported: " + string.Join(", ", list) + ".");
+				return (list.Count == 0) ? "No pictures or videos were found in that folder." : ("Imported: " + string.Join(", ", list) + ".");
 			});
 		}
+	}
+
+	/// <summary>Saves picked or dropped files into an animation: several pictures (played in file name
+	/// order), or one video clip. A mix of both is refused with a plain reason.</summary>
+	private string SaveMedia(string name, IReadOnlyList<string> files, bool isNew)
+	{
+		List<string> videos = files.Where(SpriteLibrary.IsVideo).ToList();
+		string label = SpriteLibrary.SafeName(name);
+		if (videos.Count > 0)
+		{
+			if (files.Count > 1)
+			{
+				throw new ArgumentException("An animation is either pictures or one video, not both. Choose a single video file, or only pictures.");
+			}
+			SpriteLibrary.SaveVideo(root, name, videos[0]);
+			return isNew ? $"Added \"{label}\" as a video." : $"\"{label}\" now plays the video {Path.GetFileName(videos[0])}.";
+		}
+		SpriteLibrary.SaveFrames(root, name, files.OrderBy((string f) => Path.GetFileName(f), Comparer<string>.Create(SpriteLibrary.NaturalCompare)).ToList());
+		return isNew ? $"Added \"{label}\" with {files.Count} pictures." : $"\"{label}\" now has {files.Count} pictures.";
+	}
+
+	private static string MediaPattern()
+	{
+		return string.Join(";", SpriteLibrary.ImageExtensions.Concat(SpriteLibrary.VideoExtensions).Select((string x) => "*" + x));
 	}
 
 	private string[]? PickPictures()
 	{
 		OpenFileDialog openFileDialog = new OpenFileDialog
 		{
-			Title = "Choose the pictures, in any order (they play in file name order)",
-			Filter = "Pictures (*.png;*.jpg;*.jpeg;*.bmp;*.gif)|*.png;*.jpg;*.jpeg;*.bmp;*.gif",
+			Title = "Choose the pictures (they play in file name order), or one video clip",
+			Filter = "Pictures or a video|" + MediaPattern() + "|Pictures|*.png;*.jpg;*.jpeg;*.bmp;*.gif|Videos|" + string.Join(";", SpriteLibrary.VideoExtensions.Select((string x) => "*" + x)),
 			Multiselect = true
 		};
 		if (openFileDialog.ShowDialog(this) != true || openFileDialog.FileNames.Length == 0)
@@ -541,7 +563,7 @@ public sealed class AnimationsWindow : AquilaWindow
 		{
 			return Array.Empty<string>();
 		}
-		return source.Where(SpriteLibrary.IsImage).ToArray();
+		return source.Where((string f) => SpriteLibrary.IsImage(f) || SpriteLibrary.IsVideo(f)).ToArray();
 	}
 
 	private void SaveMeta(SpriteAnimation animation, bool reload)
@@ -600,7 +622,7 @@ public sealed class AnimationsWindow : AquilaWindow
 			Margin = new Thickness(0.0, 10.0, 0.0, 0.0)
 		};
 		stackPanel.Children.Add(box);
-		Button button = Button("Next: choose pictures…", delegate
+		Button button = Button("Next: choose pictures or a video…", delegate
 		{
 			window.DialogResult = true;
 		});
@@ -626,7 +648,7 @@ public sealed class AnimationsWindow : AquilaWindow
 			SpriteKind.Listening => "Plays while you type.",
 			_ => "Gesture: plays once when a reply fits it, then goes back to idle.",
 		};
-		return $"{text}  ·  {animation.Frames.Count} pictures";
+		return animation.IsVideo ? $"{text}  ·  video clip (plays muted)" : $"{text}  ·  {animation.Frames.Count} pictures";
 	}
 
 	private static TextBlock Note(string text, double top)
