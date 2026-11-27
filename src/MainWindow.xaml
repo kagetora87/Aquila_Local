@@ -12,9 +12,7 @@
       <DockPanel Margin="12">
         <!-- Brand -->
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Height="40" Margin="4,4,4,12">
-          <Border Width="28" Height="28" CornerRadius="8" Background="{StaticResource Accent.Subtle}" VerticalAlignment="Center">
-            <TextBlock Text="A" Foreground="{StaticResource Accent}" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
-          </Border>
+          <Image Source="{StaticResource Logo.Crest}" Width="30" Height="30" VerticalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality" />
           <TextBlock Text="Aquila" Style="{StaticResource Type.Subtitle}" Margin="10,0,0,0" VerticalAlignment="Center" />
         </StackPanel>
         <Button Name="NewButton" DockPanel.Dock="Top" Height="40" HorizontalContentAlignment="Left" Margin="0,0,0,16" ToolTip="Start a new conversation (Ctrl+N)" Click="New_Click">
@@ -240,9 +238,7 @@
         <Grid>
           <StackPanel Name="Messages" MaxWidth="820" HorizontalAlignment="Stretch" />
           <StackPanel Name="Welcome" VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="640" Margin="0,48,0,40">
-            <Border Width="56" Height="56" CornerRadius="16" Background="{StaticResource Accent.Subtle}" HorizontalAlignment="Center">
-              <TextBlock Text="A" Foreground="{StaticResource Accent}" FontSize="28" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
-            </Border>
+            <Image Source="{StaticResource Logo.Crest}" Width="88" Height="88" HorizontalAlignment="Center" />
             <StackPanel Name="WelcomeNoModel">
               <TextBlock Text="Welcome to Aquila" Style="{StaticResource Type.Display}" HorizontalAlignment="Center" Margin="0,20,0,8" />
               <TextBlock Text="Your private assistant. It runs on this computer, and nothing you type leaves it." Style="{StaticResource Type.Body}" Foreground="{StaticResource Text.Secondary}" TextAlignment="Center" TextWrapping="Wrap" />
@@ -330,8 +326,32 @@
             </Grid>
           </Border>
           <!-- Who she is, what she's doing, where you are -->
-          <TextBlock Name="AvatarName" Text="Aquila" FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center" TextAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,14,0,0" Foreground="{StaticResource Accent}" />
+          <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,14,0,0">
+            <TextBlock Name="AvatarName" Text="Aquila" FontSize="22" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Foreground="{StaticResource Accent}" />
+            <!-- Her dream journal: a round picture next to her name -->
+            <Button Name="JournalButton" Visibility="Collapsed" Margin="10,0,0,0" VerticalAlignment="Center" Cursor="Hand" Click="Journal_Click" ToolTip="Her dream journal" Focusable="False">
+              <Button.Template>
+                <ControlTemplate TargetType="Button">
+                  <Grid Width="30" Height="30">
+                    <Ellipse Name="Ring" Fill="{StaticResource Accent.Subtle}" Stroke="{StaticResource Stroke.Default}" StrokeThickness="1" />
+                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                  </Grid>
+                  <ControlTemplate.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                      <Setter TargetName="Ring" Property="Stroke" Value="{StaticResource Accent}" />
+                    </Trigger>
+                  </ControlTemplate.Triggers>
+                </ControlTemplate>
+              </Button.Template>
+              <Grid Width="30" Height="30">
+                <TextBlock Name="JournalGlyph" Text="&#xE708;" FontFamily="{StaticResource Font.Icon}" FontSize="13" Foreground="{StaticResource Accent}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                <Ellipse Name="JournalPicture" Width="28" Height="28" Visibility="Collapsed" />
+              </Grid>
+            </Button>
+          </StackPanel>
           <TextBlock Name="AvatarStatus" Text="Idle" Style="{StaticResource Type.Caption}" HorizontalAlignment="Center" TextAlignment="Center" Margin="0,2,0,0" />
+          <!-- How she's feeling (hover for why) -->
+          <TextBlock Name="AvatarMood" Visibility="Collapsed" Style="{StaticResource Type.Caption}" HorizontalAlignment="Center" TextAlignment="Center" Margin="0,2,0,0" FontStyle="Italic" ToolTipService.InitialShowDelay="200" />
           <Button Name="LocationChip" Style="{StaticResource Btn.HeaderChip}" Margin="0,10,0,0" HorizontalAlignment="Center" Visibility="Collapsed" Click="Location_Click" ToolTip="Where you are in the story. Click to change it; she can move it too.">
               <StackPanel Orientation="Horizontal">
                 <TextBlock Text="&#xE707;" FontFamily="{StaticResource Font.Icon}" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0" />

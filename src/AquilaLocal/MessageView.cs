@@ -579,7 +579,7 @@ public sealed class MessageView : Border
 		text = copyText ?? content;
 		if (!user)
 		{
-			content = AquilaLocal.Companion.Sounds.SoundCues.ForDisplay(content);
+			content = AquilaLocal.Companion.Sounds.SoundCues.ForDisplay(AquilaLocal.Companion.Living.MoodMarkup.Strip(content));
 		}
 		if (AquilaLocal.Companion.ThoughtMarkup.HasMarkup(content))
 		{

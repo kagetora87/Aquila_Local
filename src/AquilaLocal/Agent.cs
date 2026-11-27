@@ -148,6 +148,10 @@ public sealed class Agent(Engine engine, MemoryStore? memories = null, SemanticM
 					Log(turn, "Soundboard check skipped: " + ex.Message);
 				}
 			}
+			if (ExtraInnerState.Length > 0)
+			{
+				turn.InnerState += "\n" + ExtraInnerState;
+			}
 			if (balance.Length > 0)
 			{
 				turn.InnerState += "\n" + balance;
@@ -327,7 +331,7 @@ public sealed class Agent(Engine engine, MemoryStore? memories = null, SemanticM
 		{
 			// Her own openings have no message from you: their context says what prompted them.
 			messages.Add(Attachments.UserMessage(item, withContext: !persona || item.Unprompted));
-			messages.Add(Message("assistant", item.Answer));
+			messages.Add(Message("assistant", persona ? WithMood(item) : item.Answer));
 		}
 		messages.Add(persona ? WithInnerState(Attachments.UserMessage(turn), turn.InnerState) : Attachments.UserMessage(turn));
 		int oldPairs = recent.Count;
@@ -550,6 +554,19 @@ public sealed class Agent(Engine engine, MemoryStore? memories = null, SemanticM
 			}
 			if (calls.Count == 0)
 			{
+				if (persona)
+				{
+					// Her hidden mood tag sets how she feels; the reply everyone sees and hears is without it.
+					AquilaLocal.Companion.Living.MoodState? mood = AquilaLocal.Companion.Living.MoodMarkup.Read(turn.Answer, DateTimeOffset.Now);
+					if (mood != null)
+					{
+						turn.Mood = mood.Word;
+						turn.MoodStrength = mood.Strength;
+						turn.MoodWhy = mood.Why;
+						Log(turn, session.PersonaName + " is feeling " + mood.Word + " (" + mood.Strength.ToString("0") + "/10)" + (mood.Why.Length > 0 ? ": " + mood.Why : ""));
+					}
+					turn.Answer = AquilaLocal.Companion.Living.MoodMarkup.Strip(turn.Answer);
+				}
 				if (finish == "length")
 				{
 					turn.Status = "limit";
@@ -801,6 +818,20 @@ public sealed class Agent(Engine engine, MemoryStore? memories = null, SemanticM
 		}
 		return message;
 	}
+
+	/// <summary>Her earlier reply as she wrote it, mood tag included, so she keeps the habit and the replayed history never changes.</summary>
+	private static string WithMood(Turn turn)
+	{
+		if (turn.Mood.Length == 0)
+		{
+			return turn.Answer;
+		}
+		string why = turn.MoodWhy.Replace("\"", "'");
+		return turn.Answer + "\n<mood strength=\"" + turn.MoodStrength.ToString("0", System.Globalization.CultureInfo.InvariantCulture) + "\" why=\"" + why + "\">" + turn.Mood + "</mood>";
+	}
+
+	/// <summary>Set by the window before a persona reply: her mood coming in, and anything she's waiting to tell you.</summary>
+	public string ExtraInnerState { get; set; } = "";
 
 	private static JsonObject Message(string role, string text)
 	{

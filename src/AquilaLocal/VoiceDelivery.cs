@@ -157,7 +157,7 @@ public static class VoiceDelivery
 	{
 		string mood = BaseMood(turn, options);
 		// Only speech is read aloud: thoughts and actions become blanks of the same length, so voice cue offsets still line up.
-		string answer = AquilaLocal.Companion.ThoughtMarkup.MaskForSpeech(AquilaLocal.Companion.Sounds.SoundCues.MaskForSpeech(turn.Answer));
+		string answer = AquilaLocal.Companion.ThoughtMarkup.MaskForSpeech(AquilaLocal.Companion.Sounds.SoundCues.MaskForSpeech(AquilaLocal.Companion.Living.MoodMarkup.MaskForSpeech(turn.Answer)));
 		List<SpeechSegment> result;
 		StringBuilder section;
 		int left;

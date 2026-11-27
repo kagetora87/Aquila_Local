@@ -199,6 +199,7 @@ public static class ContextInjector
         sb.Append(ThoughtMarkup.Guidance(config.Name)).Append('\n');
         sb.Append(ConversationBalance.Guidance).Append('\n');
         sb.Append(ContinuityGuidance).Append('\n');
+        sb.Append(Living.MoodMarkup.Guidance).Append('\n');
         if (soundboard.Trim().Length > 0)
         {
             sb.Append(soundboard.Trim()).Append('\n');

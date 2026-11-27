@@ -37,6 +37,42 @@ public sealed class SpriteAvatarView : Grid
 		Visibility = Visibility.Collapsed
 	};
 
+	/// <summary>Her daydream: a picture (or its clip) she made while you were away, shown in place of the avatar.</summary>
+	private readonly Image daydream = new Image
+	{
+		Stretch = Stretch.Uniform,
+		HorizontalAlignment = HorizontalAlignment.Center,
+		VerticalAlignment = VerticalAlignment.Center,
+		Visibility = Visibility.Collapsed
+	};
+
+	private readonly MediaElement daydreamVideo = new MediaElement
+	{
+		LoadedBehavior = MediaState.Manual,
+		UnloadedBehavior = MediaState.Close,
+		Stretch = Stretch.Uniform,
+		IsMuted = true,
+		Volume = 0.0,
+		HorizontalAlignment = HorizontalAlignment.Center,
+		VerticalAlignment = VerticalAlignment.Center,
+		Visibility = Visibility.Collapsed
+	};
+
+	private readonly Border daydreamLabel = new Border
+	{
+		Background = new SolidColorBrush(Color.FromArgb(0xB0, 0x0A, 0x10, 0x18)),
+		CornerRadius = new CornerRadius(10.0),
+		Padding = new Thickness(8.0, 3.0, 8.0, 3.0),
+		Margin = new Thickness(8.0),
+		HorizontalAlignment = HorizontalAlignment.Left,
+		VerticalAlignment = VerticalAlignment.Top,
+		Visibility = Visibility.Collapsed,
+		Child = new TextBlock { Text = "\u2601 Daydreaming", FontSize = 11.0, Foreground = new SolidColorBrush(Color.FromRgb(0xD6, 0xE2, 0xEE)) }
+	};
+
+	/// <summary>True while her daydream is showing instead of the avatar.</summary>
+	public bool Daydreaming => daydream.Visibility == Visibility.Visible || daydreamVideo.Visibility == Visibility.Visible;
+
 	private const string EmptyHint = "No avatar pictures yet.\nOpen Avatar… to add some.";
 
 	/// <summary>Video animations Windows couldn't play; they're skipped until the folder is reloaded.</summary>
@@ -91,6 +127,25 @@ public sealed class SpriteAvatarView : Grid
 		base.Children.Add(image);
 		base.Children.Add(video);
 		base.Children.Add(hint);
+		RenderOptions.SetBitmapScalingMode(daydream, BitmapScalingMode.HighQuality);
+		base.Children.Add(daydream);
+		base.Children.Add(daydreamVideo);
+		base.Children.Add(daydreamLabel);
+		daydreamVideo.MediaEnded += delegate
+		{
+			daydreamVideo.Position = TimeSpan.Zero;
+			daydreamVideo.Play();
+		};
+		daydreamVideo.MediaFailed += delegate
+		{
+			// The clip won't play: the still picture stays.
+			daydreamVideo.Stop();
+			daydreamVideo.Visibility = Visibility.Collapsed;
+			if (daydream.Source != null)
+			{
+				daydream.Visibility = Visibility.Visible;
+			}
+		};
 		timer.Tick += delegate
 		{
 			Advance();
@@ -143,6 +198,47 @@ public sealed class SpriteAvatarView : Grid
 		hint.Visibility = ((animations.Count == 0) ? Visibility.Visible : Visibility.Collapsed);
 		playingGesture = false;
 		StartBase();
+	}
+
+	/// <summary>Shows her daydream picture (and its clip, looping and muted, when there is one) in place of the avatar.</summary>
+	public void ShowDaydream(string picture, string clip)
+	{
+		BitmapImage bitmap = new BitmapImage();
+		bitmap.BeginInit();
+		bitmap.StreamSource = new MemoryStream(File.ReadAllBytes(picture));
+		bitmap.CacheOption = BitmapCacheOption.OnLoad;
+		bitmap.EndInit();
+		bitmap.Freeze();
+		daydream.Source = bitmap;
+		daydreamVideo.Stop();
+		daydreamVideo.Source = null;
+		if (clip.Length > 0)
+		{
+			daydreamVideo.Source = new Uri(clip, UriKind.Absolute);
+			daydreamVideo.Visibility = Visibility.Visible;
+			daydream.Visibility = Visibility.Collapsed;
+			daydreamVideo.Play();
+		}
+		else
+		{
+			daydreamVideo.Visibility = Visibility.Collapsed;
+			daydream.Visibility = Visibility.Visible;
+		}
+		daydreamLabel.Visibility = Visibility.Visible;
+		image.Opacity = 0.0;
+		this.video.Opacity = 0.0;
+	}
+
+	public void ClearDaydream()
+	{
+		daydreamVideo.Stop();
+		daydreamVideo.Source = null;
+		daydreamVideo.Visibility = Visibility.Collapsed;
+		daydream.Source = null;
+		daydream.Visibility = Visibility.Collapsed;
+		daydreamLabel.Visibility = Visibility.Collapsed;
+		image.Opacity = 1.0;
+		video.Opacity = 1.0;
 	}
 
 	public SpriteAnimation? Find(string name)

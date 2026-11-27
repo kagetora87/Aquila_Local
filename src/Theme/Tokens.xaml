@@ -134,4 +134,49 @@
   <Style x:Key="Type.Icon" TargetType="TextBlock"><Setter Property="FontFamily" Value="{StaticResource Font.Icon}" /><Setter Property="FontSize" Value="16" /><Setter Property="VerticalAlignment" Value="Center" /><Setter Property="HorizontalAlignment" Value="Center" /></Style>
   <!-- Old key kept for existing code: section label -->
   <Style x:Key="Label" TargetType="TextBlock" BasedOn="{StaticResource Type.Label}"><Setter Property="Margin" Value="0,16,0,6" /></Style>
+
+  <!-- The Aquila crest: a double eagle with Altair on its chest (same drawing as app.ico) -->
+  <DrawingImage x:Key="Logo.Crest">
+    <DrawingImage.Drawing>
+      <DrawingGroup>
+        <GeometryDrawing Geometry="M0,0 H100 V100 H0 Z" Brush="Transparent" />
+        <GeometryDrawing>
+          <GeometryDrawing.Geometry><RectangleGeometry Rect="3,3,94,94" RadiusX="22" RadiusY="22" /></GeometryDrawing.Geometry>
+          <GeometryDrawing.Brush>
+            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Offset="0" Color="#18304A" /><GradientStop Offset="1" Color="#0A1018" /></LinearGradientBrush>
+          </GeometryDrawing.Brush>
+        </GeometryDrawing>
+        <GeometryDrawing>
+          <GeometryDrawing.Geometry><EllipseGeometry Center="50,50" RadiusX="34" RadiusY="34" /></GeometryDrawing.Geometry>
+          <GeometryDrawing.Brush>
+            <RadialGradientBrush><GradientStop Offset="0" Color="#4774E0C6" /><GradientStop Offset="1" Color="#0074E0C6" /></RadialGradientBrush>
+          </GeometryDrawing.Brush>
+        </GeometryDrawing>
+        <DrawingGroup>
+          <DrawingGroup.Transform><MatrixTransform Matrix="0.87,0,0,0.87,6.5,5.5" /></DrawingGroup.Transform>
+          <GeometryDrawing>
+            <GeometryDrawing.Geometry>
+              <GeometryGroup FillRule="Nonzero">
+                <PathGeometry Figures="M50 34 L46.5 33.5 L41.5 25 C39.5 20 35 16.5 30 17.5 C27 18 24.5 19.5 21.5 21.5 C21 23.5 21.8 25.2 23.6 25.8 L24.6 23.8 L28.5 24.6 C31.5 27 34.5 30 37 34.5 L31 30 L11 15 L15.5 25.5 L8.5 27 L16 35.5 L9.5 39.5 L19 45.5 L13.5 51 L28 53.5 L42 55.5 L39 65 L32 80 L40.5 75.5 L44 84 L50 77 Z" />
+                <PathGeometry Figures="M50 34 L46.5 33.5 L41.5 25 C39.5 20 35 16.5 30 17.5 C27 18 24.5 19.5 21.5 21.5 C21 23.5 21.8 25.2 23.6 25.8 L24.6 23.8 L28.5 24.6 C31.5 27 34.5 30 37 34.5 L31 30 L11 15 L15.5 25.5 L8.5 27 L16 35.5 L9.5 39.5 L19 45.5 L13.5 51 L28 53.5 L42 55.5 L39 65 L32 80 L40.5 75.5 L44 84 L50 77 Z"><PathGeometry.Transform><MatrixTransform Matrix="-1,0,0,1,100,0" /></PathGeometry.Transform></PathGeometry>
+              </GeometryGroup>
+            </GeometryDrawing.Geometry>
+            <GeometryDrawing.Brush>
+              <LinearGradientBrush StartPoint="0,0" EndPoint="0,1"><GradientStop Offset="0" Color="#A8F5E0" /><GradientStop Offset="1" Color="#3AAE94" /></LinearGradientBrush>
+            </GeometryDrawing.Brush>
+          </GeometryDrawing>
+          <GeometryDrawing Brush="#0B0F14">
+            <GeometryDrawing.Geometry>
+              <GeometryGroup>
+                <EllipseGeometry Center="29.5,20.6" RadiusX="1.5" RadiusY="1.5" />
+                <EllipseGeometry Center="70.5,20.6" RadiusX="1.5" RadiusY="1.5" />
+                <PathGeometry Figures="M50 40 L52.4 46.6 L59 49 L52.4 51.4 L50 58 L47.6 51.4 L41 49 L47.6 46.6Z" />
+              </GeometryGroup>
+            </GeometryDrawing.Geometry>
+          </GeometryDrawing>
+          <GeometryDrawing Brush="#F2FFFB" Geometry="M50 43 L51.5 47.5 L56 49 L51.5 50.5 L50 55 L48.5 50.5 L44 49 L48.5 47.5Z" />
+        </DrawingGroup>
+      </DrawingGroup>
+    </DrawingImage.Drawing>
+  </DrawingImage>
 </ResourceDictionary>

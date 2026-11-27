@@ -8,6 +8,7 @@ using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using AquilaLocal.Companion;
+using AquilaLocal.Companion.Living;
 using AquilaLocal.Companion.Scenes;
 
 namespace AquilaLocal;
@@ -152,6 +153,8 @@ public sealed class SceneDirector
 				}
 			}
 		}
+		// Her mood tag is hers alone: it sets how she feels and never shows in the scene.
+		MoodState? mood = MoodMarkup.Read(content.ToString(), DateTimeOffset.Now);
 		string reply = ScenePrompt.CleanReply(content.ToString(), member.Name);
 		if (reply.Length == 0)
 		{
@@ -159,6 +162,17 @@ public sealed class SceneDirector
 		}
 		DateTimeOffset at = DateTimeOffset.Now;
 		long id = scene.Say(personaId, member.Name, reply, at);
+		if (mood != null)
+		{
+			try
+			{
+				host.Moods.Append(personaId, mood);
+			}
+			catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is PersonaConfigException)
+			{
+				// Her line is already in the scene; a mood that couldn't be saved only means her mood stays as it was.
+			}
+		}
 		await Task.Run(() => runtime.Complete(prepared, scene.Id, scene.Id + ":" + id, "[In the scene \"" + scene.Manifest.Title + "\"]\n" + recent, reply, at), ct);
 		return scene.Log.All().Last((SceneEvent e) => e.Id == id);
 	}

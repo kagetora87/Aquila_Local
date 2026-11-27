@@ -295,36 +295,11 @@ public partial class MainWindow : AquilaWindow
 	/// TextChanged) don't count as typing.</summary>
 	private string lastTypedText = "";
 
+	/// <summary>Typing never changes her animation: whatever she's doing stays on screen, unchanged, until her next reply.
+	/// (Switching to "listening" and back on every pause in typing made her flicker.)</summary>
 	private void ComposerTyping()
 	{
-		string typed = Composer.Text ?? "";
-		if (typed == lastTypedText)
-		{
-			return;
-		}
-		lastTypedText = typed;
-		if (spriteView == null || busy || featuresClosing || avatarState != "idle" || typed.Length == 0)
-		{
-			return;
-		}
-		spriteView.SetState("listening");
-		if (listeningTimer == null)
-		{
-			listeningTimer = new DispatcherTimer
-			{
-				Interval = TimeSpan.FromSeconds(2.5)
-			};
-			listeningTimer.Tick += delegate
-			{
-				listeningTimer.Stop();
-				if (avatarState == "idle")
-				{
-					spriteView?.SetState("idle");
-				}
-			};
-		}
-		listeningTimer.Stop();
-		listeningTimer.Start();
+		lastTypedText = Composer.Text ?? "";
 	}
 
 	private void AvatarPop_Click(object sender, RoutedEventArgs e)
@@ -503,6 +478,11 @@ public partial class MainWindow : AquilaWindow
 		avatarState = state;
 		avatarUtterance = utterance;
 		listeningTimer?.Stop();
+		if (state == "thinking" || state == "talking" || state == "speaking")
+		{
+			// She's talking to you now: her daydream picture gives the avatar back.
+			ClearDaydream();
+		}
 		spriteView?.SetState(SpriteStateFor(state));
 		ShowAvatarStatus();
 		avatar.SetStateAsync(state, preview: false, "none", utterance);
@@ -2624,6 +2604,11 @@ public partial class MainWindow : AquilaWindow
 		operation = new CancellationTokenSource();
 		Agent agent = new Agent(engine, memories, semantic, personalities);
 		agent.Companion = companion;
+		string? toldAbout = null;
+		if (session.IsCompanion && session.PersonaId.Length > 0)
+		{
+			(agent.ExtraInnerState, toldAbout) = MoodInnerState(session.PersonaId);
+		}
 		if (settings.Pictures.Enabled)
 		{
 			agent.MakePicture = (string arguments, Turn pictureTurn, CancellationToken pictureCt) => MakePictureForTurnAsync(session, pictureTurn, arguments, pictureCt);
@@ -2696,6 +2681,10 @@ public partial class MainWindow : AquilaWindow
 					UiSounds.Play(UiSound.Reply);
 				}
 				_ = SpeakThenPlaySoundsAsync(session, turn);
+			}
+			if (session.IsCompanion && turn.Status == "complete")
+			{
+				RecordMood(session, turn, toldAbout);
 			}
 			if (session.IsCompanion && turn.Status == "complete" && agent.CompanionRuntime != null && agent.CompanionTurn != null)
 			{

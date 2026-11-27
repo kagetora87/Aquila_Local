@@ -449,7 +449,7 @@ public static class ScenePrompt
     /// <summary>Removes a leading "Name:" tag and anything written after another speaker's tag.</summary>
     public static string CleanReply(string reply, string name)
     {
-        string text = reply.Trim();
+        string text = Living.MoodMarkup.Strip(reply).Trim();
         var own = new Regex(@"^\s*\**\s*" + Regex.Escape(name) + @"\s*\**\s*:\s*\**\s*", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         text = own.Replace(text, "", 1);
         string[] lines = text.Split('\n');

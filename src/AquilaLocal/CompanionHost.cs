@@ -168,9 +168,20 @@ public sealed class CompanionHost : IDisposable
 		return Path.IsPathRooted(s) ? s : Path.Combine(AvatarsRoot, s);
 	}
 
+	/// <summary>Each persona's moods over time (Data\living\&lt;persona&gt;\mood.jsonl).</summary>
+	public AquilaLocal.Companion.Living.MoodLog Moods { get; }
+
+	/// <summary>What each persona is waiting to tell you (a dream that stayed with her).</summary>
+	public AquilaLocal.Companion.Living.ToTellStore ToTell { get; }
+
+	/// <summary>The living folder: her journal, moods and journal picture.</summary>
+	public string LivingRoot => Path.Combine(DataRoot, "living");
+
 	public CompanionHost(string dataRoot, string? embeddingsDirectory = null)
 	{
 		DataRoot = dataRoot;
+		Moods = new AquilaLocal.Companion.Living.MoodLog(Path.Combine(dataRoot, "living"));
+		ToTell = new AquilaLocal.Companion.Living.ToTellStore(Path.Combine(dataRoot, "living"));
 		Registry = new PersonaRegistry(Path.Combine(dataRoot, "personas"));
 		Scenes = new AquilaLocal.Companion.Scenes.SceneLibrary(Path.Combine(dataRoot, "scenes"));
 		Soundboard = new AquilaLocal.Companion.Sounds.SoundboardLibrary(Path.Combine(dataRoot, "soundboard"));

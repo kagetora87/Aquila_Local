@@ -143,6 +143,23 @@ public partial class MainWindow
 			{
 				lastActivity = now;
 			}
+			// A dream that stayed with her comes first: once she's awake and allowed to, she tells you about it.
+			if (settings.Living.MessageFirst && !night && LivingSchedule.WhyNotNow(now, now, lastActivity, policy, LivingBusy, engine.Ready) == null)
+			{
+				foreach (PersonaEntry p in personas)
+				{
+					if (shareRetryAfter.TryGetValue(p.Id, out DateTimeOffset retry) && now < retry)
+					{
+						continue;
+					}
+					ToTell? waiting = companion.ToTell.Load(p.Id, now);
+					if (waiting != null && WhyNotTell(p.Id, now, policy) == null)
+					{
+						await ShareToTellAsync(p.Id, p.Name, waiting);
+						return;
+					}
+				}
+			}
 			string? why = LivingSchedule.WhyNotNow(now, due, lastActivity, policy, LivingBusy, engine.Ready);
 			if (why != null)
 			{
@@ -154,6 +171,72 @@ public partial class MainWindow
 		catch (Exception ex) when (ex is PersonaConfigException || ex is IOException || ex is UnauthorizedAccessException)
 		{
 			LivingProblem(ex.Message);
+		}
+	}
+
+	/// <summary>When telling you about a dream failed, the next try waits a while.</summary>
+	private readonly Dictionary<string, DateTimeOffset> shareRetryAfter = new Dictionary<string, DateTimeOffset>();
+
+	/// <summary>Her latest chat with you (where her messages land), or null.</summary>
+	private ChatSession? LatestChatWith(string personaId) =>
+		chats.Where((ChatSession c) => c.PersonaId == personaId && !c.IsCall && c.Turns.Count > 0).OrderByDescending((ChatSession c) => c.Updated).FirstOrDefault();
+
+	/// <summary>Why she can't message you now (the same rules as any message she sends first), or null.</summary>
+	private string? WhyNotTell(string personaId, DateTimeOffset now, LivingPolicy policy)
+	{
+		bool waiting = LatestChatWith(personaId)?.Turns.LastOrDefault()?.Unprompted == true;
+		List<DateTimeOffset> earlier = Journal.Read(personaId).Where((JournalEntry e) => e.MessagedYou).Select((JournalEntry e) => e.At).ToList();
+		return LivingSchedule.WhyNoMessage(now, now.LocalDateTime.Hour, 1.0, earlier, waiting, policy);
+	}
+
+	/// <summary>She messages you about the dream (or feeling) that stayed with her, then lets it go.</summary>
+	private async Task ShareToTellAsync(string personaId, string name, ToTell waiting)
+	{
+		if (livingRunning)
+		{
+			return;
+		}
+		livingRunning = true;
+		livingCts = new CancellationTokenSource();
+		CancellationToken ct = livingCts.Token;
+		DateTimeOffset now = DateTimeOffset.Now;
+		try
+		{
+			SetLivingStatus(name + " is writing to you about " + (waiting.Kind == ThoughtKinds.Dream ? "her dream" : "something on her mind") + "…");
+			CompanionRuntime runtime = companion.Open(personaId);
+			TimeSpan since = now - runtime.Store.LastInteraction;
+			InnerThought thought = new InnerThought(waiting.Kind, waiting.Text, "", 1.0, waiting.Idea);
+			(ChatSession into, Turn turn) = await MessageFirstAsync(runtime, personaId, name, LatestChatWith(personaId), thought, since, ct, ToTellStore.Cue(waiting, now, since));
+			companion.ToTell.Clear(personaId);
+			Journal.Append(new JournalEntry
+			{
+				PersonaId = personaId,
+				At = now,
+				Kind = ThoughtKinds.Memory,
+				Text = (waiting.Kind == ThoughtKinds.Dream ? "I finally told them about my dream from " : "I finally told them what's been on my mind since ") + waiting.At.ToLocalTime().ToString("ddd h:mm tt") + ".",
+				Urge = 1.0,
+				Message = turn.Answer,
+				ChatId = into.Id
+			});
+			shareRetryAfter.Remove(personaId);
+			lastLivingProblem = "";
+			SetLivingStatus(name + " told you about " + (waiting.Kind == ThoughtKinds.Dream ? "her dream" : "what was on her mind") + " at " + now.ToString("h:mm tt") + ".");
+			LivingChanged?.Invoke();
+		}
+		catch (OperationCanceledException)
+		{
+			SetLivingStatus(name + " was about to tell you something, but you came back. She'll bring it up.");
+		}
+		catch (Exception ex) when (ex is IOException || ex is PersonaConfigException || ex is HttpRequestException || ex is UnauthorizedAccessException || ex is InvalidOperationException || ex is JsonException || ex is DriveStateUnavailableException || ex is AppearanceCardUnavailableException || ex is ArgumentException)
+		{
+			shareRetryAfter[personaId] = now.AddMinutes(30);
+			LivingProblem(ex.Message);
+		}
+		finally
+		{
+			livingRunning = false;
+			livingCts?.Dispose();
+			livingCts = null;
 		}
 	}
 
@@ -195,6 +278,8 @@ public partial class MainWindow
 			string top = DriveEngine.TopDrive(config, drives);
 			List<JournalEntry> history = Journal.Read(personaId);
 			DateTimeOffset lastTalk = runtime.Store.LastInteraction;
+			MoodState? moodNow = companion.Moods.Current(personaId);
+			string moodText = moodNow == null ? "" : moodNow.Word + ", " + MoodRules.Decayed(moodNow, now).ToString("0") + "/10" + (moodNow.Why.Length > 0 ? " (" + moodNow.Why + ")" : "");
 			InnerLifeInput input = new InnerLifeInput(
 				name,
 				config.PersonalitySheet,
@@ -207,7 +292,8 @@ public partial class MainWindow
 				now - lastTalk,
 				companion.LoadAboutYou().Render(),
 				canLookUp,
-				asleep);
+				asleep,
+				moodText);
 
 			if (asleep)
 			{
@@ -224,7 +310,7 @@ public partial class MainWindow
 				{
 					SetLivingStatus(name + " is reading about “" + thought.LookUp + "”…");
 					InnerThought after = InnerLifePrompt.Parse(await AskInnerLifeAsync(InnerLifePrompt.WriterSystem(name, canLookUp: false), InnerLifePrompt.AfterLookUpUser(input, thought, found), ct), name);
-					thought = after with { LookUp = thought.LookUp };
+					thought = after with { LookUp = thought.LookUp, MoodWord = after.MoodWord.Length > 0 ? after.MoodWord : thought.MoodWord, MoodStrength = after.MoodWord.Length > 0 ? after.MoodStrength : thought.MoodStrength, MoodWhy = after.MoodWord.Length > 0 ? after.MoodWhy : thought.MoodWhy };
 				}
 				else
 				{
@@ -238,6 +324,9 @@ public partial class MainWindow
 			entry.Kind = thought.Kind;
 			entry.Text = thought.Text;
 			entry.Urge = thought.Urge;
+			entry.MoodWord = thought.MoodWord;
+			entry.MoodStrength = thought.MoodStrength;
+			entry.MoodWhy = thought.MoodWhy;
 			if (thought.Kind == ThoughtKinds.Dream && settings.Living.DrawDreams)
 			{
 				try
@@ -279,9 +368,18 @@ public partial class MainWindow
 				}
 			}
 
+			try
+			{
+				await AfterThoughtAsync(personaId, entry, thought, asleep);
+			}
+			catch (Exception ex) when (ex is IOException || ex is PersonaConfigException || ex is UnauthorizedAccessException)
+			{
+				entry.Note = (entry.Note + " Her mood or what she wants to tell you wasn't saved: " + ex.Message.Truncate(200)).Trim();
+			}
 			InnerLife.Remember(runtime.Memory, entry);
 			Journal.Append(entry);
 			lastThought[personaId] = now;
+			ShowMood();
 			livingJitter.Remove(personaId);
 			lastLivingProblem = "";
 			SetLivingStatus(name + " had a thought at " + now.ToString("h:mm tt") + ".");
@@ -410,7 +508,8 @@ public partial class MainWindow
 	/// She writes to you first, in her own chat voice (her full persona prompt and your recent chat, on the second
 	/// slot), and the message lands in your latest chat with her with a sound.
 	/// </summary>
-	private async Task<(ChatSession Chat, Turn Turn)> MessageFirstAsync(CompanionRuntime runtime, string personaId, string name, ChatSession? chat, InnerThought thought, TimeSpan sinceTheyWrote, CancellationToken ct)
+	/// <param name="cue">What prompts her (by default: the thought she can't keep to herself).</param>
+	private async Task<(ChatSession Chat, Turn Turn)> MessageFirstAsync(CompanionRuntime runtime, string personaId, string name, ChatSession? chat, InnerThought thought, TimeSpan sinceTheyWrote, CancellationToken ct, string? cue = null)
 	{
 		runtime.AboutUser = companion.LoadAboutYou().Render();
 		try
@@ -432,7 +531,8 @@ public partial class MainWindow
 			messages.Add(new JsonObject { ["role"] = "user", ["content"] = t.Unprompted ? t.Context : t.User });
 			messages.Add(new JsonObject { ["role"] = "assistant", ["content"] = t.Answer });
 		}
-		messages.Add(new JsonObject { ["role"] = "user", ["content"] = context.InnerState + "\n\n" + InnerLifePrompt.ReachOutCue(thought, now, sinceTheyWrote) });
+		string moodLine = MoodMarkup.TurnLine(companion.Moods.Current(personaId), now);
+		messages.Add(new JsonObject { ["role"] = "user", ["content"] = context.InnerState + "\n" + moodLine + "\n\n" + (cue ?? InnerLifePrompt.ReachOutCue(thought, now, sinceTheyWrote)) });
 		JsonObject payload = new JsonObject
 		{
 			["model"] = engine.Alias,
@@ -445,7 +545,9 @@ public partial class MainWindow
 		};
 		using HttpResponseMessage response = await engine.PostAsync("v1/chat/completions", payload, stream: false, ct);
 		JsonNode? node = JsonNode.Parse(await response.Content.ReadAsStringAsync(ct));
-		string message = InnerLifePrompt.CleanMessage(node?["choices"]?.AsArray().FirstOrDefault()?["message"]?["content"]?.GetValue<string>() ?? "");
+		string written = node?["choices"]?.AsArray().FirstOrDefault()?["message"]?["content"]?.GetValue<string>() ?? "";
+		MoodState? mood = MoodMarkup.Read(written, now);
+		string message = InnerLifePrompt.CleanMessage(MoodMarkup.Strip(written));
 		ct.ThrowIfCancellationRequested();
 
 		if (chat == null)
@@ -460,9 +562,21 @@ public partial class MainWindow
 			Answer = message,
 			Status = "complete",
 			Unprompted = true,
-			Created = now
+			Created = now,
+			Mood = mood?.Word ?? "",
+			MoodStrength = mood?.Strength ?? 0,
+			MoodWhy = mood?.Why ?? ""
 		};
 		chat.Turns.Add(turn);
+		if (mood != null)
+		{
+			companion.Moods.Append(personaId, mood);
+		}
+		if (current?.PersonaId == personaId)
+		{
+			ClearDaydream();
+			ShowMood();
+		}
 		store.SaveChat(chat);
 		runtime.Memory.Add(chat.Id, turn.Id, now, "", message);
 		if (chats.IndexOf(chat) > 0)

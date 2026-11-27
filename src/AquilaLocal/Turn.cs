@@ -32,6 +32,13 @@ public class Turn
 	/// It's her stage note for that turn, kept in the turn's context so later replies know what happened.</summary>
 	public string Cue { get; set; } = "";
 
+	/// <summary>Companion chats: how she felt after this reply (from her hidden mood tag): one word, 1 to 10, and why.</summary>
+	public string Mood { get; set; } = "";
+
+	public double MoodStrength { get; set; }
+
+	public string MoodWhy { get; set; } = "";
+
 	/// <summary>You said this aloud (it was transcribed from the microphone) rather than typed it.</summary>
 	public bool Spoken { get; set; }
 

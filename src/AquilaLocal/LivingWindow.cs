@@ -254,12 +254,23 @@ public sealed class LivingWindow : AquilaWindow
 		}
 	}
 
-	private static UIElement View(JournalEntry e)
+	/// <summary>One journal entry: its text, mood, picture, clip, lookups, message and note (and its date and kind unless the caller shows them).</summary>
+	internal static UIElement View(JournalEntry e, bool showHead = true)
 	{
 		StackPanel p = new StackPanel { Margin = new Thickness(0, 0, 0, 14) };
-		TextBlock head = Ui.Text(e.At.ToLocalTime().ToString("ddd MMM d · h:mm tt") + " · " + ThoughtKinds.Icon(e.Kind) + " " + e.Kind, "Type.Small");
-		head.FontWeight = FontWeights.SemiBold;
-		p.Children.Add(head);
+		if (showHead)
+		{
+			TextBlock head = Ui.Text(e.At.ToLocalTime().ToString("ddd MMM d · h:mm tt") + " · " + ThoughtKinds.Icon(e.Kind) + " " + e.Kind, "Type.Small");
+			head.FontWeight = FontWeights.SemiBold;
+			p.Children.Add(head);
+		}
+		if (e.MoodWord.Length > 0)
+		{
+			TextBlock mood = Ui.Text("Feeling " + e.MoodWord + (e.MoodStrength > 0 ? " (" + e.MoodStrength.ToString("0") + "/10)" : "") + (e.MoodWhy.Length > 0 ? ": " + e.MoodWhy : ""), "Type.Small");
+			mood.FontStyle = FontStyles.Italic;
+			mood.Margin = new Thickness(0, 0, 0, 2);
+			p.Children.Add(mood);
+		}
 		TextBlock text = Ui.Text(e.Text);
 		text.TextWrapping = TextWrapping.Wrap;
 		p.Children.Add(text);
