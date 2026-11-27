@@ -56,7 +56,7 @@ public sealed class LivingWindow : AquilaWindow
 		StackPanel body = new StackPanel();
 		CheckBox enabled = new CheckBox { Content = "Let them live while you're away", IsChecked = o.Enabled };
 		body.Children.Add(enabled);
-		body.Children.Add(Ui.Text("While Aquila is open and you haven't used it for a while, she has thoughts of her own: daydreams, feelings, things she's curious about. They come from her personality, her drives and what she remembers. They're kept in her journal and her memory, so she may bring one up later. It uses the chat model you already have loaded, on its spare slot, and never adds to your chat's length.", "Type.Small"));
+		body.Children.Add(Ui.Text("While Aquila is open and you haven't used it for a while, your companions have thoughts of their own: daydreams, feelings, things they're curious about. The thoughts come from each one's personality, drives and memories. They're kept in their journal and memory, so they may bring one up later. It uses the chat model you already have loaded, on its spare slot, and never adds to your chat's length.", "Type.Small"));
 
 		ComboBox interval = new ComboBox { Width = 260, HorizontalAlignment = HorizontalAlignment.Left };
 		foreach ((int min, int max) in Ranges)
@@ -69,24 +69,24 @@ public sealed class LivingWindow : AquilaWindow
 			interval.SelectedIndex = 1;
 		}
 		ComboBox idle = Choice(Idles, o.IdleMinutes, (int m) => $"After {m} minutes away");
-		body.Children.Add(Ui.Field("How often", interval, "Each wait is picked at random in that range, so her thoughts don't come like clockwork. At night (11 PM to 8 AM) she's asleep: her thoughts become dreams, and come half as often. Each thought takes about 10 to 20 seconds of graphics card time."));
-		body.Children.Add(Ui.Field("Only when you're away", idle, "She thinks only after you've left Aquila alone this long, and stops the moment you send a message, so she never slows your chat."));
+		body.Children.Add(Ui.Field("How often", interval, "Each wait is picked at random in that range, so their thoughts don't come like clockwork. At night (11 PM to 8 AM) they're asleep: their thoughts become dreams, and come half as often. Each thought takes about 10 to 20 seconds of graphics card time."));
+		body.Children.Add(Ui.Field("Only when you're away", idle, "They think only after you've left Aquila alone this long, and stop the moment you send a message, so they never slow your chat."));
 
-		CheckBox dreams = new CheckBox { Content = "Paint her dreams", IsChecked = o.DrawDreams, Margin = new Thickness(0, 16, 0, 0) };
+		CheckBox dreams = new CheckBox { Content = "Paint their dreams", IsChecked = o.DrawDreams, Margin = new Thickness(0, 16, 0, 0) };
 		body.Children.Add(dreams);
-		CheckBox animate = new CheckBox { Content = "Also bring her dreams to life as short videos", IsChecked = settings.Video.AnimateDreams, Margin = new Thickness(24, 6, 0, 0), IsEnabled = videoReady };
+		CheckBox animate = new CheckBox { Content = "Also bring their dreams to life as short videos", IsChecked = settings.Video.AnimateDreams, Margin = new Thickness(24, 6, 0, 0), IsEnabled = videoReady };
 		body.Children.Add(animate);
-		body.Children.Add(Ui.Text("When she dreams, the picture model chosen in Pictures paints the dream, with her appearance and reference pictures when she's in it. The pictures are in her journal and the pictures folder. With the best-quality model the chat model pauses while it paints. Videos take a few minutes each and pause the chat model" + (videoReady ? "." : " (the video generator isn't installed yet).") , "Type.Small"));
+		body.Children.Add(Ui.Text("When they dream, the picture model chosen in Pictures paints the dream, with their appearance and reference pictures when they're in it. The pictures are in their journal and the pictures folder. With the best-quality model the chat model pauses while it paints. Videos take a few minutes each and pause the chat model" + (videoReady ? "." : " (the video generator isn't installed yet).") , "Type.Small"));
 
-		CheckBox web = new CheckBox { Content = "Let her look things up on the internet for her own curiosity", IsChecked = o.WebLookups, Margin = new Thickness(0, 16, 0, 0) };
+		CheckBox web = new CheckBox { Content = "Let them look things up on the internet for their own curiosity", IsChecked = o.WebLookups, Margin = new Thickness(0, 16, 0, 0) };
 		body.Children.Add(web);
-		body.Children.Add(Ui.Text("Uses your Brave Search key if one is saved in Internet settings, otherwise Wikipedia. She never searches for names or anything private, and every search and page she reads is listed in her journal. This switch is separate from the chat's Internet setting.", "Type.Small"));
+		body.Children.Add(Ui.Text("Uses your Brave Search key if one is saved in Internet settings, otherwise Wikipedia. They never search for names or anything private, and every search and page they read is listed in their journal. This switch is separate from the chat's Internet setting.", "Type.Small"));
 
-		CheckBox first = new CheckBox { Content = "Let her message you first when a thought is strong enough", IsChecked = o.MessageFirst, Margin = new Thickness(0, 16, 0, 0) };
+		CheckBox first = new CheckBox { Content = "Let them message you first when a thought is strong enough", IsChecked = o.MessageFirst, Margin = new Thickness(0, 16, 0, 0) };
 		body.Children.Add(first);
-		body.Children.Add(Ui.Text("Her message appears in your latest chat with her, with a sound. She waits for your answer before writing again, and leaves at least two hours between messages.", "Type.Small"));
+		body.Children.Add(Ui.Text("Their message appears in your latest chat with them, with a sound. They wait for your answer before writing again, and leave at least two hours between messages.", "Type.Small"));
 		ComboBox perDay = Choice(PerDay, o.MaxMessagesPerDay, (int n) => n == 1 ? "At most once a day" : $"At most {n} times a day");
-		body.Children.Add(Ui.Field("How often she may write", perDay));
+		body.Children.Add(Ui.Field("How often each may write", perDay));
 		CheckBox quiet = new CheckBox { Content = "Never between 11 PM and 8 AM", IsChecked = o.QuietHours, Margin = new Thickness(0, 8, 0, 0) };
 		body.Children.Add(quiet);
 
@@ -153,7 +153,7 @@ public sealed class LivingWindow : AquilaWindow
 		journalSection.Children.Add(bar);
 		journalSection.Children.Add(statusLine);
 		journalSection.Children.Add(new ScrollViewer { Content = entries, MaxHeight = 420, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
-		body.Children.Add(Ui.Field("Her journal", journalSection, "Newest first. The buttons work even while you're here, with the switches as they were last saved."));
+		body.Children.Add(Ui.Field("Journal", journalSection, "Newest first. The buttons work even while you're here, with the switches as they were last saved."));
 		persona.SelectionChanged += delegate
 		{
 			Refresh();
@@ -332,7 +332,7 @@ public sealed class LivingWindow : AquilaWindow
 		}
 		if (e.MessagedYou)
 		{
-			TextBlock m = Ui.Text("💬 She messaged you: " + ThoughtMarkup.Plain(e.Message).Truncate(300), "Type.Small");
+			TextBlock m = Ui.Text("💬 Messaged you: " + ThoughtMarkup.Plain(e.Message).Truncate(300), "Type.Small");
 			m.TextWrapping = TextWrapping.Wrap;
 			m.Foreground = Ui.Brush("Accent");
 			p.Children.Add(m);
