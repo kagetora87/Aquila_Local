@@ -151,6 +151,7 @@
       <Border BorderBrush="{StaticResource Stroke.Subtle}" BorderThickness="0,1,0,1" Padding="24,0,16,0">
         <DockPanel>
           <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+            <Button Name="PictureMomentButton" Style="{StaticResource Btn.Icon}" Width="36" Height="36" Margin="0,0,4,0" Content="&#xE722;" ToolTip="Picture this moment: she draws what she imagines you two are doing right now" Visibility="Collapsed" Click="PictureMoment_Click" />
             <Button Name="VoiceReplayButton" Style="{StaticResource Btn.Icon}" Width="36" Height="36" Content="&#xE767;" ToolTip="Read the last reply aloud" Click="ReplayVoice_Click" />
             <Button Name="VoiceStopButton" Style="{StaticResource Btn.Icon}" Width="36" Height="36" Margin="4,0,0,0" ToolTip="Stop speaking" Click="StopVoice_Click" Visibility="{Binding IsEnabled, RelativeSource={RelativeSource Self}, Converter={StaticResource BoolToVisibility}}" >
               <Border Width="10" Height="10" CornerRadius="2" Background="{StaticResource Text.Secondary}" />

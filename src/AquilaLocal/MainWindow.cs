@@ -2544,6 +2544,7 @@ public partial class MainWindow : AquilaWindow
 		SetupControls.IsEnabled = !value;
 		VoiceButton.IsEnabled = !value;
 		VoiceReplayButton.IsEnabled = !value;
+		PictureMomentButton.IsEnabled = !value && !drawingMoment;
 		MemoriesButton.IsEnabled = !value;
 		CompanionButton.IsEnabled = !value;
 		RefreshContextControls();

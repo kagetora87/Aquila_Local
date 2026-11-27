@@ -21,6 +21,7 @@ public partial class MainWindow
 		bool persona = current != null && current.IsCompanion && current.PersonaId.Length > 0;
 		string key = persona ? current!.PersonaId : "";
 		ShowAvatarStatus();
+		PictureMomentButton.Visibility = (persona && settings.Pictures.Enabled) ? Visibility.Visible : Visibility.Collapsed;
 		AvatarName.Text = persona ? current!.PersonaName : "Aquila";
 		AvatarName.Foreground = Ui.Brush("Accent");
 		if (!persona)

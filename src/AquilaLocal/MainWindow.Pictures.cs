@@ -25,6 +25,56 @@ public partial class MainWindow
 
 	private string PicturesRoot => Path.Combine(store.Root, "pictures");
 
+	private bool drawingMoment;
+
+	/// <summary>
+	/// "Picture this moment": she draws what she imagines the two of you are doing right now, from the last few
+	/// messages, where you are and how she looks, the same way her make_picture tool does. It's shown under her latest reply.
+	/// </summary>
+	private async void PictureMoment_Click(object sender, RoutedEventArgs e)
+	{
+		ChatSession? session = current;
+		if (busy || drawingMoment || session == null || !session.IsCompanion)
+		{
+			return;
+		}
+		Turn? last = session.Turns.LastOrDefault((Turn t) => t.Status == "complete");
+		if (last == null)
+		{
+			Notice("Talk with " + session.PersonaName + " first; then she can picture the moment.");
+			return;
+		}
+		if (!engine.Ready)
+		{
+			Notice("Load the model first: " + session.PersonaName + " writes the picture's description herself.");
+			return;
+		}
+		drawingMoment = true;
+		// Hold new messages while she draws: the picture uses the model and may pause it.
+		SetBusy(value: true);
+		try
+		{
+			string request = System.Text.Json.JsonSerializer.Serialize(new
+			{
+				description = "This very moment, as you imagine it: what the two of you are doing right now in the latest messages, where you are, your poses, expressions and the light. Show both of you if you're together.",
+				includes_you = true,
+				framing = "scene"
+			});
+			// Failures are already shown as a notice by the picture tool itself.
+			await MakePictureForTurnAsync(session, last, request, CancellationToken.None);
+			store.SaveChat(session);
+		}
+		catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is InvalidOperationException)
+		{
+			Notice("Picture this moment: " + ex.Message);
+		}
+		finally
+		{
+			drawingMoment = false;
+			SetBusy(value: false);
+		}
+	}
+
 	/// <summary>The make_picture tool: returns what the model is told (never throws for an ordinary failure).</summary>
 	private async Task<string> MakePictureForTurnAsync(ChatSession session, Turn turn, string arguments, CancellationToken ct)
 	{
