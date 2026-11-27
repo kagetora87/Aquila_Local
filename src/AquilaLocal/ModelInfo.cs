@@ -12,6 +12,12 @@ public sealed record ModelInfo(string Name, string Architecture, int NativeConte
 
 	public int BlockCount { get; init; }
 
+	/// <summary>
+	/// Cache bytes (at 16 bits) that don't grow with the conversation: the sliding-window layers of models
+	/// like Gemma 4 only ever keep the last window of tokens, so they cost a fixed amount, not per token.
+	/// </summary>
+	public long FixedKvBytes { get; init; }
+
 	public static ModelInfo Unknown(string path)
 	{
 		return new ModelInfo(Path.GetFileNameWithoutExtension(path), "unknown", 32768, File.Exists(path) ? new FileInfo(path).Length : 0, 262144.0, MetadataKnown: false);
@@ -101,10 +107,41 @@ public sealed record ModelInfo(string Name, string Architecture, int NativeConte
 					double val = Number("full_attention_interval", (!architecture.Contains("qwen35") && !architecture.Contains("qwen3_5")) ? 1 : 4);
 					double num9 = Math.Ceiling(num4 / Math.Max(1.0, val));
 					double kvBytesPerToken = Math.Max(1024.0, num9 * num6 * (num7 + num8) * 2.0);
+					long fixedKv = 0L;
+					// Per-layer layouts (Gemma 4): KV heads per layer, and which layers only attend to a sliding
+					// window. Only the full-attention layers grow with the conversation.
+					double[]? heads = Array("attention.head_count_kv");
+					double[]? sliding = Array("attention.sliding_window_pattern");
+					double window = Number("attention.sliding_window", 0.0);
+					int layers = (int)Math.Clamp(num4, 1.0, 999.0);
+					if (heads != null || (sliding != null && window > 0.0))
+					{
+						double keySwa = Number("attention.key_length_swa", num7);
+						double valueSwa = Number("attention.value_length_swa", num8);
+						double growing = 0.0;
+						double fixedPerToken = 0.0;
+						for (int i = 0; i < layers; i++)
+						{
+							double h = (heads != null && i < heads.Length) ? heads[i] : num6;
+							bool isSliding = sliding != null && window > 0.0 && i < sliding.Length && sliding[i] != 0.0;
+							if (isSliding)
+							{
+								fixedPerToken += h * (keySwa + valueSwa) * 2.0;
+							}
+							else
+							{
+								growing += h * (num7 + num8) * 2.0;
+							}
+						}
+						kvBytesPerToken = Math.Max(1024.0, growing);
+						// llama.cpp keeps the window plus a batch for each sliding layer; count two windows to be safe.
+						fixedKv = (long)(fixedPerToken * Math.Max(window, 1.0) * 2.0);
+					}
 					return new ModelInfo(values.GetValueOrDefault("general.name")?.ToString() ?? Path.GetFileNameWithoutExtension(path), architecture, nativeContext, stream.Length, kvBytesPerToken, values.ContainsKey(architecture + ".context_length"))
 					{
 						ExpertCount = (int)Math.Clamp(Number("expert_count", 0.0), 0.0, 65536.0),
-						BlockCount = (int)Math.Clamp(num4, 0.0, 999.0)
+						BlockCount = (int)Math.Clamp(num4, 0.0, 999.0),
+						FixedKvBytes = fixedKv
 					};
 				}
 				finally
@@ -122,9 +159,13 @@ public sealed record ModelInfo(string Name, string Architecture, int NativeConte
 					((IDisposable)stream).Dispose();
 				}
 			}
+			double[]? Array(string suffix)
+			{
+				return values.TryGetValue(architecture + "." + suffix, out object value) ? value as double[] : null;
+			}
 			double Number(string suffix, double fallback)
 			{
-				if (!values.TryGetValue(architecture + "." + suffix, out object value))
+				if (!values.TryGetValue(architecture + "." + suffix, out object value) || value is double[])
 				{
 					return fallback;
 				}
@@ -205,6 +246,16 @@ public sealed record ModelInfo(string Name, string Architecture, int NativeConte
 						break;
 					}
 					int num14 = num13;
+					if (keep && num14 > 0 && num12 <= 4096)
+					{
+						// Small numeric arrays of kept keys (per-layer settings) are read; everything else is skipped.
+						double[] items = new double[num12];
+						for (ulong i = 0uL; i < num12; i++)
+						{
+							items[i] = Convert.ToDouble(Value(num11, keep: false, depth + 1));
+						}
+						return items;
+					}
 					if (num14 > 0)
 					{
 						long num15 = checked((long)num12 * num14);
@@ -242,9 +293,9 @@ public sealed record ModelInfo(string Name, string Architecture, int NativeConte
 
 	public ContextAdvice Advice(long availableBytes, long projectorBytes, string cache = "f16")
 	{
-		double num = (double)(FileBytes + projectorBytes) + 1073741824.0;
 		double num2 = ((cache == "q8_0") ? (17.0 / 32.0) : ((!(cache == "q4_0")) ? 1.0 : (9.0 / 32.0)));
 		double num3 = num2;
+		double num = (double)(FileBytes + projectorBytes) + 1073741824.0 + FixedKvBytes * num3;
 		double num4 = ((double)availableBytes - num) / Math.Max(1.0, KvBytesPerToken * num3);
 		int num5 = (int)Math.Clamp(num4, 2048.0, NativeContext);
 		int num6 = Math.Max(2048, num5 / 1024 * 1024);

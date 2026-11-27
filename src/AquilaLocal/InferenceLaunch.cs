@@ -84,7 +84,7 @@ public sealed record InferenceLaunch(string Device, string Layers, string Cache,
 		long reserve = Math.Max(3 * GiB / 2, gpu.DedicatedBytes / 16);
 		long workspace = GiB + projectorBytes;
 		long weights = model.FileBytes;
-		long kvBudget = usable - reserve - workspace - weights;
+		long kvBudget = usable - reserve - workspace - weights - (long)(model.FixedKvBytes * (17.0 / 32.0));
 		double kvPerToken = Math.Max(1024.0, model.KvBytesPerToken) * (17.0 / 32.0);
 		if (kvBudget >= (long)(kvPerToken * 8192))
 		{
