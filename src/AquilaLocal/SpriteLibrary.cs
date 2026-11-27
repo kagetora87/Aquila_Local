@@ -242,7 +242,8 @@ public static class SpriteLibrary
 		}
 		string text = Path.Combine(root, SafeName(name));
 		Directory.CreateDirectory(text);
-		string text2 = Path.Combine(text, ".incoming" + Path.GetExtension(file).ToLowerInvariant());
+		// The incoming copy must not look like a video, or removing the old clip below would delete it too.
+		string text2 = Path.Combine(text, ".incoming-video.part");
 		File.Copy(file, text2, overwrite: true);
 		foreach (string item in FramesIn(text))
 		{
@@ -325,7 +326,7 @@ public static class SpriteLibrary
 		// Loose clips: each becomes its own animation, named after the file ("waving hello.mp4").
 		foreach (string item3 in Directory.EnumerateFiles(source).Where(IsVideo))
 		{
-			string name2 = GroupName(Path.GetFileNameWithoutExtension(item3));
+			string name2 = Path.GetFileNameWithoutExtension(item3).Replace('_', ' ').Replace('-', ' ').Trim();
 			SaveVideo(root, name2, item3);
 			list.Add(SafeName(name2));
 		}
