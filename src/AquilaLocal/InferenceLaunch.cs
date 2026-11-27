@@ -122,6 +122,12 @@ public sealed record InferenceLaunch(string Device, string Layers, string Cache,
 		{
 			add(new string[4] { "--load-mode", "mmap", "--lazy-mode", "off" });
 		}
+		else if (FullOffload && !CpuOnly)
+		{
+			// The whole model lives on the GPU: read the file once instead of keeping it mapped, which tied
+			// up about 17 GB of RAM for nothing (measured on the laptop; VRAM and speed unchanged). No mlock.
+			add(new string[2] { "--load-mode", "none" });
+		}
 		if (ExpertCpuLayers > 0)
 		{
 			add(new string[2]

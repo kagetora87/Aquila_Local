@@ -54,6 +54,7 @@ internal static class InferenceVerification
 			List<string> list = new List<string>();
 			inferenceLaunch.AddArguments(list.AddRange);
 			Check(inferenceLaunch.FullOffload && inferenceLaunch.Device == "Vulkan1" && list.Contains("all") && list.Contains("--fit") && inferenceLaunch.Cache == "q8_0" && inferenceLaunch.Flash == "on", "High mode requests full offload, Flash Attention and q8 K and V");
+			Check(list.Contains("none") && !list.Contains("mmap") && !list.Contains("mlock"), "Full offload reads the model once (--load-mode none) instead of keeping it mapped in RAM");
 			settings.Hardware = hardwareInventory;
 			inferencePreferences.Profile = "Laptop";
 			inferencePreferences.ExpertCpuLayers = 99;
