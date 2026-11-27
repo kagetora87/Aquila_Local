@@ -235,6 +235,9 @@ public sealed class PictureOptions
 
 	/// <summary>Use the persona's reference pictures so she looks the same every time.</summary>
 	public bool UseReferences { get; set; } = true;
+
+	/// <summary>The text encoder FLUX 3 Image Klein reads prompts with: "standard", "uncensored-q8" or "uncensored-bf16".</summary>
+	public string KleinEncoder { get; set; } = AquilaLocal.Companion.Pictures.KleinEncoders.Standard;
 }
 
 /// <summary>Living mode: thoughts of her own while you're away, kept in a journal and in her memory.</summary>

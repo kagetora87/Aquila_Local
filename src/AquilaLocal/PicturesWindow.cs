@@ -78,6 +78,14 @@ public sealed class PicturesWindow : AquilaWindow
 		models.Children.Add(fast);
 		models.Children.Add(best);
 		body.Children.Add(Ui.Field("Model", models));
+		ComboBox encoder = new ComboBox { ItemsSource = KleinEncoders.All.Select(e => e.Label).ToList(), Width = 300, HorizontalAlignment = HorizontalAlignment.Left };
+		encoder.SelectedIndex = Math.Max(0, KleinEncoders.All.ToList().FindIndex(e => e.Key == settings.Pictures.KleinEncoder));
+		encoder.SelectionChanged += delegate
+		{
+			// Try it below uses the choice straight away; Save keeps it.
+			drawer.Kit.KleinEncoder = KleinEncoders.All[Math.Max(0, encoder.SelectedIndex)].Key;
+		};
+		body.Children.Add(Ui.Field("Text encoder (FLUX 3 Image Klein)", encoder, "How the fast model reads the prompt. The uncensored versions have their refusal training removed; 8-bit is the recommended one, 16-bit is twice the size for a tiny difference."));
 
 		CheckBox useRefs = new CheckBox { Content = "Use her reference pictures so she looks the same every time", IsChecked = settings.Pictures.UseReferences, Margin = new Thickness(0, 16, 0, 0) };
 		body.Children.Add(useRefs);
@@ -201,6 +209,7 @@ public sealed class PicturesWindow : AquilaWindow
 			}
 			settings.Pictures.Enabled = enabled.IsChecked == true;
 			settings.Pictures.Model = model;
+			settings.Pictures.KleinEncoder = KleinEncoders.All[Math.Max(0, encoder.SelectedIndex)].Key;
 			settings.Pictures.UseReferences = useRefs.IsChecked == true;
 			settings.Video.Enabled = videoOn.IsChecked == true;
 			settings.Video.Fast = videoFast.IsChecked == true || !lightning;

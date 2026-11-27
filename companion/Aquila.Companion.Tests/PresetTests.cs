@@ -208,4 +208,38 @@ public sealed class PresetTests : IDisposable
         Assert.Equal(new[] { b, a }, PictureFiles.MadeOf(pics, "Vicki"));
         Assert.Empty(PictureFiles.MadeOf(Path.Combine(root, "none"), "Vicki"));
     }
+
+    [Fact]
+    public void StyleReferencesAreUsedForPeopleNotScenesOrMen()
+    {
+        PresetLibrary lib = new(root);
+        GenPreset smile = PresetLibrary.BuiltIn.First(p => p.Id == "action-smile");
+        GenPreset tux = PresetLibrary.BuiltIn.First(p => p.Id == "outfit-tux");
+        GenPreset scene = PresetLibrary.BuiltIn.First(p => p.Kind == PresetKinds.Scene);
+        Assert.Empty(lib.TileJobFor(smile).References!);
+        Assert.DoesNotContain("reference", lib.TileJobFor(smile).Prompt);
+
+        string src = Path.Combine(root, "face.png");
+        Directory.CreateDirectory(root);
+        File.WriteAllText(src, "x");
+        string added = lib.AddStyleReference(src);
+        Assert.Single(lib.StyleReferences());
+        TileJob job = lib.TileJobFor(smile);
+        Assert.Equal(new[] { added }, job.References);
+        Assert.StartsWith("The same person as in the reference picture", job.Prompt);
+        Assert.Empty(lib.TileJobFor(tux).References!);
+        Assert.Empty(lib.TileJobFor(scene).References!);
+
+        File.WriteAllText(Path.Combine(root, "notes.txt"), "x");
+        Assert.Throws<PersonaConfigException>(() => lib.AddStyleReference(Path.Combine(root, "notes.txt")));
+        for (int i = 0; i < 3; i++)
+        {
+            lib.AddStyleReference(src);
+        }
+        Assert.Equal(PresetLibrary.MaxStyleReferences, lib.StyleReferences().Count);
+        Assert.Throws<PersonaConfigException>(() => lib.AddStyleReference(src));
+        Assert.Throws<PersonaConfigException>(() => lib.RemoveStyleReference(src));
+        lib.RemoveStyleReference(added);
+        Assert.Equal(3, lib.StyleReferences().Count);
+    }
 }

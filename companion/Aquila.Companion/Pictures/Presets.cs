@@ -171,6 +171,76 @@ public sealed class PresetLibrary
         style = next;
     }
 
+    /// <summary>Pictures of the person the preset pictures should show (Picture style), so they look the same in each.</summary>
+    public string StyleReferencesFolder => Path.Combine(Root, "style-references");
+
+    public const int MaxStyleReferences = 4;
+
+    /// <summary>The style's reference pictures in name order, at most four.</summary>
+    public List<string> StyleReferences()
+    {
+        if (!Directory.Exists(StyleReferencesFolder))
+        {
+            return new List<string>();
+        }
+        return Directory.GetFiles(StyleReferencesFolder)
+            .Where(f => PictureFiles.ReferenceExtensions.Contains(Path.GetExtension(f).ToLowerInvariant()))
+            .OrderBy(f => Path.GetFileName(f), StringComparer.OrdinalIgnoreCase)
+            .Take(MaxStyleReferences)
+            .ToList();
+    }
+
+    /// <summary>Copies a picture in as a style reference. Fails loud on a wrong kind of file or when there are four already.</summary>
+    public string AddStyleReference(string source)
+    {
+        string ext = Path.GetExtension(source).ToLowerInvariant();
+        if (!PictureFiles.ReferenceExtensions.Contains(ext))
+        {
+            throw new PersonaConfigException("Reference pictures must be PNG, JPG or WebP files.");
+        }
+        if (!File.Exists(source))
+        {
+            throw new PersonaConfigException("That picture wasn't found: " + source);
+        }
+        if (StyleReferences().Count >= MaxStyleReferences)
+        {
+            throw new PersonaConfigException($"Up to {MaxStyleReferences} reference pictures; remove one first.");
+        }
+        Directory.CreateDirectory(StyleReferencesFolder);
+        string name = DateTimeOffset.Now.ToString("yyyyMMdd-HHmmss", System.Globalization.CultureInfo.InvariantCulture) + ext;
+        string target = Path.Combine(StyleReferencesFolder, name);
+        for (int n = 2; File.Exists(target); n++)
+        {
+            target = Path.Combine(StyleReferencesFolder, Path.GetFileNameWithoutExtension(name) + "-" + n + ext);
+        }
+        File.Copy(source, target);
+        return target;
+    }
+
+    public void RemoveStyleReference(string path)
+    {
+        string full = Path.GetFullPath(path);
+        if (!full.StartsWith(Path.GetFullPath(StyleReferencesFolder) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new PersonaConfigException("That isn't one of the style's reference pictures.");
+        }
+        if (File.Exists(full))
+        {
+            File.Delete(full);
+        }
+    }
+
+    /// <summary>The references a preset's picture uses: the style's, for actions and outfits that show the woman (not scenes, not men's outfits).</summary>
+    public IReadOnlyList<string> TileReferences(GenPreset p) =>
+        p.Kind == PresetKinds.Scene || p.For == Genders.Male ? Array.Empty<string>() : StyleReferences();
+
+    /// <summary>The job that draws a preset's picture: its prompt in the current style, with the style's references where they fit.</summary>
+    public TileJob TileJobFor(GenPreset p)
+    {
+        IReadOnlyList<string> refs = TileReferences(p);
+        return new TileJob(p.Id, p.Name, PicturePrompt.WithReferences(TilePrompt(p, Style), refs.Count), refs);
+    }
+
     /// <summary>A preset or creator tile, in the current style's folder.</summary>
     public string StyledTilePath(string id) => Path.Combine(TilesFolder, Style.Folder, id + ".png");
 

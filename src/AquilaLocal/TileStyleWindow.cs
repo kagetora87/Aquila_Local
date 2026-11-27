@@ -22,7 +22,9 @@ public sealed class TileStyleWindow : AquilaWindow
 {
 	private readonly PresetLibrary library;
 
-	private readonly Func<string, string, CancellationToken, Task> draw;
+	private readonly Func<string, IReadOnlyList<string>, string, CancellationToken, Task> draw;
+
+	private readonly WrapPanel refsPanel = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
 
 	private readonly TextBox woman;
 
@@ -44,13 +46,13 @@ public sealed class TileStyleWindow : AquilaWindow
 
 	private CancellationTokenSource? testing;
 
-	private readonly List<(string Label, Func<TileStyle, string> Prompt)> samples = new();
+	private readonly List<(string Label, Func<TileStyle, (string Prompt, IReadOnlyList<string> Refs)> Job)> samples = new();
 
 	/// <summary>True once a new style was saved (the small pictures will be offered again).</summary>
 	public bool Saved { get; private set; }
 
-	/// <param name="draw">Draws a prompt to a file with the fast picture model (throws if it can't).</param>
-	public TileStyleWindow(PresetLibrary library, Func<string, string, CancellationToken, Task> draw)
+	/// <param name="draw">Draws a prompt (with reference pictures) to a file with the fast picture model (throws if it can't).</param>
+	public TileStyleWindow(PresetLibrary library, Func<string, IReadOnlyList<string>, string, CancellationToken, Task> draw)
 	{
 		this.library = library;
 		this.draw = draw;
@@ -85,6 +87,8 @@ public sealed class TileStyleWindow : AquilaWindow
 			styles.Children.Add(chip);
 		}
 		form.Children.Add(styles);
+		form.Children.Add(Ui.Field("Reference pictures (optional)", refsPanel, "Up to 4 pictures of the person you want in the action and outfit pictures, so they look the same in every one (not used for scenes or the men's outfits). Changing them doesn't redraw anything by itself: use Make all again below, or the small button on a card.", 14));
+		ShowReferences();
 		Button reset = Ui.Button("Back to the starting style", "Btn.Link", delegate
 		{
 			woman.Text = TileStyle.DefaultWoman;
@@ -111,13 +115,17 @@ public sealed class TileStyleWindow : AquilaWindow
 		foreach (GenPreset p in PresetLibrary.BuiltIn)
 		{
 			GenPreset preset = p;
-			samples.Add((PresetKinds.Label(p.Kind) + ": " + p.Name, s => PresetLibrary.TilePrompt(preset, s)));
+			samples.Add((PresetKinds.Label(p.Kind) + ": " + p.Name, s =>
+			{
+				IReadOnlyList<string> refs = library.TileReferences(preset);
+				return (PicturePrompt.WithReferences(PresetLibrary.TilePrompt(preset, s), refs.Count), refs);
+			}));
 		}
 		foreach (CreatorOption o in CreatorOptions.All)
 		{
 			CreatorOption option = o;
 			string g = o.For.Length > 0 ? o.For : Genders.Female;
-			samples.Add(("Create: " + o.Label + (o.Kind == CreatorKinds.Ethnicity ? " (woman)" : ""), s => CreatorOptions.TilePrompt(option, g, s)));
+			samples.Add(("Create: " + o.Label + (o.Kind == CreatorKinds.Ethnicity ? " (woman)" : ""), s => (CreatorOptions.TilePrompt(option, g, s), (IReadOnlyList<string>)Array.Empty<string>())));
 		}
 		sample = new ComboBox { ItemsSource = samples.Select(x => x.Label).ToList(), SelectedIndex = 0, Margin = new Thickness(0, 6, 0, 0), MaxDropDownHeight = 360 };
 		side.Children.Add(sample);
@@ -144,6 +152,82 @@ public sealed class TileStyleWindow : AquilaWindow
 		Button cancel = Ui.Button("Cancel", "Btn.Secondary", delegate { Close(); });
 		base.Content = Ui.DialogScaffold("Picture style", "Who appears in the small choice pictures and how they're drawn.", layout, null, cancel, save);
 		base.Closing += delegate { testing?.Cancel(); };
+	}
+
+	/// <summary>The style's reference pictures, each with a remove button, then Add a picture….</summary>
+	private void ShowReferences()
+	{
+		refsPanel.Children.Clear();
+		List<string> refs;
+		try
+		{
+			refs = library.StyleReferences();
+		}
+		catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+		{
+			Show(ex.Message, bad: true);
+			refs = new List<string>();
+		}
+		foreach (string file in refs)
+		{
+			string f = file;
+			Grid cell = new Grid { Width = 72, Height = 90, Margin = new Thickness(0, 0, 8, 8) };
+			Border pic = new Border { CornerRadius = new CornerRadius(8), Background = Ui.Brush("Surface.1"), ToolTip = Path.GetFileName(f) };
+			try
+			{
+				BitmapImage image = new BitmapImage();
+				image.BeginInit();
+				image.CacheOption = BitmapCacheOption.OnLoad;
+				image.StreamSource = new MemoryStream(File.ReadAllBytes(f));
+				image.DecodePixelWidth = 160;
+				image.EndInit();
+				image.Freeze();
+				pic.Background = new ImageBrush(image) { Stretch = Stretch.UniformToFill };
+			}
+			catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is NotSupportedException || ex is ArgumentException || ex is FileFormatException)
+			{
+			}
+			cell.Children.Add(pic);
+			Button remove = new Button { Style = Ui.Style("Btn.Icon"), Content = Ui.Icon("\uE711", 10), Width = 22, Height = 22, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 4, 4, 0), Background = new SolidColorBrush(Color.FromArgb(0xCC, 0x0B, 0x12, 0x19)), Foreground = Brushes.White, ToolTip = "Remove this reference" };
+			Ui.SetRadius(remove, new CornerRadius(11));
+			remove.Click += delegate
+			{
+				try
+				{
+					library.RemoveStyleReference(f);
+				}
+				catch (Exception ex) when (ex is PersonaConfigException || ex is IOException || ex is UnauthorizedAccessException)
+				{
+					Show(ex.Message, bad: true);
+				}
+				ShowReferences();
+			};
+			cell.Children.Add(remove);
+			refsPanel.Children.Add(cell);
+		}
+		if (refs.Count < PresetLibrary.MaxStyleReferences)
+		{
+			Button add = Ui.Button(Ui.IconLabel("\uE710", "Add a picture…"), "Btn.Secondary", delegate
+			{
+				Microsoft.Win32.OpenFileDialog pick = new Microsoft.Win32.OpenFileDialog { Filter = "Pictures (*.png;*.jpg;*.jpeg;*.webp)|*.png;*.jpg;*.jpeg;*.webp", Title = "Choose a picture of the person" };
+				if (pick.ShowDialog(this) != true)
+				{
+					return;
+				}
+				try
+				{
+					library.AddStyleReference(pick.FileName);
+					Show("Added. Press Test to see it in use.", bad: false);
+				}
+				catch (Exception ex) when (ex is PersonaConfigException || ex is IOException || ex is UnauthorizedAccessException)
+				{
+					Show(ex.Message, bad: true);
+				}
+				ShowReferences();
+			});
+			add.VerticalAlignment = VerticalAlignment.Top;
+			refsPanel.Children.Add(add);
+		}
 	}
 
 	private static TextBox Box(string text)
@@ -181,7 +265,7 @@ public sealed class TileStyleWindow : AquilaWindow
 			Show(ex.Message, bad: true);
 			return;
 		}
-		string prompt = samples[Math.Max(0, sample.SelectedIndex)].Prompt(s);
+		(string prompt, IReadOnlyList<string> refs) = samples[Math.Max(0, sample.SelectedIndex)].Job(s);
 		string path = Path.Combine(library.Root, "style-test.png");
 		testing = new CancellationTokenSource();
 		test.Content = Ui.IconLabel("", "Stop");
@@ -190,7 +274,7 @@ public sealed class TileStyleWindow : AquilaWindow
 		try
 		{
 			Directory.CreateDirectory(library.Root);
-			await draw(prompt, path, testing.Token);
+			await draw(prompt, refs, path, testing.Token);
 			BitmapImage image = new BitmapImage();
 			image.BeginInit();
 			image.CacheOption = BitmapCacheOption.OnLoad;

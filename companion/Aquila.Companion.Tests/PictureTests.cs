@@ -51,6 +51,33 @@ public sealed class PictureTests
     }
 
     [Fact]
+    public void Klein_can_read_prompts_with_the_uncensored_text_encoder()
+    {
+        using var dir = new TempDir();
+        PictureKit kit = Kit(dir, best: false);
+        Assert.EndsWith("Qwen3VL-4B-Instruct-Q4_K_M.gguf", kit.Resolve(PictureModels.Fast).TextEncoder);
+
+        kit.KleinEncoder = KleinEncoders.UncensoredQ8;
+        var missing = Assert.Throws<PersonaConfigException>(() => kit.Resolve(PictureModels.Fast));
+        Assert.Contains("uncensored 8-bit", missing.Message);
+
+        foreach (string f in new[] { "Qwen3-VL-4B-Instruct-Uncensored-Q8_0.gguf", "Qwen3-VL-4B-Instruct-Uncensored-BF16.gguf" })
+        {
+            File.WriteAllText(Path.Combine(kit.ModelsFolder, f), "");
+        }
+        Assert.EndsWith("Qwen3-VL-4B-Instruct-Uncensored-Q8_0.gguf", kit.Resolve(PictureModels.Fast).TextEncoder);
+        kit.KleinEncoder = KleinEncoders.UncensoredBf16;
+        Assert.EndsWith("Qwen3-VL-4B-Instruct-Uncensored-BF16.gguf", kit.Resolve(PictureModels.Fast).TextEncoder);
+
+        // The standard choice never picks an uncensored file, even when its own is missing.
+        File.Delete(Path.Combine(kit.ModelsFolder, "Qwen3VL-4B-Instruct-Q4_K_M.gguf"));
+        kit.KleinEncoder = KleinEncoders.Standard;
+        Assert.Throws<PersonaConfigException>(() => kit.Resolve(PictureModels.Fast));
+        kit.KleinEncoder = "nope";
+        Assert.Throws<PersonaConfigException>(() => kit.Resolve(PictureModels.Fast));
+    }
+
+    [Fact]
     public void Missing_files_are_named_not_guessed()
     {
         using var dir = new TempDir();

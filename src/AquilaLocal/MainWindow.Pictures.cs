@@ -21,7 +21,16 @@ public partial class MainWindow
 {
 	private PictureEngine? pictureEngine;
 
-	private PictureEngine PictureDrawer => pictureEngine ??= new PictureEngine(Path.Combine(AppContext.BaseDirectory, "imagegen"));
+	private PictureEngine PictureDrawer
+	{
+		get
+		{
+			pictureEngine ??= new PictureEngine(Path.Combine(AppContext.BaseDirectory, "imagegen"));
+			// The chosen text encoder for FLUX 3 Image Klein (settings, Pictures window or the Generate screen).
+			pictureEngine.Kit.KleinEncoder = KleinEncoders.IsKnown(settings.Pictures.KleinEncoder) ? settings.Pictures.KleinEncoder : KleinEncoders.Standard;
+			return pictureEngine;
+		}
+	}
 
 	private string PicturesRoot => Path.Combine(store.Root, "pictures");
 

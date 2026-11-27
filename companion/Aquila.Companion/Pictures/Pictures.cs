@@ -17,6 +17,28 @@ public static class PictureModels
     public static string Label(string model) => model == Best ? "Qwen-Image-2.1 (best quality)" : "FLUX 3 Image Klein (fast)";
 }
 
+/// <summary>
+/// Which text encoder FLUX 3 Image Klein reads the prompt with: the standard Qwen3-VL 4B, or the uncensored
+/// version of it (AtomicChat, refusal direction removed) at 8 or 16 bits.
+/// </summary>
+public static class KleinEncoders
+{
+    public const string Standard = "standard";
+    public const string UncensoredQ8 = "uncensored-q8";
+    public const string UncensoredBf16 = "uncensored-bf16";
+
+    public static readonly IReadOnlyList<(string Key, string Label)> All = new[]
+    {
+        (Standard, "Standard (Qwen3-VL 4B)"),
+        (UncensoredQ8, "Uncensored, 8-bit"),
+        (UncensoredBf16, "Uncensored, 16-bit")
+    };
+
+    public static bool IsKnown(string key) => All.Any(e => e.Key == key);
+
+    public static string Label(string key) => All.FirstOrDefault(e => e.Key == key).Label ?? key;
+}
+
 /// <summary>The files one model needs, found in the image folder (imagegen\sd and imagegen\models).</summary>
 public sealed record PictureModelFiles(string Model, string Engine, string Diffusion, string TextEncoder, string Vae, string? Vision);
 
@@ -35,6 +57,9 @@ public sealed class PictureKit
 
     public string ModelsFolder => Path.Combine(Folder, "models");
 
+    /// <summary>The text encoder FLUX 3 Image Klein uses (see <see cref="KleinEncoders"/>).</summary>
+    public string KleinEncoder { get; set; } = KleinEncoders.Standard;
+
     public PictureModelFiles Resolve(string model)
     {
         if (!PictureModels.IsKnown(model))
@@ -46,7 +71,7 @@ public sealed class PictureKit
         PictureModelFiles files = model == PictureModels.Fast
             ? new PictureModelFiles(model, engine,
                 Find("flux3-image-klein*.gguf", "the FLUX 3 Image Klein model", missing, "flux-3-image-klein*.gguf", "flux3-image-klein*.safetensors", "flux-3-image-klein*.safetensors"),
-                Find("Qwen3VL-4B*.gguf", "its text encoder (Qwen3-VL 4B)", missing, "Qwen3-VL-4B*.gguf"),
+                KleinTextEncoder(missing),
                 Find("flux2-vae*.safetensors", "its VAE (flux2-vae)", missing, "flux2_ae*.safetensors", "ae.safetensors"),
                 null)
             : new PictureModelFiles(model, engine,
@@ -59,6 +84,37 @@ public sealed class PictureKit
             throw new PersonaConfigException($"{PictureModels.Label(model)} can't draw yet: missing {string.Join(", ", missing)} in {Folder}.");
         }
         return files;
+    }
+
+    private string KleinTextEncoder(List<string> missing)
+    {
+        if (!KleinEncoders.IsKnown(KleinEncoder))
+        {
+            throw new PersonaConfigException($"Unknown text encoder \"{KleinEncoder}\". Choose {string.Join(", ", KleinEncoders.All.Select(e => e.Key))}.");
+        }
+        (string[] patterns, string what) = KleinEncoder switch
+        {
+            KleinEncoders.UncensoredQ8 => (new[] { "*4B*Uncensored*Q8_0.gguf" }, "the uncensored 8-bit text encoder (Qwen3-VL-4B-Instruct-Uncensored-Q8_0.gguf)"),
+            KleinEncoders.UncensoredBf16 => (new[] { "*4B*Uncensored*BF16.gguf", "*4B*Uncensored*F16.gguf" }, "the uncensored 16-bit text encoder (Qwen3-VL-4B-Instruct-Uncensored-BF16.gguf)"),
+            _ => (new[] { "Qwen3VL-4B*.gguf", "Qwen3-VL-4B*.gguf" }, "its text encoder (Qwen3-VL 4B)")
+        };
+        if (Directory.Exists(ModelsFolder))
+        {
+            foreach (string p in patterns)
+            {
+                string? hit = Directory.GetFiles(ModelsFolder, p)
+                    .Where(f => !Path.GetFileName(f).StartsWith("mmproj", StringComparison.OrdinalIgnoreCase))
+                    .Where(f => KleinEncoder != KleinEncoders.Standard || Path.GetFileName(f).IndexOf("uncensored", StringComparison.OrdinalIgnoreCase) < 0)
+                    .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
+                    .FirstOrDefault();
+                if (hit != null)
+                {
+                    return hit;
+                }
+            }
+        }
+        missing.Add(what);
+        return "";
     }
 
     /// <summary>Whether a model is ready, with the problem if not.</summary>

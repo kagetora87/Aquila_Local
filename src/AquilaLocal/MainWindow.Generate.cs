@@ -37,6 +37,8 @@ public partial class MainWindow
 	private bool genVideo;
 	private string genModel = "";
 
+	private StackPanel? genEncoderRow;
+
 	/// <summary>What was made this session, newest first.</summary>
 	private readonly List<(string File, string Clip, string Who, string Prompt)> genResults = new List<(string File, string Clip, string Who, string Prompt)>();
 
@@ -137,8 +139,43 @@ public partial class MainWindow
 		left.Children.Add(genMotionRow);
 
 		ComboBox model = new ComboBox { ItemsSource = new[] { PictureModels.Label(PictureModels.Fast), PictureModels.Label(PictureModels.Best) }, SelectedIndex = genModel == PictureModels.Best ? 1 : 0, Width = 300, HorizontalAlignment = HorizontalAlignment.Left };
-		model.SelectionChanged += delegate { genModel = model.SelectedIndex == 1 ? PictureModels.Best : PictureModels.Fast; };
+		model.SelectionChanged += delegate
+		{
+			genModel = model.SelectedIndex == 1 ? PictureModels.Best : PictureModels.Fast;
+			if (genEncoderRow != null)
+			{
+				genEncoderRow.Visibility = genModel == PictureModels.Best ? Visibility.Collapsed : Visibility.Visible;
+			}
+		};
 		left.Children.Add(Ui.Field("Picture engine", model, "Fast takes about 15 seconds. Best quality takes about a minute and pauses the chat model while it draws.", 14));
+		ComboBox encoder = new ComboBox { ItemsSource = KleinEncoders.All.Select(e => e.Label).ToList(), Width = 300, HorizontalAlignment = HorizontalAlignment.Left };
+		encoder.SelectedIndex = Math.Max(0, KleinEncoders.All.ToList().FindIndex(e => e.Key == settings.Pictures.KleinEncoder));
+		encoder.SelectionChanged += delegate
+		{
+			string key = KleinEncoders.All[Math.Max(0, encoder.SelectedIndex)].Key;
+			if (key == settings.Pictures.KleinEncoder)
+			{
+				return;
+			}
+			settings.Pictures.KleinEncoder = key;
+			try
+			{
+				store.SaveSettings(settings);
+			}
+			catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is ArgumentException)
+			{
+				ShowGenStatus("The choice couldn't be saved: " + ex.Message, bad: true);
+			}
+			(bool ready, string problem) = PictureDrawer.Kit.Check(PictureModels.Fast);
+			if (!ready)
+			{
+				ShowGenStatus(problem, bad: true);
+			}
+		};
+		StackPanel encoderRow = Ui.Field("Text encoder (fast engine)", encoder, "How the fast engine reads the prompt. Uncensored has its refusal training removed; 8-bit is recommended.", 10);
+		encoderRow.Visibility = genModel == PictureModels.Best ? Visibility.Collapsed : Visibility.Visible;
+		left.Children.Add(encoderRow);
+		genEncoderRow = encoderRow;
 
 		StackPanel go = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 20, 0, 0) };
 		genGo = Ui.Button(Ui.IconLabel("", "Generate"), "Btn.Large", delegate { _ = GenerateAsync(); });
@@ -395,12 +432,15 @@ public partial class MainWindow
 		genTiles.Children.Clear();
 		genTileBanner.Children.Clear();
 		List<GenPreset> presets;
+		List<GenPreset> missingHere;
 		int missing;
 		try
 		{
 			string gender = generateFor.Length > 0 ? GenderOf(generateFor) : "";
 			presets = Presets.Load(genTab).Where((GenPreset p) => gender.Length == 0 || p.Fits(gender)).ToList();
-			missing = Presets.MissingTiles().Count;
+			// One tab at a time: only this tab's missing pictures are offered.
+			missingHere = Presets.MissingTiles().Where((GenPreset p) => p.Kind == genTab).ToList();
+			missing = missingHere.Count;
 		}
 		catch (PersonaConfigException ex)
 		{
@@ -418,8 +458,9 @@ public partial class MainWindow
 			else
 			{
 				int minutes = Math.Max(1, (int)Math.Ceiling(missing * 12 / 60.0));
-				b.Children.Add(Ui.Text(missing + " preset picture" + (missing == 1 ? " hasn't" : "s haven't") + " been made yet. Your picture engine makes them once, on this computer (about " + minutes + " minute" + (minutes == 1 ? "" : "s") + ").", "Type.Small"));
-				Button make = Ui.Button(Ui.IconLabel("", "Make the preset pictures"), "Btn.Primary", delegate { _ = MakeTilesAsync(); });
+				string what = PresetKinds.Label(genTab).ToLowerInvariant();
+				b.Children.Add(Ui.Text(missing + " " + what + " picture" + (missing == 1 ? " hasn't" : "s haven't") + " been made yet. Your picture engine makes them once, on this computer (about " + minutes + " minute" + (minutes == 1 ? "" : "s") + "). The other tabs have their own button.", "Type.Small"));
+				Button make = Ui.Button(Ui.IconLabel("", "Make the " + what + " pictures"), "Btn.Primary", delegate { _ = MakeTilesAsync(missingHere); });
 				make.HorizontalAlignment = HorizontalAlignment.Left;
 				make.Margin = new Thickness(0, 8, 0, 0);
 				make.IsEnabled = !generating;
@@ -478,6 +519,28 @@ public partial class MainWindow
 			Border check = new Border { Width = 24, Height = 24, CornerRadius = new CornerRadius(12), Background = Ui.Brush("Accent"), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 6, 6, 0), Child = Ui.Icon("", 12, "Accent.On") };
 			face.Children.Add(check);
 		}
+		// Top left: draw just this one picture (again).
+		Button redraw = new Button
+		{
+			Style = Ui.Style("Btn.Icon"),
+			Content = Ui.Icon("\uE72C", 12),
+			Width = 26,
+			Height = 26,
+			Background = new SolidColorBrush(Color.FromArgb(0xCC, 0x0B, 0x12, 0x19)),
+			Foreground = Brushes.White,
+			HorizontalAlignment = HorizontalAlignment.Left,
+			VerticalAlignment = VerticalAlignment.Top,
+			Margin = new Thickness(6, 6, 0, 0),
+			ToolTip = picture != null ? "Draw this picture again" : "Make this picture",
+			IsEnabled = !makingTiles && !generating && !busy
+		};
+		Ui.SetRadius(redraw, new CornerRadius(13));
+		redraw.Click += delegate(object _, RoutedEventArgs e)
+		{
+			e.Handled = true;
+			_ = MakeTilesAsync(new List<GenPreset> { p });
+		};
+		face.Children.Add(redraw);
 		Button b = TileButton(face, p.Name, on, (on ? "Picked (click again to unpick): " : "") + p.Prompt + (p.Custom ? "\n\nOne of your own. Right-click to remove it." : ""));
 		b.Click += delegate { Choose(p.Kind, p.Id); };
 		if (p.Custom)
@@ -559,7 +622,7 @@ public partial class MainWindow
 		List<TileJob> jobs;
 		try
 		{
-			jobs = (only ?? Presets.MissingTiles()).Select((GenPreset p) => new TileJob(p.Id, p.Name, PresetLibrary.TilePrompt(p, Presets.Style))).ToList();
+			jobs = (only ?? Presets.MissingTiles()).Select((GenPreset p) => Presets.TileJobFor(p)).ToList();
 		}
 		catch (PersonaConfigException ex)
 		{
@@ -608,7 +671,7 @@ public partial class MainWindow
 	}
 
 	/// <summary>Draws one test picture for Picture style with the fast model.</summary>
-	private async Task DrawStyleTestAsync(string prompt, string path, CancellationToken ct)
+	private async Task DrawStyleTestAsync(string prompt, IReadOnlyList<string> references, string path, CancellationToken ct)
 	{
 		(bool ready, string problem) = PictureDrawer.Kit.Check(PictureModels.Fast);
 		if (!ready)
@@ -622,7 +685,7 @@ public partial class MainWindow
 		makingTiles = true;
 		try
 		{
-			await DrawAsync(PictureModels.Fast, prompt, PresetLibrary.TileSize, Array.Empty<string>(), "preset", ct, path);
+			await DrawAsync(PictureModels.Fast, prompt, PresetLibrary.TileSize, references, "preset", ct, path);
 		}
 		finally
 		{
@@ -660,7 +723,7 @@ public partial class MainWindow
 				status("Making pictures… " + (done + 1) + " of " + todo.Count + " (" + job.Name + ")", false);
 				string tilePath = Presets.StyledTilePath(job.Id);
 				Directory.CreateDirectory(Path.GetDirectoryName(tilePath)!);
-				await DrawAsync(PictureModels.Fast, job.Prompt, PresetLibrary.TileSize, Array.Empty<string>(), "preset", ct, tilePath);
+				await DrawAsync(PictureModels.Fast, job.Prompt, PresetLibrary.TileSize, job.References ?? Array.Empty<string>(), "preset", ct, tilePath);
 				done++;
 				refresh();
 			}

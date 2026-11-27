@@ -218,7 +218,7 @@ public partial class MainWindow
 		List<TileJob> missing;
 		try
 		{
-			missing = CreatorOptions.TileJobs(Presets.Style).Where((TileJob j) => !File.Exists(Presets.StyledTilePath(j.Id))).ToList();
+			missing = CreatorOptions.TileJobs(Presets.Style).Where((TileJob j) => j.Id.StartsWith("create-" + kind + "-", StringComparison.Ordinal) && !File.Exists(Presets.StyledTilePath(j.Id))).ToList();
 		}
 		catch (PersonaConfigException ex)
 		{
