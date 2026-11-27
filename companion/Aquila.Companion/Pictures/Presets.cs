@@ -66,6 +66,9 @@ public sealed class PresetLibrary
 
     public string TilePath(string id) => Path.Combine(TilesFolder, id + ".png");
 
+    /// <summary>A preset's tile; in a folder named after the tile style, so a style change draws them all again.</summary>
+    public string PresetTilePath(string id) => Path.Combine(TilesFolder, "anime", id + ".png");
+
     public static readonly IReadOnlyList<GenPreset> BuiltIn = new List<GenPreset>
     {
         // Actions: what they're doing, the shot that suits it, and how it moves in a video.
@@ -218,7 +221,7 @@ public sealed class PresetLibrary
             throw new PersonaConfigException("That preset wasn't found.");
         }
         Save(custom);
-        string tile = TilePath(id);
+        string tile = PresetTilePath(id);
         if (File.Exists(tile))
         {
             File.Delete(tile);
@@ -234,7 +237,7 @@ public sealed class PresetLibrary
     }
 
     /// <summary>Presets whose small picture hasn't been made yet.</summary>
-    public List<GenPreset> MissingTiles() => Load().Where(p => !File.Exists(TilePath(p.Id))).ToList();
+    public List<GenPreset> MissingTiles() => Load().Where(p => !File.Exists(PresetTilePath(p.Id))).ToList();
 
     /// <summary>
     /// The prompt for a preset's small picture: an adult model in casual clothes doing the action, a model
@@ -242,12 +245,14 @@ public sealed class PresetLibrary
     /// </summary>
     public static string TilePrompt(GenPreset p)
     {
-        string person = p.For == Genders.Male ? "a young adult man" : p.For == Genders.Female ? "a young adult woman" : "a young adult";
+        // A woman unless the preset is for men only: most companions are women, and a vague "young adult"
+        // let the picture model pick a man. Anime style to match how companions usually look.
+        string person = p.For == Genders.Male ? "a young adult man" : "a young adult woman";
         return p.Kind switch
         {
-            PresetKinds.Action => $"Photo of {person} in simple casual clothes, {p.Prompt}. Soft natural light, simple softly blurred background, centered, realistic photography.",
-            PresetKinds.Outfit => $"Fashion catalogue photo of {person} model wearing {p.Prompt}, full body, standing, plain light grey studio background, soft even lighting, realistic photography.",
-            _ => $"{Capital(p.Prompt)}. No people. Atmospheric wide photo, realistic photography, natural light."
+            PresetKinds.Action => $"Anime illustration of {person} in simple casual clothes, {p.Prompt}. Clean line art, soft cel shading, soft light, simple softly blurred background, centered.",
+            PresetKinds.Outfit => $"Anime illustration of {person} wearing {p.Prompt}, full body, standing, plain light grey background, clean line art, soft cel shading, even light.",
+            _ => $"{Capital(p.Prompt)}. No people. Anime background art, atmospheric wide view, clean line art, soft light, detailed."
         };
     }
 

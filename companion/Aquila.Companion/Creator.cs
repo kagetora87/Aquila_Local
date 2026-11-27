@@ -19,7 +19,7 @@ public sealed record CreatorOption(string Kind, string Key, string Label, string
 }
 
 /// <summary>A small picture to make once: its file id, a name to show while it's made, and its prompt.</summary>
-public sealed record TileJob(string Id, string Name, string Prompt);
+public sealed record TileJob(string Id, string Name, string Prompt, string? Path = null);
 
 /// <summary>The choices offered in Create Companion's picture steps, and the small pictures that show them.</summary>
 public static class CreatorOptions

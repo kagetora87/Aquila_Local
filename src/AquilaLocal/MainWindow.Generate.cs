@@ -457,7 +457,7 @@ public partial class MainWindow
 	private Button Tile(GenPreset p, bool on)
 	{
 		Grid face = new Grid();
-		ImageSource? picture = TilePicture(Presets.TilePath(p.Id));
+		ImageSource? picture = TilePicture(Presets.PresetTilePath(p.Id));
 		if (picture != null)
 		{
 			face.Children.Add(new Border { CornerRadius = new CornerRadius(8), Background = new ImageBrush(picture) { Stretch = Stretch.UniformToFill } });
@@ -553,7 +553,7 @@ public partial class MainWindow
 		List<TileJob> jobs;
 		try
 		{
-			jobs = (only ?? Presets.MissingTiles()).Select((GenPreset p) => new TileJob(p.Id, p.Name, PresetLibrary.TilePrompt(p))).ToList();
+			jobs = (only ?? Presets.MissingTiles()).Select((GenPreset p) => new TileJob(p.Id, p.Name, PresetLibrary.TilePrompt(p), Presets.PresetTilePath(p.Id))).ToList();
 		}
 		catch (PersonaConfigException ex)
 		{
@@ -590,8 +590,9 @@ public partial class MainWindow
 			{
 				ct.ThrowIfCancellationRequested();
 				status("Making pictures… " + (done + 1) + " of " + todo.Count + " (" + job.Name + ")", false);
-				Directory.CreateDirectory(Presets.TilesFolder);
-				await DrawAsync(PictureModels.Fast, job.Prompt, PresetLibrary.TileSize, Array.Empty<string>(), "preset", ct, Presets.TilePath(job.Id));
+				string tilePath = job.Path ?? Presets.TilePath(job.Id);
+				Directory.CreateDirectory(Path.GetDirectoryName(tilePath)!);
+				await DrawAsync(PictureModels.Fast, job.Prompt, PresetLibrary.TileSize, Array.Empty<string>(), "preset", ct, tilePath);
 				done++;
 				refresh();
 			}

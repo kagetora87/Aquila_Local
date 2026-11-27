@@ -43,12 +43,12 @@ public sealed class PresetTests : IDisposable
         PresetLibrary again = new(root);
         Assert.Contains(again.Load(PresetKinds.Scene), p => p.Id == added.Id && p.Custom);
         Assert.Contains(again.MissingTiles(), p => p.Id == added.Id);
-        Directory.CreateDirectory(again.TilesFolder);
-        File.WriteAllText(again.TilePath(added.Id), "x");
+        Directory.CreateDirectory(Path.GetDirectoryName(again.PresetTilePath(added.Id))!);
+        File.WriteAllText(again.PresetTilePath(added.Id), "x");
         Assert.DoesNotContain(again.MissingTiles(), p => p.Id == added.Id);
         again.Remove(added.Id);
         Assert.DoesNotContain(again.Load(), p => p.Id == added.Id);
-        Assert.False(File.Exists(again.TilePath(added.Id)));
+        Assert.False(File.Exists(again.PresetTilePath(added.Id)));
     }
 
     [Fact]
@@ -119,6 +119,10 @@ public sealed class PresetTests : IDisposable
         Assert.False(gown.Fits(Genders.Male));
         Assert.Contains("young adult woman", PresetLibrary.TilePrompt(gown));
         Assert.Contains("No people", PresetLibrary.TilePrompt(PresetLibrary.BuiltIn.First(p => p.Kind == PresetKinds.Scene)));
+        GenPreset smile = PresetLibrary.BuiltIn.First(p => p.Id == "action-smile");
+        Assert.Contains("young adult woman", PresetLibrary.TilePrompt(smile));
+        Assert.Contains("Anime", PresetLibrary.TilePrompt(smile));
+        Assert.DoesNotContain("realistic", PresetLibrary.TilePrompt(smile));
     }
 
     [Fact]
