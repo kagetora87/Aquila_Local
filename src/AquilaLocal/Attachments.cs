@@ -223,10 +223,12 @@ public static class Attachments
 		return stream.ToArray();
 	}
 
-	public static JsonObject UserMessage(Turn turn)
+	/// <param name="withContext">False for earlier messages in a persona chat: the memories recalled back then
+	/// would otherwise pile up in the history and pull her back into old scenes.</param>
+	public static JsonObject UserMessage(Turn turn, bool withContext = true)
 	{
 		StringBuilder stringBuilder = new StringBuilder();
-		if (!string.IsNullOrEmpty(turn.Context))
+		if (withContext && !string.IsNullOrEmpty(turn.Context))
 		{
 			stringBuilder.Append(turn.Context).Append("\n\n");
 		}

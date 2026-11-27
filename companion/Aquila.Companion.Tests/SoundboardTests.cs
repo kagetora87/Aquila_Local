@@ -172,4 +172,24 @@ public sealed class SoundboardTests
 
         Assert.DoesNotContain("<sound>", store.RecentExchanges(1).Single().Reply);
     }
+
+    [Fact]
+    public void A_made_up_take_number_finds_the_real_take_and_unknown_cues_are_named()
+    {
+        var set = new SoundboardSet
+        {
+            Sounds =
+            {
+                new SoundEntry { Name = "(excited)wow1", Type = "exclamation", File = "01.wav" },
+                new SoundEntry { Name = "(excited)wow2", Type = "exclamation", File = "02.wav" },
+                new SoundEntry { Name = "(funny)laughter1", Type = "exclamation", File = "03.wav" },
+            }
+        };
+        Assert.Equal("(excited)wow1", SoundCues.Match("(excited)wow3", set)!.Name);
+        Assert.Equal("(funny)laughter1", SoundCues.Match("laughter2", set)!.Name);
+        List<string> unknown = SoundCues.Unknown("Ha! <sound>door slam</sound> <sound>(excited)wow2</sound>", set);
+        Assert.Equal(new[] { "door slam" }, unknown);
+        Assert.Contains("isn't one of your sounds", SoundCues.UnknownNote(unknown));
+        Assert.Equal("", SoundCues.UnknownNote(new List<string>()));
+    }
 }

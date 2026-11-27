@@ -110,9 +110,10 @@ public sealed class CompanionRuntime
         });
 
         (InjectedContext context, string top, card) = Assemble();
-        List<Recalled> recalled = Memory.Search(q, Config.Memory.RetrieveTopK, verbatimTurnIds);
+        // Only moments that are really about the same thing come to mind (0.2 let nearly anything in).
+        List<Recalled> recalled = Memory.Search(q, Config.Memory.RetrieveTopK, verbatimTurnIds, RecallAbove);
         return new PreparedTurn(Config.Id, context.SystemPrompt, context.InnerState,
-            ContextInjector.RecalledBlock(recalled), top, events, changes, recalled, context, card);
+            ContextInjector.RecalledBlock(recalled, now), top, events, changes, recalled, context, card);
     }
 
     /// <summary>
@@ -167,6 +168,9 @@ public sealed class CompanionRuntime
     private static string Pick(string? change, string current) => string.IsNullOrWhiteSpace(change) ? current : change.Trim();
 
     /// <param name="spoken">True when the user said this aloud (it reached her as a transcript), so she can later tell hearing from reading.</param>
+    /// <summary>How close (cosine, MiniLM) a past moment must be to the new message to be recalled.</summary>
+    public const double RecallAbove = 0.38;
+
     public CompletedTurn Complete(PreparedTurn prepared, string chatId, string turnId, string userText, string reply, DateTimeOffset now, bool spoken = false)
     {
         if (prepared.PersonaId != Config.Id)

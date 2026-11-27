@@ -285,9 +285,19 @@ public partial class MainWindow : AquilaWindow
 		return "idle";
 	}
 
+	/// <summary>The composer's text when the avatar last reacted, so clicks and formatting (which also raise
+	/// TextChanged) don't count as typing.</summary>
+	private string lastTypedText = "";
+
 	private void ComposerTyping()
 	{
-		if (spriteView == null || busy || featuresClosing || avatarState != "idle" || string.IsNullOrEmpty(Composer.Text))
+		string typed = Composer.Text ?? "";
+		if (typed == lastTypedText)
+		{
+			return;
+		}
+		lastTypedText = typed;
+		if (spriteView == null || busy || featuresClosing || avatarState != "idle" || typed.Length == 0)
 		{
 			return;
 		}
@@ -2133,6 +2143,8 @@ public partial class MainWindow : AquilaWindow
 		catch (Exception ex)
 		{
 			turn.Activity.Add($"{session.PersonaName}'s memory summary failed and will be retried next turn: {ex.Message}");
+			// Fail loud: without this, her long-term memory quietly stops growing.
+			Notice($"{session.PersonaName}'s long-term memory couldn't be updated (it will retry next message): {ex.Message}");
 		}
 		try
 		{
@@ -2413,7 +2425,12 @@ public partial class MainWindow : AquilaWindow
 		{
 			SetAvatarState("thinking", turn.Id);
 		};
-		gestures?.Reset();
+		if (gestures != null)
+		{
+			// In her chats only what she visibly does picks a gesture; elsewhere the reply's sentences do.
+			gestures.ActionsOnly = session.IsCompanion;
+			gestures.Reset();
+		}
 		agent.Token += delegate(string text, bool reasoning)
 		{
 			dirtyRender = true;

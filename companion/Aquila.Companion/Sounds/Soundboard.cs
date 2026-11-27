@@ -283,6 +283,15 @@ public static class SoundCues
         return Cue.Replace(text, m => new string(' ', m.Length));
     }
 
+    /// <summary>Cued names in a reply that match no sound at all (so nothing played).</summary>
+    public static List<string> Unknown(string reply, SoundboardSet set, Func<string, string, double>? meaning = null) =>
+        Names(reply).Where(n => Match(n, set, meaning) == null).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+
+    /// <summary>A note for her next message when she cued sounds that don't exist, or "".</summary>
+    public static string UnknownNote(IReadOnlyList<string> unknown) => unknown.Count == 0 ? ""
+        : "[Soundboard: " + string.Join(", ", unknown.Take(3).Select(n => "\"" + n + "\"")) + (unknown.Count == 1 ? " isn't one of your sounds" : " aren't among your sounds")
+          + ", so nothing played. Only names exactly as written in your sound list exist; if none fits, play nothing.]";
+
     /// <summary>What a persona is told about the soundboard (empty when there are no sounds).</summary>
     public static string Prompt(SoundboardSet set)
     {
@@ -293,7 +302,7 @@ public static class SoundCues
         var sb = new StringBuilder();
         sb.Append("Soundboard: you can play a sound effect when something you do or something happening would really make a sound (a knock, a laugh, a door, a phone, a kiss...). ")
           .Append("Check the list below for a sound that matches by name, type or description. If there's a good match, put <sound>its exact name</sound> anywhere in your reply; it plays after your message (after your voice, if you're speaking). ")
-          .Append("Use it only when it fits the moment, at most one or two in a reply, and never mention the soundboard itself. If nothing matches well, play nothing.\n")
+          .Append("Use it only when it fits the moment, at most one or two in a reply, and never mention the soundboard itself. If nothing matches well, play nothing. Only the sounds listed below exist: copy a name exactly, and never make one up or change its number.\n")
           .Append("Sounds (name - type: description):\n");
         foreach (SoundEntry s in set.Sounds.Take(MaxListed))
         {
@@ -381,7 +390,10 @@ public static class SoundCues
 
     private static string Normal(string s) => Regex.Replace((s ?? "").ToLowerInvariant(), @"[^\p{L}\p{N}]+", " ").Trim();
 
-    private static HashSet<string> Words(string s) => s.Split(' ', StringSplitOptions.RemoveEmptyEntries).Where(w => !Filler.Contains(w)).ToHashSet();
+    /// <summary>Words, with take numbers dropped ("wow3" and "wow1" are both "wow"), so a made-up take still finds a real one.</summary>
+    private static HashSet<string> Words(string s) => s.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+        .Select(w => w.Length > 1 && char.IsLetter(w[0]) ? w.TrimEnd('0', '1', '2', '3', '4', '5', '6', '7', '8', '9') : w)
+        .Where(w => w.Length > 0 && !Filler.Contains(w)).ToHashSet();
 
     /// <summary>"knock", "knocks", "knocking" and "knocked" count as the same word.</summary>
     private static bool SameWord(string a, string b)

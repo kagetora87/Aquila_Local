@@ -164,16 +164,21 @@ public sealed class SpriteAvatarView : Grid
 		if (spriteKind != baseState || playing == null)
 		{
 			baseState = spriteKind;
-			// A repeating gesture keeps going until she does something new (thinks, talks, listens);
-			// going back to idle doesn't stop it.
+			SpriteAnimation? target = ForState(spriteKind);
+			// A repeating gesture keeps going until she does something new that has its own animation
+			// (thinking, talking); you typing, going back to idle, or a state that would only fall back to idle, doesn't stop it.
 			bool repeatingGesture = playingGesture && playing != null && playing.Kind == SpriteKind.Gesture && playing.Loops;
-			if (repeatingGesture && spriteKind != SpriteKind.Idle)
+			if (repeatingGesture)
 			{
-				queued.Clear();
-				StartBase();
+				if ((spriteKind == SpriteKind.Thinking || spriteKind == SpriteKind.Talking) && target != null && target.Kind == spriteKind)
+				{
+					queued.Clear();
+					StartBase();
+				}
 			}
-			else if (!playingGesture)
+			else if (!playingGesture && (playing == null || target != playing))
 			{
+				// Typing or clicking flips between states; when they share an animation, keep it running instead of restarting it.
 				StartBase();
 			}
 		}

@@ -43,4 +43,15 @@ public sealed class BalanceTests
         PersonaConfig config = TestPersona.Config();
         Assert.Contains("not an interview", ContextInjector.SystemPrompt(config, new StateBlock()));
     }
+
+    [Fact]
+    public void Recalled_moments_say_how_long_ago_and_that_they_are_over()
+    {
+        DateTimeOffset now = TestPersona.T0;
+        var e = new Exchange(1, "c1", "t1", now.AddHours(-3), "Look at these pictures", "They're lovely!", false);
+        string block = ContextInjector.RecalledBlock(new[] { new Recalled(e, 0.9) }, now);
+        Assert.Contains("about 3 hours ago", block);
+        Assert.Contains("already happened", block);
+        Assert.Equal("2026-01-01", ContextInjector.When(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero), null));
+    }
 }

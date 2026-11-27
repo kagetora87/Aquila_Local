@@ -111,27 +111,52 @@ public static class ContextInjector
         return sb.ToString();
     }
 
-    public static string RecalledBlock(IReadOnlyList<Recalled> recalled)
+    /// <summary>Recalled moments sit right beside the new message, where models pay most attention. Without a clear
+    /// "this is over" they read as the present, and she jumps back into an old scene; so each one says how long ago
+    /// it was, and the block says the conversation has moved on.</summary>
+    public static string RecalledBlock(IReadOnlyList<Recalled> recalled, DateTimeOffset? now = null)
     {
         if (recalled.Count == 0)
         {
             return "";
         }
         var sb = new StringBuilder();
-        sb.Append("Your own memories of earlier conversations that may be relevant (reference only, may be outdated):\n");
+        sb.Append("Past moments that came to mind (memories only: they already happened and are over. The conversation has moved on since. ")
+          .Append("Stay in the present scene and where you are now; don't go back to these unless they bring them up, and if you mention one, speak of it as the past):\n");
         foreach (Recalled r in recalled.OrderBy(r => r.Exchange.At))
         {
+            string when = When(r.Exchange.At, now);
             if (Living.InnerLife.IsThought(r.Exchange))
             {
                 // Her own thought from living mode: something she thought, never something said to them.
-                sb.Append("- ").Append(r.Exchange.At.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture))
+                sb.Append("- ").Append(when)
                   .Append(" you thought to yourself (you never said this to them): \"").Append(Clip(r.Exchange.Reply, 500)).Append("\"\n");
                 continue;
             }
-            sb.Append("- ").Append(r.Exchange.At.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture))
+            sb.Append("- ").Append(when)
               .Append(r.Exchange.Spoken ? " you heard them say aloud: \"" : " they wrote: \"").Append(Clip(r.Exchange.User, 400)).Append("\" / you said: \"").Append(Clip(r.Exchange.Reply, 500)).Append("\"\n");
         }
         return sb.ToString().TrimEnd();
+    }
+
+    /// <summary>"2026-11-26 (about 3 hours ago)": the date, and how long ago when the time now is known.</summary>
+    public static string When(DateTimeOffset at, DateTimeOffset? now)
+    {
+        string date = at.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        if (now is not DateTimeOffset n || n < at)
+        {
+            return date;
+        }
+        TimeSpan ago = n - at;
+        string rel = ago.TotalMinutes < 2 ? "moments ago"
+            : ago.TotalMinutes < 60 ? $"{(int)ago.TotalMinutes} minutes ago"
+            : ago.TotalHours < 1.5 ? "about an hour ago"
+            : ago.TotalHours < 24 ? $"about {(int)Math.Round(ago.TotalHours)} hours ago"
+            : ago.TotalDays < 1.5 ? "yesterday"
+            : ago.TotalDays < 14 ? $"{(int)Math.Round(ago.TotalDays)} days ago"
+            : ago.TotalDays < 60 ? $"{(int)Math.Round(ago.TotalDays / 7)} weeks ago"
+            : $"{(int)Math.Round(ago.TotalDays / 30)} months ago";
+        return date + " (" + rel + ")";
     }
 
     /// <summary>The persona's stable system prompt: sheet, drift clause, how to read her inner state, pinned summary.</summary>

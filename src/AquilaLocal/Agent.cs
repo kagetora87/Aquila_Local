@@ -131,6 +131,23 @@ public sealed class Agent(Engine engine, MemoryStore? memories = null, SemanticM
 			turn.PersonalityName = session.PersonaName;
 			turn.InnerState = "[Now: " + DateTime.Now.ToString("dddd d MMMM yyyy, h:mm tt") + "]\n" + LocationLine(session) + prepared.InnerState;
 			string balance = AquilaLocal.Companion.ConversationBalance.Cue(session.Turns.Where((Turn t) => t != turn && t.Status == "complete" && !t.Unprompted).TakeLast(AquilaLocal.Companion.ConversationBalance.Window).Select((Turn t) => t.Answer).ToList());
+			Turn? previous = session.Turns.LastOrDefault((Turn t) => t != turn && t.Status == "complete");
+			if (previous != null && Companion != null)
+			{
+				try
+				{
+					List<string> unknown = Companion.UnknownSounds(previous.Answer);
+					if (unknown.Count > 0)
+					{
+						turn.InnerState += "\n" + AquilaLocal.Companion.Sounds.SoundCues.UnknownNote(unknown);
+						Log(turn, session.PersonaName + " cued sounds that don't exist last time (" + string.Join(", ", unknown) + "); she's been told.");
+					}
+				}
+				catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is AquilaLocal.Companion.PersonaConfigException)
+				{
+					Log(turn, "Soundboard check skipped: " + ex.Message);
+				}
+			}
 			if (balance.Length > 0)
 			{
 				turn.InnerState += "\n" + balance;
@@ -304,7 +321,7 @@ public sealed class Agent(Engine engine, MemoryStore? memories = null, SemanticM
 		recent.Reverse();
 		foreach (Turn item in recent)
 		{
-			messages.Add(Attachments.UserMessage(item));
+			messages.Add(Attachments.UserMessage(item, withContext: !persona));
 			messages.Add(Message("assistant", item.Answer));
 		}
 		messages.Add(persona ? WithInnerState(Attachments.UserMessage(turn), turn.InnerState) : Attachments.UserMessage(turn));

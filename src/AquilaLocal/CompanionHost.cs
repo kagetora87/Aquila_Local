@@ -117,6 +117,16 @@ public sealed class CompanionHost : IDisposable
 		return files;
 	}
 
+	/// <summary>Sounds a reply cued that match nothing on the soundboard (so nothing played).</summary>
+	public List<string> UnknownSounds(string reply)
+	{
+		if (!AquilaLocal.Companion.Sounds.SoundCues.HasCue(reply))
+		{
+			return new List<string>();
+		}
+		return AquilaLocal.Companion.Sounds.SoundCues.Unknown(reply, Soundboard.Load(), Meaning);
+	}
+
 	/// <summary>Similarity of meaning between two short texts (local embeddings); 0 when the embedder isn't available.</summary>
 	public double Meaning(string a, string b)
 	{
