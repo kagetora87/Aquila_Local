@@ -210,10 +210,10 @@ public partial class MainWindow
 			h.Margin = new Thickness(0, 4, 0, 0);
 			body.Children.Add(h);
 		}
-		Button styleLink = Ui.Button(Ui.IconLabel("\uE790", "Picture style…"), "Btn.Link", delegate { OpenTileStyle(); });
+		Button styleLink = Ui.Button(Ui.IconLabel("\uE790", "Picture style…"), "Btn.Secondary", delegate { OpenTileStyle(); });
 		styleLink.ToolTip = "Who's in these small pictures and how they're drawn, with a test";
 		styleLink.HorizontalAlignment = HorizontalAlignment.Left;
-		styleLink.Margin = new Thickness(0, 6, 0, 0);
+		styleLink.Margin = new Thickness(0, 10, 0, 0);
 		body.Children.Add(styleLink);
 		List<TileJob> missing;
 		try

@@ -586,7 +586,7 @@ public partial class MainWindow
 			more.Margin = new Thickness(0, 4, 0, 0);
 			body.Children.Add(more);
 		}
-		Button settingsLink = Ui.Button(Ui.IconLabel("\uE713", name + "'s settings"), "Btn.Link", delegate
+		Button settingsLink = Ui.Button(name + "'s settings", "Btn.Link", delegate
 		{
 			if (busy)
 			{

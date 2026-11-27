@@ -94,7 +94,12 @@ public sealed class TileStyleWindow : AquilaWindow
 		reset.HorizontalAlignment = HorizontalAlignment.Left;
 		reset.Margin = new Thickness(0, 10, 0, 0);
 		form.Children.Add(reset);
-		TextBlock note = Ui.Text("Saving a new style makes all the small pictures again: the Generate screen and Create Companion each offer a button for it (about 10 minutes each). Your companions' own pictures aren't affected.", "Type.Caption");
+		Button redo = Ui.Button(Ui.IconLabel("\uE72C", "Make all the small pictures again"), "Btn.Secondary", delegate { RedoAll(); });
+		redo.ToolTip = "Throws away the current small pictures (in the saved style) so they can be drawn fresh";
+		redo.HorizontalAlignment = HorizontalAlignment.Left;
+		redo.Margin = new Thickness(0, 14, 0, 0);
+		form.Children.Add(redo);
+				TextBlock note = Ui.Text("Saving a new style makes all the small pictures again: the Generate screen and Create Companion each offer a button for it (about 10 minutes each). Your companions' own pictures aren't affected.", "Type.Caption");
 		note.Margin = new Thickness(0, 14, 0, 0);
 		note.TextWrapping = TextWrapping.Wrap;
 		form.Children.Add(note);
@@ -215,6 +220,36 @@ public sealed class TileStyleWindow : AquilaWindow
 				test.Content = Ui.IconLabel("", "Test");
 				save.IsEnabled = true;
 			}
+		}
+	}
+
+	/// <summary>Removes the saved style's small pictures, so the Generate screen and Create Companion offer to make them again.</summary>
+	private void RedoAll()
+	{
+		if (testing != null)
+		{
+			return;
+		}
+		if (!AquilaDialog.Confirm(this, "Make all the small pictures again?", "The current ones are removed now. The Generate screen and Create Companion then each offer a button to draw them fresh in the saved style (about 10 minutes each). Unsaved changes to the words above aren't used: press Save for those instead.", "Remove them"))
+		{
+			return;
+		}
+		try
+		{
+			string folder = Path.Combine(library.TilesFolder, library.Style.Folder);
+			if (Directory.Exists(folder))
+			{
+				foreach (string file in Directory.GetFiles(folder, "*.png"))
+				{
+					File.Delete(file);
+				}
+			}
+			Saved = true;
+			DialogResult = true;
+		}
+		catch (Exception ex) when (ex is PersonaConfigException || ex is IOException || ex is UnauthorizedAccessException)
+		{
+			Show(ex.Message, bad: true);
 		}
 	}
 

@@ -176,7 +176,7 @@ public partial class MainWindow
 		tabBox.Child = tabs;
 		DockPanel.SetDock(tabBox, Dock.Top);
 		right.Children.Add(tabBox);
-		Button styleLink = Ui.Button(Ui.IconLabel("\uE790", "Picture style…"), "Btn.Link", delegate { OpenTileStyle(); });
+		Button styleLink = Ui.Button(Ui.IconLabel("\uE790", "Picture style…"), "Btn.Secondary", delegate { OpenTileStyle(); });
 		styleLink.ToolTip = "Who's in these small pictures and how they're drawn, with a test";
 		styleLink.HorizontalAlignment = HorizontalAlignment.Right;
 		styleLink.Margin = new Thickness(0, 0, 0, 8);
