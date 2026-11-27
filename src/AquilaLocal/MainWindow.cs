@@ -211,6 +211,8 @@ public partial class MainWindow : AquilaWindow
 
 	internal AvatarHost AvatarForVerification => avatar;
 
+	public static RoutedUICommand RenameChatCommand { get; } = new RoutedUICommand("Rename chat", "RenameChatCommand", typeof(MainWindow));
+
 	public static RoutedUICommand DeleteChatCommand { get; } = new RoutedUICommand("Delete chat", "DeleteChatCommand", typeof(MainWindow));
 
 	private InferenceProfile SelectedProfile => InferenceProfile.Resolve(settings.Inference, settings.Hardware);
@@ -539,9 +541,10 @@ public partial class MainWindow : AquilaWindow
 
 	// ---------------- Renaming a chat (click its title, or right-click it in the list) ----------------
 
-	private void RenameChat_Click(object sender, RoutedEventArgs e)
+	private void RenameChat_Executed(object sender, ExecutedRoutedEventArgs e)
 	{
-		if ((sender as FrameworkElement)?.DataContext is ChatSession chat && chat != current && !busy && !attaching)
+		e.Handled = true;
+		if (DeleteTarget(e.Parameter) is ChatSession chat && chat != current && !busy && !attaching)
 		{
 			ChatsList.SelectedItem = chat;
 		}
@@ -1890,6 +1893,7 @@ public partial class MainWindow : AquilaWindow
 		InitializeComponent();
 		Composer.PreviewKeyDown += Composer_PastePicture;
 		base.CommandBindings.Add(new CommandBinding(DeleteChatCommand, DeleteChat_Executed, DeleteChat_CanExecute));
+		base.CommandBindings.Add(new CommandBinding(RenameChatCommand, RenameChat_Executed, DeleteChat_CanExecute));
 		store = new Storage(dataRoot);
 		this.settings = store.LoadSettings();
 		Settings settings = this.settings;

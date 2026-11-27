@@ -100,7 +100,7 @@
               <Setter Property="ContextMenu">
                 <Setter.Value>
                   <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
-                    <MenuItem Header="Rename…" Click="RenameChat_Click">
+                    <MenuItem Header="Rename…" Command="{x:Static local:MainWindow.RenameChatCommand}" CommandParameter="{Binding}" CommandTarget="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType={x:Type ContextMenu}}}">
                       <MenuItem.Icon>
                         <TextBlock Text="&#xE8AC;" FontFamily="{StaticResource Font.Icon}" FontSize="14" />
                       </MenuItem.Icon>
