@@ -125,8 +125,13 @@ public sealed class DreamJournalWindow : AquilaWindow
 	/// <summary>Raised after her journal picture changes, so the button by her name updates.</summary>
 	public event Action? IconChanged;
 
-	public DreamJournalWindow(string personaId, string name, InnerLifeJournal journal, string livingRoot, string picturesRoot)
+	private readonly string gender;
+
+	private string W(string text) => Genders.Words(text, gender);
+
+	public DreamJournalWindow(string personaId, string name, InnerLifeJournal journal, string livingRoot, string picturesRoot, string gender = Genders.Female)
 	{
+		this.gender = gender;
 		this.personaId = personaId;
 		this.name = name;
 		this.journal = journal;
@@ -139,7 +144,7 @@ public sealed class DreamJournalWindow : AquilaWindow
 		base.WindowStartupLocation = WindowStartupLocation.CenterOwner;
 		CloseOnEscape = true;
 
-		Grid iconHolder = new Grid { Width = 132, Height = 132, HorizontalAlignment = HorizontalAlignment.Center, Cursor = Cursors.Hand, ToolTip = "Click to choose a picture for her journal (it shows next to her name too)" };
+		Grid iconHolder = new Grid { Width = 132, Height = 132, HorizontalAlignment = HorizontalAlignment.Center, Cursor = Cursors.Hand, ToolTip = W("Click to choose a picture for {p} journal (it shows next to {p} name too)") };
 		icon.Fill = Ui.Brush("Accent.Subtle");
 		iconHolder.Children.Add(icon);
 		iconHolder.Children.Add(iconGlyph);
@@ -154,7 +159,7 @@ public sealed class DreamJournalWindow : AquilaWindow
 		count.HorizontalAlignment = HorizontalAlignment.Center;
 		count.Margin = new Thickness(0, 2, 0, 14);
 
-		Ui.SetPlaceholder(search, "Search her journal");
+		Ui.SetPlaceholder(search, W("Search {p} journal"));
 		foreach ((string label, _) in Kinds)
 		{
 			kind.Items.Add(label);
@@ -227,7 +232,7 @@ public sealed class DreamJournalWindow : AquilaWindow
 		}
 		catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is NotSupportedException || ex is ArgumentException || ex is FileFormatException)
 		{
-			Problem("Her journal picture couldn't be shown: " + ex.Message);
+			Problem(W("{P} journal picture couldn't be shown: ") + ex.Message);
 		}
 		icon.Fill = picture != null ? new ImageBrush(picture) { Stretch = Stretch.UniformToFill } : Ui.Brush("Accent.Subtle");
 		iconGlyph.Visibility = picture != null ? Visibility.Collapsed : Visibility.Visible;
@@ -245,7 +250,7 @@ public sealed class DreamJournalWindow : AquilaWindow
 			DreamJournal.SetIcon(livingRoot, personaId, dialog.FileName);
 			ShowIcon();
 			IconChanged?.Invoke();
-			Ok("Her journal picture is set.");
+			Ok(W("{P} journal picture is set."));
 		}
 		catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is NotSupportedException || ex is ArgumentException || ex is FileFormatException)
 		{
@@ -275,7 +280,7 @@ public sealed class DreamJournalWindow : AquilaWindow
 		string[] words = (search.Text ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries);
 		shown = Enumerable.Reverse(all).Where((JournalEntry e) => (wanted == null || e.Kind == wanted) && words.All((string w) => Matches(e, w))).ToList();
 		int dreams = all.Count((JournalEntry e) => e.Kind == ThoughtKinds.Dream);
-		count.Text = all.Count == 0 ? "Nothing yet. Her thoughts and dreams appear here once living mode is on and you've been away a while."
+		count.Text = all.Count == 0 ? W("Nothing yet. {P} thoughts and dreams appear here once living mode is on and you've been away a while.")
 			: all.Count + (all.Count == 1 ? " entry" : " entries") + " · " + dreams + (dreams == 1 ? " dream" : " dreams") + (shown.Count != all.Count ? " · showing " + shown.Count : "");
 		list.Children.Clear();
 		foreach (JournalEntry e in shown)

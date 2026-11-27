@@ -30,7 +30,7 @@ public sealed class CustomDriveTests
     {
         PersonaConfig c = TestPersona.Config();
         c.Drives.Add(TestPersona.Spec("music", weight: 1, initial: 2));
-        Assert.Contains(c.MissingInputs(), m => m.Contains("words that show she acted on music"));
+        Assert.Contains(c.MissingInputs(), m => m.Contains("words that show they acted on music"));
     }
 
     [Fact]

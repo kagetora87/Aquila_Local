@@ -547,59 +547,64 @@ public partial class MainWindow
 		}
 	}
 
-	/// <summary>Makes the presets' small pictures with the fast model, one at a time; they appear as they're done.</summary>
-	private async Task MakeTilesAsync(List<GenPreset>? only = null)
+	/// <summary>Makes the presets' small pictures (all missing ones, or just these).</summary>
+	private Task MakeTilesAsync(List<GenPreset>? only = null)
 	{
-		if (makingTiles || generating || busy)
+		List<TileJob> jobs;
+		try
+		{
+			jobs = (only ?? Presets.MissingTiles()).Select((GenPreset p) => new TileJob(p.Id, p.Name, PresetLibrary.TilePrompt(p))).ToList();
+		}
+		catch (PersonaConfigException ex)
+		{
+			ShowGenStatus(ex.Message, bad: true);
+			return Task.CompletedTask;
+		}
+		return RunTilesAsync(jobs, FillTiles, ShowGenStatus);
+	}
+
+	/// <summary>Draws small pictures with the fast model, one at a time; refresh shows each as it's done.</summary>
+	private async Task RunTilesAsync(List<TileJob> todo, Action refresh, Action<string, bool> status)
+	{
+		if (makingTiles || generating || busy || todo.Count == 0)
 		{
 			return;
 		}
 		(bool ready, string problem) = PictureDrawer.Kit.Check(PictureModels.Fast);
 		if (!ready)
 		{
-			ShowGenStatus("The preset pictures can't be made yet: " + problem, bad: true);
-			return;
-		}
-		List<GenPreset> todo;
-		try
-		{
-			todo = only ?? Presets.MissingTiles();
-		}
-		catch (PersonaConfigException ex)
-		{
-			ShowGenStatus(ex.Message, bad: true);
-			return;
-		}
-		if (todo.Count == 0)
-		{
+			status("The pictures can't be made yet: " + problem, true);
 			return;
 		}
 		makingTiles = true;
 		genCts = new CancellationTokenSource();
 		CancellationToken ct = genCts.Token;
 		SetBusy(value: true);
-		FillTiles();
+		refresh();
 		int done = 0;
+		string end = "";
+		bool bad = false;
 		try
 		{
-			foreach (GenPreset p in todo)
+			foreach (TileJob job in todo)
 			{
 				ct.ThrowIfCancellationRequested();
-				ShowGenStatus("Making preset pictures… " + (done + 1) + " of " + todo.Count + " (" + p.Name + ")");
+				status("Making pictures… " + (done + 1) + " of " + todo.Count + " (" + job.Name + ")", false);
 				Directory.CreateDirectory(Presets.TilesFolder);
-				await DrawAsync(PictureModels.Fast, PresetLibrary.TilePrompt(p), PresetLibrary.TileSize, Array.Empty<string>(), "preset", ct, Presets.TilePath(p.Id));
+				await DrawAsync(PictureModels.Fast, job.Prompt, PresetLibrary.TileSize, Array.Empty<string>(), "preset", ct, Presets.TilePath(job.Id));
 				done++;
-				FillTiles();
+				refresh();
 			}
-			ShowGenStatus(done == 1 ? "Its picture is ready." : "All " + done + " preset pictures are ready.");
+			end = done == 1 ? "Its picture is ready." : "All " + done + " pictures are ready.";
 		}
 		catch (OperationCanceledException)
 		{
-			ShowGenStatus("Stopped. " + done + " picture" + (done == 1 ? " was" : "s were") + " made; the rest can be made later.");
+			end = "Stopped. " + done + " picture" + (done == 1 ? " was" : "s were") + " made; the rest can be made later.";
 		}
 		catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is InvalidOperationException || ex is HttpRequestException || ex is PersonaConfigException)
 		{
-			ShowGenStatus("The preset pictures stopped after " + done + ": " + ex.Message, bad: true);
+			end = "The pictures stopped after " + done + ": " + ex.Message;
+			bad = true;
 		}
 		finally
 		{
@@ -607,9 +612,9 @@ public partial class MainWindow
 			genCts = null;
 			SetBusy(value: false);
 			PictureStatus(null);
-			FillTiles();
-			ShowGenStatus(genStatusText, genStatusBad);
+			refresh();
 		}
+		status(end, bad);
 	}
 
 	/// <summary>Their looks for the prompt: the appearance card (or the persona file before set-up), without their usual outfit when another was picked.</summary>

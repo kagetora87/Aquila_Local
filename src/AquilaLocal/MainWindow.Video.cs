@@ -67,7 +67,7 @@ public partial class MainWindow
 			List<(string, string)> recent = session.Turns.Where((Turn t) => t != turn && t.Status == "complete").TakeLast(4).Select((Turn t) => (t.User, t.Answer)).ToList();
 			recent.Add((turn.User, turn.Answer));
 			PictureStatus("Writing the video's first frame…");
-			string prompt = await WritePicturePromptAsync(request.Still, PicturePrompt.Conversation(recent, speaker), name, appearance, references.Count > 0, session.Location, ct);
+			string prompt = await WritePicturePromptAsync(request.Still, PicturePrompt.Conversation(recent, speaker), name, appearance, references.Count > 0, session.Location, ct, session.IsCompanion ? GenderOf(session.PersonaId) : Genders.Female);
 			string still = await DrawAsync(model, PicturePrompt.WithReferences(prompt, references.Count), VideoRequest.StillSize, references, request.Still.Description, ct);
 			string clip = await AnimateAsync(still, VideoRequest.ClipPrompt(request.Motion, prompt), ct);
 			turn.Pictures.Add(clip);

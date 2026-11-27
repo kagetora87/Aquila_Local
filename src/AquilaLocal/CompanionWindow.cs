@@ -66,6 +66,28 @@ public sealed class CompanionWindow : AquilaWindow
 		Build();
 	}
 
+	private string genderOf = "";
+
+	private string genderFor = "\u0001";
+
+	/// <summary>Fills the he/she markers for the companion being shown.</summary>
+	private string W(string text)
+	{
+		if (genderFor != personaId)
+		{
+			genderFor = personaId;
+			try
+			{
+				genderOf = host.Registry.LoadConfig(personaId).Gender;
+			}
+			catch (PersonaConfigException)
+			{
+				genderOf = Genders.Female;
+			}
+		}
+		return Genders.Words(text, genderOf);
+	}
+
 	private void Problem(string text)
 	{
 		status.Text = text;
@@ -88,6 +110,7 @@ public sealed class CompanionWindow : AquilaWindow
 		// Rebuilding after a change (Add entry, Save…) keeps the person where they were: same sections open, same scroll.
 		double keepScroll = (builtFor == personaId) ? ((Content as DockPanel)?.Children.OfType<ScrollViewer>().FirstOrDefault()?.VerticalOffset ?? 0.0) : 0.0;
 		builtFor = personaId;
+		genderFor = "\u0001";
 		StackPanel body = new StackPanel();
 		List<PersonaEntry> entries;
 		try
@@ -132,7 +155,7 @@ public sealed class CompanionWindow : AquilaWindow
 			{
 				PersonaConfig added = host.AddPersonaFromFile(dialog.FileName);
 				personaId = added.Id;
-				Ok("Added " + added.Name + ". Check her settings, then press \"Set up " + added.Name + "\" once to create her private memory.");
+				Ok("Added " + added.Name + W(". Check {p} settings, then press \"Set up ") + added.Name + W("\" once to create {p} private memory."));
 			}
 			catch (Exception ex) when (ex is PersonaConfigException || ex is IOException || ex is UnauthorizedAccessException)
 			{
@@ -168,7 +191,7 @@ public sealed class CompanionWindow : AquilaWindow
 		{
 			Close();
 		});
-		DockPanel scaffold = Ui.DialogScaffold("Companions", "Companions are personas with their own personality, drives, private memory and chat history. Nothing one companion remembers is ever shown to another. Type /tune in a companion chat to adjust her on the fly.", body, status, close, primary);
+		DockPanel scaffold = Ui.DialogScaffold("Companions", W("Companions are personas with their own personality, drives, private memory and chat history. Nothing one companion remembers is ever shown to another. Type /tune in a companion chat to adjust {o} on the fly."), body, status, close, primary);
 		base.Content = scaffold;
 		if (keepScroll > 0.0 && scaffold.Children.OfType<ScrollViewer>().FirstOrDefault() is ScrollViewer scroll)
 		{
@@ -230,7 +253,7 @@ public sealed class CompanionWindow : AquilaWindow
 			}
 			catch (Microsoft.Data.Sqlite.SqliteException ex)
 			{
-				body.Children.Add(Warning("Her appearance card couldn't be read: " + ex.Message));
+				body.Children.Add(Warning(W("{P} appearance card couldn't be read: ") + ex.Message));
 			}
 			Expander appearanceSection = Section("Appearance", AppearanceView(config, store, hasAppearance), expanded: highlightWardrobe.Count > 0 || !hasAppearance);
 			body.Children.Add(appearanceSection);
@@ -266,7 +289,7 @@ public sealed class CompanionWindow : AquilaWindow
 		{
 			Button setUp = Ui.Button("Set up " + config.Name, "Btn.Primary", delegate
 			{
-				if (!AquilaDialog.Confirm(this, "Set up " + config.Name + "?", "This creates " + config.Name + "'s private memory from her settings: her starting drive values and her starting summary. It's done once; after that her memory only grows.", "Set up"))
+				if (!AquilaDialog.Confirm(this, "Set up " + config.Name + "?", "This creates " + config.Name + W("'s private memory from {p} settings: {p} starting drive values and {p} starting summary. It's done once; after that {p} memory only grows."), "Set up"))
 				{
 					return;
 				}
@@ -306,7 +329,7 @@ public sealed class CompanionWindow : AquilaWindow
 			import.Margin = new Thickness(0, 0, 8, 8);
 			row.Children.Add(import);
 		}
-		Button folder = Ui.Button("Open her folder", "Btn.Secondary", delegate
+		Button folder = Ui.Button(W("Open {p} folder"), "Btn.Secondary", delegate
 		{
 			try
 			{
@@ -397,7 +420,7 @@ public sealed class CompanionWindow : AquilaWindow
 			grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 			DriveValue v = drives[d.Name];
 			TextBlock name = Ui.Text(d.Name + (d.Name == top ? "  ★" : ""), "Type.Body");
-			name.ToolTip = (d.Description.Length > 0 ? d.Description + "\n\n" : "") + (d.IsLevel ? "A feeling level: the number is how much of it she has. Low presses on her." : "A need: the number is how much she wants it. High presses on her.");
+			name.ToolTip = (d.Description.Length > 0 ? d.Description + "\n\n" : "") + (d.IsLevel ? W("A feeling level: the number is how much of it {s} has. Low presses on {o}.") : W("A need: the number is how much {s} wants it. High presses on {o}."));
 			name.Margin = new Thickness(0, 4, 0, 4);
 			Grid.SetRow(name, row);
 			grid.Children.Add(name);
@@ -420,7 +443,7 @@ public sealed class CompanionWindow : AquilaWindow
 		}
 		StackPanel panel = new StackPanel();
 		panel.Children.Add(grid);
-		TextBlock note = Ui.Text("★ is the drive leading her right now (value × weight, plus a boost when it has gone unsatisfied).", "Type.Caption");
+		TextBlock note = Ui.Text(W("★ is the drive leading {o} right now (value × weight, plus a boost when it has gone unsatisfied)."), "Type.Caption");
 		note.Margin = new Thickness(0, 8, 0, 0);
 		note.TextWrapping = TextWrapping.Wrap;
 		panel.Children.Add(note);
@@ -436,7 +459,7 @@ public sealed class CompanionWindow : AquilaWindow
 		panel.Children.Add(Label("Personality sheet"));
 		panel.Children.Add(sheet);
 		TextBox drift = Multiline(config.Drift.Text, 70);
-		panel.Children.Add(Label("Drift clause (she can read this)"));
+		panel.Children.Add(Label(W("Drift clause ({s} can read this)")));
 		panel.Children.Add(drift);
 		CheckBox unlocked = new CheckBox { Content = "Drift unlocked", IsChecked = config.Drift.Unlocked, Margin = new Thickness(0, 6, 0, 0) };
 		panel.Children.Add(unlocked);
@@ -450,7 +473,7 @@ public sealed class CompanionWindow : AquilaWindow
 		tagline.MaxLength = PersonaConfig.MaxTaglineChars;
 		panel.Children.Add(tagline);
 
-		panel.Children.Add(Label("Her voice (when replies are spoken)"));
+		panel.Children.Add(Label(W("{P} voice (when replies are spoken)")));
 		List<(string Key, string Label)> choices = new List<(string Key, string Label)> { ("", "Same as Aquila's voice (set in Voice…)") };
 		try
 		{
@@ -465,11 +488,11 @@ public sealed class CompanionWindow : AquilaWindow
 		}
 		ComboBox voice = new ComboBox { ItemsSource = choices.Select(((string Key, string Label) c) => c.Label).ToList(), SelectedIndex = Math.Max(0, choices.FindIndex(((string Key, string Label) c) => c.Key == config.Voice)), Width = 320, HorizontalAlignment = HorizontalAlignment.Left };
 		panel.Children.Add(voice);
-		TextBlock voiceNote = Ui.Text("To give her a voice of her own, import a short clip in Voice… → Import voice sample, then pick it here.", "Type.Caption");
+		TextBlock voiceNote = Ui.Text(W("To give {o} a voice of {p} own, import a short clip in Voice… → Import voice sample, then pick it here."), "Type.Caption");
 		voiceNote.TextWrapping = TextWrapping.Wrap;
 		panel.Children.Add(voiceNote);
 
-		panel.Children.Add(Label("Her favourite colour (her name is shown in it, under the avatar)"));
+		panel.Children.Add(Label(W("{P} favourite colour ({p} name is shown in it, under the avatar)")));
 		TextBox favourite = new TextBox { Text = config.FavoriteColor, Width = 320, HorizontalAlignment = HorizontalAlignment.Left, ToolTip = "A colour name like teal, crimson or lavender, or a code like #4FC3F7. Leave empty for the app's colour." };
 		Border swatch = new Border { Width = 22, Height = 22, CornerRadius = new CornerRadius(4), Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
 		void ShowSwatch()
@@ -480,7 +503,7 @@ public sealed class CompanionWindow : AquilaWindow
 		ShowSwatch();
 		panel.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Children = { favourite, swatch } });
 
-		panel.Children.Add(Label("Her avatar (the animated pictures beside the chat)"));
+		panel.Children.Add(Label(W("{P} avatar (the animated pictures beside the chat)")));
 		// Choices: the shared avatar, any set in Data\avatars, a new set of her own, or a folder anywhere.
 		string ownName = SpriteLibrary.SafeName(config.Name.Length > 0 ? config.Name : personaId);
 		List<(string Key, string Label)> avatarChoices = new List<(string Key, string Label)> { ("", "The shared avatar (Data\\avatar)") };
@@ -500,7 +523,7 @@ public sealed class CompanionWindow : AquilaWindow
 		}
 		if (!avatarChoices.Any(((string Key, string Label) c) => string.Equals(c.Key, ownName, StringComparison.OrdinalIgnoreCase)))
 		{
-			avatarChoices.Add((ownName, "A new avatar of her own (Data\\avatars\\" + ownName + ", starts with placeholder pictures)"));
+			avatarChoices.Add((ownName, W("A new avatar of {p} own (Data\\avatars\\") + ownName + ", starts with placeholder pictures)"));
 		}
 		if (config.Avatar.Length > 0 && !avatarChoices.Any(((string Key, string Label) c) => string.Equals(c.Key, config.Avatar, StringComparison.OrdinalIgnoreCase)))
 		{
@@ -518,7 +541,7 @@ public sealed class CompanionWindow : AquilaWindow
 				lastAvatar = avatarBox.SelectedIndex;
 				return;
 			}
-			OpenFolderDialog pick = new OpenFolderDialog { Title = "Choose the folder with her animations (one subfolder per animation)" };
+			OpenFolderDialog pick = new OpenFolderDialog { Title = W("Choose the folder with {p} animations (one subfolder per animation)") };
 			if (pick.ShowDialog(this) == true)
 			{
 				avatarChoices.Insert(avatarChoices.Count - 1, (pick.FolderName, pick.FolderName));
@@ -531,7 +554,7 @@ public sealed class CompanionWindow : AquilaWindow
 			}
 		};
 		panel.Children.Add(avatarBox);
-		TextBlock avatarNote = Ui.Text("Her chats show this avatar, and Animations… edits it while her chat is open.", "Type.Caption");
+		TextBlock avatarNote = Ui.Text(W("{P} chats show this avatar, and Animations… edits it while {p} chat is open."), "Type.Caption");
 		avatarNote.TextWrapping = TextWrapping.Wrap;
 		panel.Children.Add(avatarNote);
 
@@ -551,13 +574,13 @@ public sealed class CompanionWindow : AquilaWindow
 		if (editAppearance)
 		{
 			AppearanceSeed a = config.Seed.Appearance;
-			panel.Children.Add(Label("Appearance: permanent traits (one per line, like  eyes: grey-green). Locked once her card is set up."));
+			panel.Children.Add(Label(W("Appearance: permanent traits (one per line, like  eyes: grey-green). Locked once {p} card is set up.")));
 			traits = Multiline(string.Join("\n", a.Traits.Select((AppearanceTrait t) => t.Name + ": " + t.Text)), 120);
 			panel.Children.Add(traits);
-			panel.Children.Add(Label("Identity anchor (the one detail every picture of her must show)"));
+			panel.Children.Add(Label(W("Identity anchor (the one detail every picture of {o} must show)")));
 			anchor = new TextBox { Text = a.IdentityAnchor, MaxLength = AppearanceSeed.MaxTraitChars };
 			panel.Children.Add(anchor);
-			panel.Children.Add(Label("What she's wearing at the start (she can change it later; every change is logged)"));
+			panel.Children.Add(Label(W("What {s}'s wearing at the start ({s} can change it later; every change is logged)")));
 			outfit = Field(panel, "Outfit", a.Wardrobe.Outfit);
 			color = Field(panel, "Colour", a.Wardrobe.Color);
 			fabric = Field(panel, "Fabric", a.Wardrobe.Fabric);
@@ -619,7 +642,7 @@ public sealed class CompanionWindow : AquilaWindow
 				}
 				edited.Save(host.ConfigPath(personaId));
 				host.Forget(personaId);
-				Ok("Saved. Changes apply from her next message." + (moved.Count > 0 ? " Drives: " + string.Join("; ", moved) + "." : ""));
+				Ok(W("Saved. Changes apply from {p} next message.") + (moved.Count > 0 ? " Drives: " + string.Join("; ", moved) + "." : ""));
 				Build();
 			}
 			catch (Exception ex) when (ex is PersonaConfigException || ex is FormatException || ex is IOException || ex is UnauthorizedAccessException || ex is DriveStateUnavailableException || ex is Microsoft.Data.Sqlite.SqliteException)
@@ -781,13 +804,13 @@ public sealed class CompanionWindow : AquilaWindow
 		if (!hasAppearance)
 		{
 			TextBlock note = Ui.Text(config.Seed.Appearance.IsComplete
-				? config.Name + " doesn't have an appearance card yet, so she can't chat until it's set up. Her settings below have one ready: set it up to lock in her permanent traits and start her wardrobe diary."
-				: config.Name + " doesn't have an appearance card yet, so she can't chat until it's set up. Fill in her appearance in Settings below, save, then set it up here.", "Type.Body");
+				? config.Name + W(" doesn't have an appearance card yet, so {s} can't chat until it's set up. {P} settings below have one ready: set it up to lock in {p} permanent traits and start {p} wardrobe diary.")
+				: config.Name + W(" doesn't have an appearance card yet, so {s} can't chat until it's set up. Fill in {p} appearance in Settings below, save, then set it up here."), "Type.Body");
 			note.TextWrapping = TextWrapping.Wrap;
 			panel.Children.Add(note);
-			Button setUp = Ui.Button("Set up her appearance card", "Btn.Primary", delegate
+			Button setUp = Ui.Button(W("Set up {p} appearance card"), "Btn.Primary", delegate
 			{
-				if (!AquilaDialog.Confirm(this, "Lock in " + config.Name + "'s appearance?", "Her permanent traits and identity anchor become part of her and can only be amended deliberately, one at a time, with a reason. Her outfit stays hers to change.", "Set up"))
+				if (!AquilaDialog.Confirm(this, "Lock in " + config.Name + "'s appearance?", W("{P} permanent traits and identity anchor become part of {o} and can only be amended deliberately, one at a time, with a reason. {P} outfit stays {hers} to change."), "Set up"))
 				{
 					return;
 				}
@@ -823,7 +846,7 @@ public sealed class CompanionWindow : AquilaWindow
 			panel.Children.Add(Warning(ex.Message));
 			return panel;
 		}
-		TextBlock intro = Ui.Text("Her canonical appearance card. She reads it before every reply, and any picture of her is described from it, never guessed. Permanent traits are locked; her clothes are hers to change, and every change goes into her wardrobe diary with the time and a reason.", "Type.Small");
+		TextBlock intro = Ui.Text(W("{P} canonical appearance card. {S} reads it before every reply, and any picture of {o} is described from it, never guessed. Permanent traits are locked; {p} clothes are {hers} to change, and every change goes into {p} wardrobe diary with the time and a reason."), "Type.Small");
 		intro.TextWrapping = TextWrapping.Wrap;
 		intro.Margin = new Thickness(0, 0, 0, 8);
 		panel.Children.Add(intro);
@@ -849,7 +872,7 @@ public sealed class CompanionWindow : AquilaWindow
 
 		TextBox caption = Multiline(AppearanceCaption.For(config.Name, card), 70);
 		caption.IsReadOnly = true;
-		panel.Children.Add(Label("Image caption (made from her card, for the picture generator)"));
+		panel.Children.Add(Label(W("Image caption (made from {p} card, for the picture generator)")));
 		panel.Children.Add(caption);
 		Button copy = Ui.Button(Ui.IconLabel("\uE8C8", "Copy image caption"), "Btn.Secondary", delegate
 		{
@@ -899,14 +922,14 @@ public sealed class CompanionWindow : AquilaWindow
 		Button log = Ui.Button("Log outfit change", "Btn.Secondary", delegate
 		{
 			Wardrobe next = new Wardrobe { Outfit = outfit.Text.Trim(), Color = color.Text.Trim(), Fabric = fabric.Text.Trim(), Condition = condition.Text.Trim() };
-			Try(() => store.AppendWardrobe(next, MemoryAuthors.Operator, reason.Text, DateTimeOffset.Now), "Logged in her wardrobe diary.");
+			Try(() => store.AppendWardrobe(next, MemoryAuthors.Operator, reason.Text, DateTimeOffset.Now), W("Logged in {p} wardrobe diary."));
 		});
 		log.HorizontalAlignment = HorizontalAlignment.Left;
 		change.Children.Add(log);
-		panel.Children.Add(new Expander { Header = "Change her outfit yourself", Content = change, Style = Ui.Style("Expander.Quiet"), Margin = new Thickness(0, 8, 0, 0) });
+		panel.Children.Add(new Expander { Header = W("Change {p} outfit yourself"), Content = change, Style = Ui.Style("Expander.Quiet"), Margin = new Thickness(0, 8, 0, 0) });
 
 		StackPanel amend = new StackPanel();
-		TextBlock amendNote = Ui.Text("Only for correcting a mistake or a deliberate change to who she is. The original stays in her history with your reason.", "Type.Small");
+		TextBlock amendNote = Ui.Text(W("Only for correcting a mistake or a deliberate change to who {s} is. The original stays in {p} history with your reason."), "Type.Small");
 		amendNote.TextWrapping = TextWrapping.Wrap;
 		amend.Children.Add(amendNote);
 		ComboBox traitName = new ComboBox { IsEditable = true, ItemsSource = card.Traits.Select((TraitEntry t) => t.Name).Append(PersonaStore.AnchorTrait).ToList(), Margin = new Thickness(0, 6, 0, 6), Width = 240, HorizontalAlignment = HorizontalAlignment.Left };
@@ -924,11 +947,11 @@ public sealed class CompanionWindow : AquilaWindow
 		Button record = Ui.Button("Record amendment", "Btn.DangerGhost", delegate
 		{
 			string n = traitName.Text.Trim();
-			if (!AquilaDialog.Confirm(this, "Amend " + config.Name + "'s permanent trait?", "'" + n + "' will read: " + (traitText.Text.Trim().Length > 0 ? traitText.Text.Trim() : "(withdrawn)") + "\n\nThe original stays in her history.", "Amend"))
+			if (!AquilaDialog.Confirm(this, "Amend " + config.Name + "'s permanent trait?", "'" + n + "' will read: " + (traitText.Text.Trim().Length > 0 ? traitText.Text.Trim() : "(withdrawn)") + W("\n\nThe original stays in {p} history."), "Amend"))
 			{
 				return;
 			}
-			Try(() => store.AmendTrait(n, traitText.Text, MemoryAuthors.Operator, traitReason.Text, DateTimeOffset.Now), "Amendment recorded; the original is kept in her history.");
+			Try(() => store.AmendTrait(n, traitText.Text, MemoryAuthors.Operator, traitReason.Text, DateTimeOffset.Now), W("Amendment recorded; the original is kept in {p} history."));
 		});
 		record.HorizontalAlignment = HorizontalAlignment.Left;
 		amend.Children.Add(record);
@@ -955,13 +978,13 @@ public sealed class CompanionWindow : AquilaWindow
 		return panel;
 	}
 
-	private static string Who(string author, string name)
+	private string Who(string author, string name)
 	{
 		return author switch
 		{
 			MemoryAuthors.Persona => "by " + name,
 			MemoryAuthors.Operator => "by you",
-			_ => "from her appearance card"
+			_ => W("from {p} appearance card")
 		};
 	}
 
@@ -1009,7 +1032,7 @@ public sealed class CompanionWindow : AquilaWindow
 	private UIElement MemoryView(PersonaConfig config, PersonaStore store)
 	{
 		StackPanel panel = new StackPanel();
-		TextBlock intro = Ui.Text("Her memory only grows. Nothing is ever edited or deleted: a correction is a new entry that replaces the old one, with the date and your reason, and the old one stays in her history.", "Type.Small");
+		TextBlock intro = Ui.Text(W("{P} memory only grows. Nothing is ever edited or deleted: a correction is a new entry that replaces the old one, with the date and your reason, and the old one stays in {p} history."), "Type.Small");
 		intro.TextWrapping = TextWrapping.Wrap;
 		intro.Margin = new Thickness(0, 0, 0, 8);
 		panel.Children.Add(intro);
@@ -1077,7 +1100,7 @@ public sealed class CompanionWindow : AquilaWindow
 		{
 			if (Selected(list) is AquilaLocal.Companion.MemoryEntry e)
 			{
-				Try(() => store.Supersede(e.Id, text2.Text, MemoryAuthors.Operator, reason.Text, DateTimeOffset.Now), "Correction recorded; the original is kept in her history.");
+				Try(() => store.Supersede(e.Id, text2.Text, MemoryAuthors.Operator, reason.Text, DateTimeOffset.Now), W("Correction recorded; the original is kept in {p} history."));
 			}
 			else
 			{
@@ -1090,7 +1113,7 @@ public sealed class CompanionWindow : AquilaWindow
 		{
 			if (Selected(list) is AquilaLocal.Companion.MemoryEntry e)
 			{
-				Try(() => store.Supersede(e.Id, "", MemoryAuthors.Operator, reason.Text, DateTimeOffset.Now), "Withdrawn; it stays in her history.");
+				Try(() => store.Supersede(e.Id, "", MemoryAuthors.Operator, reason.Text, DateTimeOffset.Now), W("Withdrawn; it stays in {p} history."));
 			}
 			else
 			{
@@ -1123,12 +1146,12 @@ public sealed class CompanionWindow : AquilaWindow
 		}
 	}
 
-	private static UIElement AchievementsView(PersonaStore store)
+	private UIElement AchievementsView(PersonaStore store)
 	{
 		List<Achievement> all = store.Achievements();
 		if (all.Count == 0)
 		{
-			return Ui.Text("None yet. Every time she does something unprompted, makes her own choice, or surprises, it's added here, and she can read the latest ones.", "Type.Small");
+			return Ui.Text(W("None yet. Every time {s} does something unprompted, makes {p} own choice, or surprises, it's added here, and {s} can read the latest ones."), "Type.Small");
 		}
 		ListBox list = new ListBox { Height = 220 };
 		foreach (Achievement a in Enumerable.Reverse(all))

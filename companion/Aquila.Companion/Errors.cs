@@ -9,7 +9,7 @@ public sealed class DriveStateUnavailableException : Exception
     public string PersonaId { get; }
 
     public DriveStateUnavailableException(string personaId, string reason, Exception? inner = null)
-        : base($"Can't read {personaId}'s drive state: {reason} Aquila stopped instead of guessing her drives, so nothing was sent.", inner)
+        : base($"Can't read {personaId}'s drive state: {reason} Aquila stopped instead of guessing the drives, so nothing was sent.", inner)
     {
         PersonaId = personaId;
     }
@@ -30,7 +30,7 @@ public sealed class AppearanceCardUnavailableException : Exception
     public string PersonaId { get; }
 
     public AppearanceCardUnavailableException(string personaId, string reason, Exception? inner = null)
-        : base($"Can't read {personaId}'s appearance card: {reason} Aquila stopped instead of guessing what she looks like, so nothing was sent.", inner)
+        : base($"Can't read {personaId}'s appearance card: {reason} Aquila stopped instead of guessing the looks, so nothing was sent.", inner)
     {
         PersonaId = personaId;
     }

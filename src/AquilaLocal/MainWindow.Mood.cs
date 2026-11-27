@@ -38,7 +38,7 @@ public partial class MainWindow
 		}
 		catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
 		{
-			Notice("Mood: couldn't read her mood (" + ex.Message + ").");
+			Notice("Mood: couldn't read " + Genders.Possessive(GenderOf(personaId)) + " mood (" + ex.Message + ").");
 			extra = MoodMarkup.TurnLine(null, now);
 		}
 		string? told = null;
@@ -74,7 +74,7 @@ public partial class MainWindow
 		}
 		catch (Exception ex) when (ex is PersonaConfigException || ex is IOException || ex is UnauthorizedAccessException)
 		{
-			Notice("Mood: her mood wasn't saved (" + ex.Message + ").");
+			Notice("Mood: " + Genders.Possessive(GenderOf(session.PersonaId)) + " mood wasn't saved (" + ex.Message + ").");
 		}
 		ShowMood();
 	}
@@ -107,10 +107,10 @@ public partial class MainWindow
 		string from = mood.Source switch
 		{
 			MoodSources.Dream => "after a dream",
-			MoodSources.Thought => "after a thought of her own",
+			MoodSources.Thought => "after a thought of " + Genders.Possessive(GenderOf(personaId)) + " own",
 			_ => "in your chat"
 		};
-		AvatarMood.ToolTip = (mood.Why.Length > 0 ? char.ToUpperInvariant(mood.Why[0]) + mood.Why.Substring(1) : "She didn't say why.") +
+		AvatarMood.ToolTip = (mood.Why.Length > 0 ? char.ToUpperInvariant(mood.Why[0]) + mood.Why.Substring(1) : Genders.Words("{S} didn't say why.", GenderOf(personaId))) +
 			"\n\nSince " + mood.At.ToLocalTime().ToString("ddd h:mm tt") + ", " + from + " · " + MoodRules.Decayed(mood, DateTimeOffset.Now).ToString("0") + "/10 now";
 		AvatarMood.Visibility = Visibility.Visible;
 	}
@@ -147,7 +147,7 @@ public partial class MainWindow
 			return;
 		}
 		string personaId = current.PersonaId;
-		DreamJournalWindow window = new DreamJournalWindow(personaId, current.PersonaName, Journal, companion.LivingRoot, Path.Combine(store.Root, "pictures"))
+		DreamJournalWindow window = new DreamJournalWindow(personaId, current.PersonaName, Journal, companion.LivingRoot, Path.Combine(store.Root, "pictures"), GenderOf(personaId))
 		{
 			Owner = this
 		};
@@ -179,7 +179,7 @@ public partial class MainWindow
 			MoodState kept = companion.Moods.Offer(personaId, next, now);
 			if (kept != next)
 			{
-				entry.Note = (entry.Note + " Her mood stayed " + kept.Word + ": this feeling wasn't strong enough to change it.").Trim();
+				entry.Note = (entry.Note + (Genders.IsMale(GenderOf(personaId)) ? " His" : " Her") + " mood stayed " + kept.Word + ": this feeling wasn't strong enough to change it.").Trim();
 			}
 		}
 		if (entry.Kind == ThoughtKinds.Dream && !entry.MessagedYou && MoodRules.WorthTelling(thought.MoodStrength, thought.Urge))
@@ -189,7 +189,7 @@ public partial class MainWindow
 			if (waiting == null || weight >= waiting.Weight)
 			{
 				companion.ToTell.Save(personaId, new ToTell(entry.Id, now, entry.Kind, entry.Text, thought.MessageIdea, thought.MoodWord, weight));
-				entry.Note = (entry.Note + " It stayed with her: she'll tell you about it when she can.").Trim();
+				entry.Note = (entry.Note + Genders.Words(" It stayed with {o}: {s}'ll tell you about it when {s} can.", GenderOf(personaId))).Trim();
 			}
 		}
 		if (current == null || current.PersonaId != personaId || spriteView == null)

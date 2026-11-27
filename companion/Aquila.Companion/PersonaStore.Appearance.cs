@@ -64,7 +64,7 @@ public sealed partial class PersonaStore
         List<TraitEntry> permanent = active.Where(t => t.Name != AnchorTrait && t.Text.Length > 0).ToList();
         if (permanent.Count == 0)
         {
-            throw new AppearanceCardUnavailableException(PersonaId, $"{Path} has no permanent traits. Set up her appearance in Companions first.");
+            throw new AppearanceCardUnavailableException(PersonaId, $"{Path} has no permanent traits. Set up the appearance card in Companions first.");
         }
         if (anchor == null || anchor.Text.Length == 0)
         {
@@ -119,15 +119,15 @@ public sealed partial class PersonaStore
     {
         if (!seed.IsComplete)
         {
-            throw new PersonaConfigException("Her appearance card isn't complete yet: it needs at least one permanent trait, an identity anchor and an outfit.");
+            throw new PersonaConfigException("The appearance card isn't complete yet: it needs at least one permanent trait, an identity anchor and an outfit.");
         }
         using SqliteConnection c = Connect();
         using SqliteTransaction tx = c.BeginTransaction();
         if (Scalar<long>(c, tx, "SELECT COUNT(*) FROM appearance_traits WHERE persona_id=$p", ("$p", PersonaId)) > 0)
         {
-            throw new InvalidOperationException("Her appearance card is already set up. Permanent traits can only be amended, one at a time, with a reason.");
+            throw new InvalidOperationException("The appearance card is already set up. Permanent traits can only be amended, one at a time, with a reason.");
         }
-        InsertAppearance(c, tx, seed, at, "appearance card set up from her persona file");
+        InsertAppearance(c, tx, seed, at, "appearance card set up from the persona file");
         tx.Commit();
     }
 
@@ -138,7 +138,7 @@ public sealed partial class PersonaStore
             InsertTrait(c, tx, at, t.Name.Trim(), t.Text.Trim(), MemoryAuthors.Seed, null, reason);
         }
         InsertTrait(c, tx, at, AnchorTrait, seed.IdentityAnchor.Trim(), MemoryAuthors.Seed, null, reason);
-        InsertWardrobe(c, tx, at, seed.Wardrobe, MemoryAuthors.Seed, "starting wardrobe from her appearance card");
+        InsertWardrobe(c, tx, at, seed.Wardrobe, MemoryAuthors.Seed, "starting wardrobe from the appearance card");
     }
 
     /// <summary>
@@ -181,7 +181,7 @@ public sealed partial class PersonaStore
         long? current = found > 0 ? found : null;
         if (current == null && text.Length == 0)
         {
-            throw new ArgumentException($"She has no '{name}' trait to withdraw.");
+            throw new ArgumentException($"There's no '{name}' trait to withdraw.");
         }
         long id = InsertTrait(c, tx, at, name, text, author, current, reason.Trim());
         tx.Commit();
@@ -238,7 +238,7 @@ public sealed partial class PersonaStore
         }
         catch (AppearanceCardUnavailableException)
         {
-            throw new ArgumentException($"That would make her appearance card longer than {ContextInjector.MaxAppearanceTokens} tokens. Describe it more briefly.");
+            throw new ArgumentException($"That would make the appearance card longer than {ContextInjector.MaxAppearanceTokens} tokens. Describe it more briefly.");
         }
     }
 

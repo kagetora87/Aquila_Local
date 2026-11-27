@@ -421,7 +421,7 @@ public partial class MainWindow
 			pending.Margin = new Thickness(0, 2, 0, 0);
 			words.Children.Add(pending);
 		}
-		string about = problem.Length > 0 ? "Her settings couldn't be read: " + problem : Describe(config!);
+		string about = problem.Length > 0 ? "The settings couldn't be read: " + problem : Describe(config!);
 		TextBlock description = Ui.Text(about, "Type.Small");
 		description.Margin = new Thickness(0, 6, 0, 0);
 		description.MaxHeight = 72;
@@ -484,30 +484,5 @@ public partial class MainWindow
 			return text.Length > 180 ? text.Substring(0, 177).TrimEnd() + "…" : text;
 		}
 		return "No description yet. Add one in their settings.";
-	}
-
-	private FrameworkElement CreatePage()
-	{
-		DockPanel page = Page("Create a companion", "Bring someone new to life.", null);
-		Border card = new Border { Style = Ui.Style("Card"), MaxWidth = 620, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top };
-		StackPanel body = new StackPanel();
-		body.Children.Add(Ui.Text("The step-by-step creator arrives in an upcoming update.", "Type.Subtitle"));
-		TextBlock more = Ui.Text("Six steps: male or female, ethnicity, hair style, body type, then their personality, looks and drives, and finally a summary where you generate their portrait. Until then you can add a companion from a persona file.", "Type.Small");
-		more.Margin = new Thickness(0, 8, 0, 16);
-		body.Children.Add(more);
-		Button fromFile = Ui.Button(Ui.IconLabel("", "Add one from a file…"), "Btn.Secondary", delegate
-		{
-			if (busy)
-			{
-				return;
-			}
-			OpenCompanions(null, null);
-			RefreshPage();
-		});
-		fromFile.HorizontalAlignment = HorizontalAlignment.Left;
-		body.Children.Add(fromFile);
-		card.Child = body;
-		page.Children.Add(card);
-		return page;
 	}
 }

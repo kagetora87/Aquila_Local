@@ -308,7 +308,7 @@ public sealed class ToTellStore
         }
         catch (JsonException ex)
         {
-            throw new PersonaConfigException($"{path} is damaged ({ex.Message}). Delete it to let her forget what she wanted to say.", ex);
+            throw new PersonaConfigException($"{path} is damaged ({ex.Message}). Delete it to forget what was waiting to be said.", ex);
         }
         if (item == null || now - item.At > KeepFor)
         {

@@ -638,7 +638,7 @@ public sealed partial class PersonaStore
         }
         catch (SqliteException ex)
         {
-            throw new DriveStateUnavailableException(PersonaId, $"her memory could not be read ({ex.Message}).", ex);
+            throw new DriveStateUnavailableException(PersonaId, $"the memory could not be read ({ex.Message}).", ex);
         }
     }
 

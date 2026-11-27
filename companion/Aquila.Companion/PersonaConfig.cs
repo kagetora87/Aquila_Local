@@ -274,7 +274,7 @@ public sealed class PersonaConfig
     };
 
     public DriveSpec Drive(string name) =>
-        Drives.FirstOrDefault(d => d.Name == name) ?? throw new PersonaConfigException($"{Name} has no '{name}' drive in her config.");
+        Drives.FirstOrDefault(d => d.Name == name) ?? throw new PersonaConfigException($"{Name} has no '{name}' drive in the config.");
 
     public static PersonaConfig Load(string path)
     {
@@ -336,7 +336,7 @@ public sealed class PersonaConfig
         }
         if (Drives.Count == 0 || Drives.Count > Companion.Drives.MaxDrives)
         {
-            throw new PersonaConfigException($"{Name} needs between 1 and {Companion.Drives.MaxDrives} drives (she has {Drives.Count}).");
+            throw new PersonaConfigException($"{Name} needs between 1 and {Companion.Drives.MaxDrives} drives (there are {Drives.Count}).");
         }
         foreach (DriveSpec d in Drives)
         {
@@ -400,7 +400,7 @@ public sealed class PersonaConfig
             + Drives.Sum(d => TokenEstimate.Of("- " + d.Name + " 10.0 TOP" + (d.IsLevel ? ContextInjector.LevelMark : "") + ": " + new[] { d.Guidance.Low, d.Guidance.Mid, d.Guidance.High }.MaxBy(g => g.Length) + "\n"));
         if (worst > ContextInjector.MaxDriveBlockTokens)
         {
-            throw new PersonaConfigException($"{Name}'s drives would need about {worst} tokens in her inner-state block, over the {ContextInjector.MaxDriveBlockTokens}-token cap. Use fewer drives or shorter guidance lines.");
+            throw new PersonaConfigException($"{Name}'s drives would need about {worst} tokens in the inner-state block, over the {ContextInjector.MaxDriveBlockTokens}-token cap. Use fewer drives or shorter guidance lines.");
         }
         var traitNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (AppearanceTrait t in Seed.Appearance.Traits)
@@ -408,7 +408,7 @@ public sealed class PersonaConfig
             string n = t.Name.Trim();
             if (n.Equals(PersonaStore.AnchorTrait, StringComparison.OrdinalIgnoreCase))
             {
-                throw new PersonaConfigException($"{Name}'s identity anchor goes in 'identityAnchor', not in her traits list.");
+                throw new PersonaConfigException($"{Name}'s identity anchor goes in 'identityAnchor', not in the traits list.");
             }
             if (n.Length > 0 && !traitNames.Add(n))
             {
@@ -450,7 +450,7 @@ public sealed class PersonaConfig
             }
             if (d.Name != Companion.Drives.Horizon && d.Cues.Count == 0 && !HeuristicScorer.KnowsDrive(d.Name))
             {
-                missing.Add($"words that show she acted on {d.Name} (so Aquila can tell when it's satisfied)");
+                missing.Add($"words that show they acted on {d.Name} (so Aquila can tell when it's satisfied)");
             }
         }
         if (Seed.Summary.Render().Contains(Placeholder))
@@ -463,7 +463,7 @@ public sealed class PersonaConfig
         }
         if (!Seed.Appearance.IsComplete)
         {
-            missing.Add("her appearance card (permanent traits, identity anchor and what she's wearing)");
+            missing.Add("the appearance card (permanent traits, identity anchor and what they're wearing)");
         }
         return missing;
     }
@@ -485,4 +485,30 @@ public static class Genders
 
     /// <summary>"her" / "his".</summary>
     public static string Possessive(string gender) => IsMale(gender) ? "his" : "her";
+
+    /// <summary>"herself" / "himself".</summary>
+    public static string Reflexive(string gender) => IsMale(gender) ? "himself" : "herself";
+
+    private const char Brace = '\uE000';
+
+    /// <summary>
+    /// Fills the pronoun markers in a prompt: {s} she/he, {S} She/He, {o} her/him, {p} her/his, {P} Her/His,
+    /// {self} herself/himself. Text from outside goes through <see cref="Protect"/> first so it's never changed.
+    /// </summary>
+    public static string Words(string text, string gender)
+    {
+        bool m = IsMale(gender);
+        return text
+            .Replace("{self}", m ? "himself" : "herself")
+            .Replace("{hers}", m ? "his" : "hers")
+            .Replace("{s}", m ? "he" : "she")
+            .Replace("{S}", m ? "He" : "She")
+            .Replace("{o}", m ? "him" : "her")
+            .Replace("{p}", m ? "his" : "her")
+            .Replace("{P}", m ? "His" : "Her")
+            .Replace(Brace, '{');
+    }
+
+    /// <summary>Keeps outside text (a personality sheet, a message) exactly as it is when it goes through <see cref="Words"/>.</summary>
+    public static string Protect(string text) => text.Replace('{', Brace);
 }

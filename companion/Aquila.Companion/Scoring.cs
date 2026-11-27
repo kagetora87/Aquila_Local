@@ -77,7 +77,7 @@ public sealed class HeuristicScorer : ISatisfactionScorer
             .ToArray();
         if (cues.Length == 0)
         {
-            throw new ArgumentException($"Aquila can't tell when '{drive}' is satisfied: give it some words or phrases that show she acted on it (Companions, Settings, Drives).");
+            throw new ArgumentException($"Aquila can't tell when '{drive}' is satisfied: give it some words or phrases that show they acted on it (Companions, Settings, Drives).");
         }
         string reply = Normalize(replyText);
         List<string> hits = cues.Where(c => Has(reply, c)).ToList();
@@ -126,7 +126,7 @@ public sealed class HeuristicScorer : ISatisfactionScorer
         }
         if (replySimilarityToPast is double sim && sim < SurpriseBelow && replyText.Trim().Length >= 20)
         {
-            list.Add(new Milestone(MilestoneKinds.Surprise, $"Surprised the scorer (similarity to anything she'd said before: {sim:0.00}): " + Sentence(replyText, 0)));
+            list.Add(new Milestone(MilestoneKinds.Surprise, $"Surprised the scorer (similarity to anything they'd said before: {sim:0.00}): " + Sentence(replyText, 0)));
         }
         return list;
     }

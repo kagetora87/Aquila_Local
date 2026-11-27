@@ -19,7 +19,7 @@ public sealed class DriveEditor
 		(DriveEvents.Interaction, "Every message from you"),
 		(DriveEvents.SessionTurn, "Each message in the same chat"),
 		(DriveEvents.Affection, "You're affectionate or flirty"),
-		(DriveEvents.Novelty, "You bring up something new to her"),
+		(DriveEvents.Novelty, "You bring up something new"),
 		(DriveEvents.Conflict, "You argue or are harsh")
 	};
 
@@ -46,11 +46,17 @@ public sealed class DriveEditor
 
 	public UIElement View { get; }
 
+	/// <summary>"female" or "male": the words used for them.</summary>
+	private readonly string gender;
+
+	private string W(string text) => Genders.Words(text, gender);
+
 	public DriveEditor(PersonaConfig config, bool setUp)
 	{
 		this.setUp = setUp;
+		gender = config.Gender;
 		StackPanel panel = new StackPanel();
-		TextBlock intro = Ui.Text("Each drive is either a need (the number is how much she wants it, like hunger: satisfying it lowers it) or a feeling level (the number is how much of it she has, like feeling safe: satisfying it raises it, and it presses on her when it's low). The one pressing hardest, times its weight, leads her reply. Renaming or removing keeps everything else she has; nothing changes until you save.", "Type.Small");
+		TextBlock intro = Ui.Text(W("Each drive is either a need (the number is how much {s} wants it, like hunger: satisfying it lowers it) or a feeling level (the number is how much of it {s} has, like feeling safe: satisfying it raises it, and it presses on {o} when it's low). The one pressing hardest, times its weight, leads {p} reply. Renaming or removing keeps everything else {s} has; nothing changes until you save."), "Type.Small");
 		intro.Margin = new Thickness(0, 0, 0, 8);
 		panel.Children.Add(intro);
 		panel.Children.Add(cards);
@@ -82,7 +88,7 @@ public sealed class DriveEditor
 	private void RefreshAdd()
 	{
 		add.IsEnabled = list.Count < Drives.MaxDrives;
-		add.ToolTip = list.Count < Drives.MaxDrives ? "A new drive of her own" : "She has the most drives allowed (" + Drives.MaxDrives + ")";
+		add.ToolTip = list.Count < Drives.MaxDrives ? W("A new drive of {p} own") : W("{S} has the most drives allowed (") + Drives.MaxDrives + ")";
 	}
 
 	private static string N(double? v) => v?.ToString(CultureInfo.InvariantCulture) ?? "";
@@ -114,8 +120,8 @@ public sealed class DriveEditor
 		string[] labels = { "Weight", "Start", "Builds /hour", "Fades /hour", "Settles at", "Step", "Lowest", "Highest" };
 		string[] tips =
 		{
-			"How much it matters when choosing what leads her reply (0 to 10).",
-			setUp && original != null ? "Only used when she's first set up (or for a drive you're adding)." : "Its value when it starts.",
+			W("How much it matters when choosing what leads {p} reply (0 to 10)."),
+			setUp && original != null ? W("Only used when {s}'s first set up (or for a drive you're adding).") : "Its value when it starts.",
 			"Points it gains every hour, whatever happens (loneliness grows while you're away).",
 			"Share of the distance to 'settles at' it loses every hour: 0.02 is 2% per hour.",
 			"The level it drifts back to over time.",
@@ -172,12 +178,12 @@ public sealed class DriveEditor
 		bool builtIn = HeuristicScorer.KnowsDrive(d.Name);
 		c.Cues = new TextBox { Text = string.Join(", ", d.Cues), AcceptsReturn = false, TextWrapping = TextWrapping.Wrap, MinHeight = 34 };
 		body.Children.Add(Labeled(horizon
-			? "Words that show she acted on it (horizon is mostly judged by what she does unprompted: things she made, chose or tried)"
+			? W("Words that show {s} acted on it (horizon is mostly judged by what {s} does unprompted: things {s} made, chose or tried)")
 			: builtIn
-				? "Extra words or phrases that show she acted on it, separated by commas (Aquila already knows some for " + d.Name + ")"
-				: "Words or phrases in her reply that show she acted on it, separated by commas (needed for a drive of your own)", c.Cues));
+				? W("Extra words or phrases that show {s} acted on it, separated by commas (Aquila already knows some for ") + d.Name + ")"
+				: W("Words or phrases in {p} reply that show {s} acted on it, separated by commas (needed for a drive of your own)"), c.Cues));
 
-		body.Children.Add(Small("What it tells her (one line each; she reads the one that fits its number)", 10));
+		body.Children.Add(Small(W("What it tells {o} (one line each; {s} reads the one that fits its number)"), 10));
 		c.Low = Line(d.Guidance.Low);
 		c.Mid = Line(d.Guidance.Mid);
 		c.High = Line(d.Guidance.High);
@@ -297,11 +303,11 @@ public sealed class DriveEditor
 			d.Guidance = new DriveGuidance { Low = c.Low.Text.Trim(), Mid = c.Mid.Text.Trim(), High = c.High.Text.Trim() };
 			if (d.Guidance.Low.Length == 0 || d.Guidance.Mid.Length == 0 || d.Guidance.High.Length == 0)
 			{
-				throw new FormatException("Write all three lines of what " + name + " tells her (low, middle and high).");
+				throw new FormatException("Write all three lines of what " + name + W(" tells {o} (low, middle and high)."));
 			}
 			if (name != Drives.Horizon && d.Cues.Count == 0 && !HeuristicScorer.KnowsDrive(name))
 			{
-				throw new FormatException("Give " + name + " a few words or phrases that show she acted on it, so Aquila can tell when it's satisfied.");
+				throw new FormatException("Give " + name + W(" a few words or phrases that show {s} acted on it, so Aquila can tell when it's satisfied."));
 			}
 			if (c.OriginalName != null && c.OriginalName != name)
 			{

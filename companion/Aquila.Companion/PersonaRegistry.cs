@@ -81,7 +81,7 @@ public sealed class PersonaRegistry
             }
             if (!configs.Add(Resolve(e.ConfigPath)) || !memories.Add(Resolve(e.MemoryPath)))
             {
-                throw new PersonaConfigException($"Persona '{e.Id}' shares a config or memory file with another persona. Every persona needs her own, so memories can't leak between them.");
+                throw new PersonaConfigException($"Persona '{e.Id}' shares a config or memory file with another persona. Every persona needs its own, so memories can't leak between them.");
             }
         }
         if (m.Active.Length > 0 && !ids.Contains(m.Active))

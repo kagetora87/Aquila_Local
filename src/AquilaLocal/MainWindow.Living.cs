@@ -192,7 +192,7 @@ public partial class MainWindow
 	{
 		bool waiting = LatestChatWith(personaId)?.Turns.LastOrDefault()?.Unprompted == true;
 		List<DateTimeOffset> earlier = Journal.Read(personaId).Where((JournalEntry e) => e.MessagedYou).Select((JournalEntry e) => e.At).ToList();
-		return LivingSchedule.WhyNoMessage(now, now.LocalDateTime.Hour, 1.0, earlier, waiting, policy);
+		return LivingSchedule.WhyNoMessage(now, now.LocalDateTime.Hour, 1.0, earlier, waiting, policy, GenderOf(personaId));
 	}
 
 	/// <summary>She messages you about the dream (or feeling) that stayed with her, then lets it go.</summary>
@@ -299,13 +299,14 @@ public partial class MainWindow
 				companion.LoadAboutYou().Render(),
 				canLookUp,
 				asleep,
-				moodText);
+				moodText,
+				config.Gender);
 
 			if (asleep)
 			{
 				SetLivingStatus(name + " is dreaming…");
 			}
-			string system = asleep ? InnerLifePrompt.DreamSystem(name) : InnerLifePrompt.WriterSystem(name, canLookUp);
+			string system = asleep ? InnerLifePrompt.DreamSystem(name, config.Gender) : InnerLifePrompt.WriterSystem(name, canLookUp, config.Gender);
 			InnerThought thought = InnerLifePrompt.Parse(await AskInnerLifeAsync(system, InnerLifePrompt.WriterUser(input), ct), name);
 			JournalEntry entry = new JournalEntry { PersonaId = personaId, At = now };
 			if (thought.LookUp.Length > 0 && canLookUp)
@@ -315,7 +316,7 @@ public partial class MainWindow
 				if (found.Length > 0)
 				{
 					SetLivingStatus(name + " is reading about “" + thought.LookUp + "”…");
-					InnerThought after = InnerLifePrompt.Parse(await AskInnerLifeAsync(InnerLifePrompt.WriterSystem(name, canLookUp: false), InnerLifePrompt.AfterLookUpUser(input, thought, found), ct), name);
+					InnerThought after = InnerLifePrompt.Parse(await AskInnerLifeAsync(InnerLifePrompt.WriterSystem(name, canLookUp: false, config.Gender), InnerLifePrompt.AfterLookUpUser(input, thought, found), ct), name);
 					thought = after with { LookUp = thought.LookUp, MoodWord = after.MoodWord.Length > 0 ? after.MoodWord : thought.MoodWord, MoodStrength = after.MoodWord.Length > 0 ? after.MoodStrength : thought.MoodStrength, MoodWhy = after.MoodWord.Length > 0 ? after.MoodWhy : thought.MoodWhy };
 				}
 				else
@@ -360,7 +361,7 @@ public partial class MainWindow
 				ChatSession? chat = chats.Where((ChatSession c) => c.PersonaId == personaId && !c.IsCall && c.Turns.Count > 0).OrderByDescending((ChatSession c) => c.Updated).FirstOrDefault();
 				bool waiting = chat?.Turns.LastOrDefault()?.Unprompted == true;
 				List<DateTimeOffset> earlier = history.Where((JournalEntry e) => e.MessagedYou).Select((JournalEntry e) => e.At).ToList();
-				string? whyNot = LivingSchedule.WhyNoMessage(now, now.LocalDateTime.Hour, thought.Urge, earlier, waiting, settings.Living.Policy());
+				string? whyNot = LivingSchedule.WhyNoMessage(now, now.LocalDateTime.Hour, thought.Urge, earlier, waiting, settings.Living.Policy(), config.Gender);
 				if (whyNot == null)
 				{
 					SetLivingStatus(name + " is writing to you…");
@@ -442,8 +443,8 @@ public partial class MainWindow
 				references = AquilaLocal.Companion.Pictures.PictureFiles.References(companion.Folder(personaId)).Take(AquilaLocal.Companion.Pictures.PictureCommand.MaxReferences).ToList();
 			}
 		}
-		AquilaLocal.Companion.Pictures.PictureRequest request = new AquilaLocal.Companion.Pictures.PictureRequest("Her dream: " + dream.Text + " Paint it dreamlike: soft, surreal light and a slightly impossible feel.", dream.SheIsInIt, "scene");
-		string prompt = await WritePicturePromptAsync(request, "", dream.SheIsInIt ? name : null, appearance, references.Count > 0, "inside her dream", ct);
+		AquilaLocal.Companion.Pictures.PictureRequest request = new AquilaLocal.Companion.Pictures.PictureRequest((Genders.IsMale(runtime.Config.Gender) ? "His" : "Her") + " dream: " + dream.Text + " Paint it dreamlike: soft, surreal light and a slightly impossible feel.", dream.SheIsInIt, "scene");
+		string prompt = await WritePicturePromptAsync(request, "", dream.SheIsInIt ? name : null, appearance, references.Count > 0, "inside " + Genders.Possessive(runtime.Config.Gender) + " dream", ct, runtime.Config.Gender);
 		return await DrawAsync(model, AquilaLocal.Companion.Pictures.PicturePrompt.WithReferences(prompt, references.Count), forVideo ? AquilaLocal.Companion.Pictures.VideoRequest.StillSize : request.Size(), references, name + " dream", ct);
 	}
 

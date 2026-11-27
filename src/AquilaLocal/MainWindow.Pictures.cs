@@ -207,7 +207,7 @@ public partial class MainWindow
 			recent.Add((turn.User, turn.Answer));
 			string conversation = PicturePrompt.Conversation(recent, speaker);
 			PictureStatus("Writing the picture prompt…");
-			string prompt = await WritePicturePromptAsync(request, conversation, name, appearance, references.Count > 0, session.Location, ct);
+			string prompt = await WritePicturePromptAsync(request, conversation, name, appearance, references.Count > 0, session.Location, ct, session.IsCompanion ? GenderOf(session.PersonaId) : Genders.Female);
 			string output = await DrawAsync(model, PicturePrompt.WithReferences(prompt, references.Count), request.Size(), references, request.Description, ct);
 			turn.Pictures.Add(output);
 			if (replyViews.TryGetValue(turn.Id, out MessageView? view))

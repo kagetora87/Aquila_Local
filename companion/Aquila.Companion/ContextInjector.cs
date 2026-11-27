@@ -56,7 +56,7 @@ public static class ContextInjector
         int tokens = TokenEstimate.Of(block);
         if (tokens > MaxAppearanceTokens)
         {
-            throw new AppearanceCardUnavailableException(card.PersonaId, $"{name}'s appearance card is about {tokens} tokens, over the {MaxAppearanceTokens}-token cap. Shorten her traits or outfit.");
+            throw new AppearanceCardUnavailableException(card.PersonaId, $"{name}'s appearance card is about {tokens} tokens, over the {MaxAppearanceTokens}-token cap. Shorten the traits or outfit.");
         }
         return block;
     }
@@ -96,7 +96,7 @@ public static class ContextInjector
         int tokens = TokenEstimate.Of(block);
         if (tokens > MaxDriveBlockTokens)
         {
-            throw new InvalidOperationException($"The drive block for {config.Name} is about {tokens} tokens, over the {MaxDriveBlockTokens}-token cap. Shorten her guidance lines.");
+            throw new InvalidOperationException($"The drive block for {config.Name} is about {tokens} tokens, over the {MaxDriveBlockTokens}-token cap. Shorten the guidance lines.");
         }
         return block;
     }
