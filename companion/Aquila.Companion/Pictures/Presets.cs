@@ -24,6 +24,72 @@ public static class PresetKinds
 }
 
 /// <summary>
+/// Who and what style the small choice pictures show (Generate presets and the Create Companion steps):
+/// the woman, the man and the art style, in your own words. Kept in Data\presets\tile-style.json.
+/// </summary>
+public sealed class TileStyle
+{
+    public const int MaxChars = 300;
+
+    public const string DefaultWoman = "a young adult woman";
+    public const string DefaultMan = "a young adult man";
+    public const string DefaultArt = "anime illustration, clean line art, soft cel shading";
+
+    /// <summary>Who's in the pictures (every preset except the men's outfits).</summary>
+    public string Woman { get; set; } = DefaultWoman;
+
+    /// <summary>Who's in the men's outfit pictures and the male creator choices.</summary>
+    public string Man { get; set; } = DefaultMan;
+
+    /// <summary>How the pictures are drawn.</summary>
+    public string Art { get; set; } = DefaultArt;
+
+    public bool IsDefault => Woman == DefaultWoman && Man == DefaultMan && Art == DefaultArt;
+
+    /// <summary>The tiles' folder: "anime" for the starting style, else one named after the words, so a change draws them again.</summary>
+    public string Folder
+    {
+        get
+        {
+            if (IsDefault)
+            {
+                return "anime";
+            }
+            byte[] hash = System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(Woman + "\n" + Man + "\n" + Art));
+            return "style-" + Convert.ToHexString(hash, 0, 4).ToLowerInvariant();
+        }
+    }
+
+    /// <summary>The words for the person: the man for men-only choices, else the woman.</summary>
+    public string Person(string gender) => Genders.IsMale(gender) ? Man : Woman;
+
+    /// <summary>The art style, starting with a capital, for the front of a prompt.</summary>
+    public string ArtLead => Art.Length == 0 ? Art : char.ToUpperInvariant(Art[0]) + Art[1..];
+
+    /// <summary>Tidies the words (trimmed, no full stop at the end) and checks them; fails loud on empty or long ones.</summary>
+    public void Validate()
+    {
+        Woman = Tidy(Woman, "who the women are");
+        Man = Tidy(Man, "who the men are");
+        Art = Tidy(Art, "the art style");
+    }
+
+    private static string Tidy(string? text, string what)
+    {
+        string t = (text ?? "").Replace('\r', ' ').Replace('\n', ' ').Trim().TrimEnd('.').Trim();
+        if (t.Length == 0)
+        {
+            throw new PersonaConfigException("Describe " + what + ".");
+        }
+        if (t.Length > MaxChars)
+        {
+            throw new PersonaConfigException("Keep " + what + " under " + MaxChars + " characters.");
+        }
+        return t;
+    }
+}
+
+/// <summary>
 /// One preset: what it adds to the picture (Prompt), the shot it suits (actions only), what moves in a video
 /// (actions only), and who it fits ("" anyone, or "female" / "male" for some outfits).
 /// </summary>
@@ -64,8 +130,49 @@ public sealed class PresetLibrary
 
     public string TilesFolder => Path.Combine(Root, "tiles");
 
-    /// <summary>A preset or creator tile; in a folder named after the tile style, so a style change draws them all again.</summary>
-    public string StyledTilePath(string id) => Path.Combine(TilesFolder, "anime", id + ".png");
+    public string StylePath => Path.Combine(Root, "tile-style.json");
+
+    private TileStyle? style;
+
+    /// <summary>Who and what style the small pictures show (read once; the starting style if you haven't changed it).</summary>
+    public TileStyle Style
+    {
+        get
+        {
+            if (style == null)
+            {
+                TileStyle loaded = new();
+                if (File.Exists(StylePath))
+                {
+                    try
+                    {
+                        loaded = JsonSerializer.Deserialize<TileStyle>(File.ReadAllText(StylePath), Json) ?? throw new PersonaConfigException("The picture style file is empty: " + StylePath);
+                    }
+                    catch (JsonException ex)
+                    {
+                        throw new PersonaConfigException("The picture style file isn't valid (" + StylePath + "): " + ex.Message, ex);
+                    }
+                    loaded.Validate();
+                }
+                style = loaded;
+            }
+            return style;
+        }
+    }
+
+    /// <summary>Saves a new style. Its pictures go in their own folder, so the missing ones are offered again.</summary>
+    public void SaveStyle(TileStyle next)
+    {
+        next.Validate();
+        Directory.CreateDirectory(Root);
+        string temp = StylePath + ".saving";
+        File.WriteAllText(temp, JsonSerializer.Serialize(next, Json));
+        File.Move(temp, StylePath, overwrite: true);
+        style = next;
+    }
+
+    /// <summary>A preset or creator tile, in the current style's folder.</summary>
+    public string StyledTilePath(string id) => Path.Combine(TilesFolder, Style.Folder, id + ".png");
 
     public static readonly IReadOnlyList<GenPreset> BuiltIn = new List<GenPreset>
     {
@@ -241,16 +348,16 @@ public sealed class PresetLibrary
     /// The prompt for a preset's small picture: an adult model in casual clothes doing the action, a model
     /// wearing the outfit on a plain backdrop, or the place itself with nobody in it.
     /// </summary>
-    public static string TilePrompt(GenPreset p)
+    public static string TilePrompt(GenPreset p, TileStyle? style = null)
     {
-        // A woman unless the preset is for men only: most companions are women, and a vague "young adult"
-        // let the picture model pick a man. Anime style to match how companions usually look.
-        string person = p.For == Genders.Male ? "a young adult man" : "a young adult woman";
+        // The woman unless the preset is for men only: a vague "young adult" let the picture model pick a man.
+        TileStyle s = style ?? new TileStyle();
+        string person = s.Person(p.For);
         return p.Kind switch
         {
-            PresetKinds.Action => $"Anime illustration of {person} in simple casual clothes, {p.Prompt}. Clean line art, soft cel shading, soft light, simple softly blurred background, centered.",
-            PresetKinds.Outfit => $"Anime illustration of {person} wearing {p.Prompt}, full body, standing, plain light grey background, clean line art, soft cel shading, even light.",
-            _ => $"{Capital(p.Prompt)}. No people. Anime background art, atmospheric wide view, clean line art, soft light, detailed."
+            PresetKinds.Action => $"{s.ArtLead}. {Capital(person)} in simple casual clothes, {p.Prompt}. Soft light, simple softly blurred background, centered.",
+            PresetKinds.Outfit => $"{s.ArtLead}. {Capital(person)} wearing {p.Prompt}, full body, standing, plain light grey background, even light.",
+            _ => $"{s.ArtLead}. {Capital(p.Prompt)}. No people. Atmospheric wide view, soft light, detailed."
         };
     }
 

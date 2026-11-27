@@ -12,6 +12,27 @@ namespace AquilaLocal;
 public partial class App : Application
 {
 
+	/// <summary>Writes the whole error (with where it happened) to Data\errors.log, so it can be fixed. Returns a line for the message.</summary>
+	private static string LogError(Exception ex)
+	{
+		try
+		{
+			string folder = Path.Combine(AppContext.BaseDirectory, "Data");
+			Directory.CreateDirectory(folder);
+			string path = Path.Combine(folder, "errors.log");
+			if (File.Exists(path) && new FileInfo(path).Length > 2_000_000)
+			{
+				File.Delete(path);
+			}
+			File.AppendAllText(path, DateTimeOffset.Now.ToString("yyyy-MM-dd HH:mm:ss zzz", System.Globalization.CultureInfo.InvariantCulture) + Environment.NewLine + ex + Environment.NewLine + Environment.NewLine);
+			return Environment.NewLine + Environment.NewLine + "The details were saved to Data\\errors.log.";
+		}
+		catch (Exception logEx) when (logEx is IOException || logEx is UnauthorizedAccessException)
+		{
+			return "";
+		}
+	}
+
 	protected override void OnStartup(StartupEventArgs e)
 	{
 		Environment.SetEnvironmentVariable("ORT_DISABLE_TELEMETRY", "1", EnvironmentVariableTarget.Process);
@@ -19,7 +40,8 @@ public partial class App : Application
 		Motion.Initialize(this);
 		base.DispatcherUnhandledException += delegate(object _, DispatcherUnhandledExceptionEventArgs args)
 		{
-			AquilaDialog.Alert(Current?.MainWindow, "Something went wrong", args.Exception.Message);
+			string where = LogError(args.Exception);
+			AquilaDialog.Alert(Current?.MainWindow, "Something went wrong", args.Exception.Message + where);
 			args.Handled = true;
 		};
 		if (e.Args.Contains("--verify"))

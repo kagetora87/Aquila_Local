@@ -351,4 +351,24 @@ public static class PictureFiles
             .OrderBy(f => Path.GetFileName(f), StringComparer.OrdinalIgnoreCase)
             .ToList();
     }
+
+    /// <summary>Pictures made of them on the Generate screen (named "...-generate-name"), newest first.</summary>
+    public static List<string> MadeOf(string picturesRoot, string name, int max = 40)
+    {
+        string slug = Regex.Replace(("generate " + name).ToLowerInvariant(), @"[^a-z0-9]+", "-").Trim('-');
+        if (slug.Length > 40)
+        {
+            slug = slug[..40].Trim('-');
+        }
+        if (!Directory.Exists(picturesRoot) || slug == "generate")
+        {
+            return new List<string>();
+        }
+        Regex own = new("^\\d{8}-\\d{6}-" + Regex.Escape(slug) + "(-\\d+)?$");
+        return Directory.EnumerateFiles(picturesRoot, "*.png", SearchOption.AllDirectories)
+            .Where(f => own.IsMatch(Path.GetFileNameWithoutExtension(f)))
+            .OrderByDescending(f => Path.GetFileName(f), StringComparer.Ordinal)
+            .Take(max)
+            .ToList();
+    }
 }

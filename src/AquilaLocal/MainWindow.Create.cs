@@ -210,7 +210,21 @@ public partial class MainWindow
 			h.Margin = new Thickness(0, 4, 0, 0);
 			body.Children.Add(h);
 		}
-		List<TileJob> missing = CreatorOptions.TileJobs().Where((TileJob j) => !File.Exists(Presets.StyledTilePath(j.Id))).ToList();
+		Button styleLink = Ui.Button(Ui.IconLabel("\uE790", "Picture style…"), "Btn.Link", delegate { OpenTileStyle(); });
+		styleLink.ToolTip = "Who's in these small pictures and how they're drawn, with a test";
+		styleLink.HorizontalAlignment = HorizontalAlignment.Left;
+		styleLink.Margin = new Thickness(0, 6, 0, 0);
+		body.Children.Add(styleLink);
+		List<TileJob> missing;
+		try
+		{
+			missing = CreatorOptions.TileJobs(Presets.Style).Where((TileJob j) => !File.Exists(Presets.StyledTilePath(j.Id))).ToList();
+		}
+		catch (PersonaConfigException ex)
+		{
+			body.Children.Add(Ui.Text(ex.Message, "Type.Small"));
+			missing = new List<TileJob>();
+		}
 		if (missing.Count > 0 || makingTiles)
 		{
 			body.Children.Add(TileBanner(missing));
@@ -222,7 +236,7 @@ public partial class MainWindow
 			CreatorOption option = o;
 			bool on = chosen?.Key == o.Key;
 			bool big = kind == CreatorKinds.Gender;
-			Button tile = ChoiceTile(Presets.StyledTilePath(CreatorOptions.TileId(o, gender)), o.Label, on, big ? 220 : 150, big ? 280 : 190);
+			Button tile = ChoiceTile(TilePathOrNone(CreatorOptions.TileId(o, gender)), o.Label, on, big ? 220 : 150, big ? 280 : 190);
 			tile.Click += delegate
 			{
 				draft.Choose(kind, option.Key);

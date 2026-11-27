@@ -160,4 +160,52 @@ public sealed class PresetTests : IDisposable
         Assert.Contains("eyes: grey-green", bare);
         Assert.Contains("star tattoo", bare);
     }
+
+    [Fact]
+    public void TileStyleSetsWhoAndHowAndMovesTheTiles()
+    {
+        PresetLibrary lib = new(root);
+        Assert.True(lib.Style.IsDefault);
+        Assert.EndsWith(Path.Combine("tiles", "anime", "action-smile.png"), lib.StyledTilePath("action-smile"));
+        GenPreset smile = PresetLibrary.BuiltIn.First(p => p.Id == "action-smile");
+        GenPreset tux = PresetLibrary.BuiltIn.First(p => p.Id == "outfit-tux");
+        TileStyle mine = new() { Woman = "a petite woman in her twenties with freckles.", Man = "a tall bearded man", Art = "watercolour painting" };
+        lib.SaveStyle(mine);
+        Assert.Equal("a petite woman in her twenties with freckles", mine.Woman);
+        string prompt = PresetLibrary.TilePrompt(smile, lib.Style);
+        Assert.StartsWith("Watercolour painting. A petite woman in her twenties with freckles", prompt);
+        Assert.Contains("a tall bearded man".Substring(1), PresetLibrary.TilePrompt(tux, lib.Style));
+        Assert.DoesNotContain("anime", prompt, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(Path.Combine("tiles", "anime"), lib.StyledTilePath("action-smile"));
+        Assert.Contains(lib.Load(), p => p.Id == "action-smile");
+        Assert.Contains(lib.MissingTiles(), p => p.Id == "action-smile");
+
+        PresetLibrary again = new(root);
+        Assert.Equal("watercolour painting", again.Style.Art);
+        Assert.Equal(lib.StyledTilePath("x"), again.StyledTilePath("x"));
+        string creator = CreatorOptions.TilePrompt(CreatorOptions.Find(CreatorKinds.Gender, Genders.Male)!, Genders.Female, again.Style);
+        Assert.Contains("tall bearded man", creator);
+        Assert.StartsWith("Watercolour painting.", creator);
+
+        Assert.Throws<PersonaConfigException>(() => lib.SaveStyle(new TileStyle { Woman = "  " }));
+        Assert.Throws<PersonaConfigException>(() => lib.SaveStyle(new TileStyle { Art = new string('a', TileStyle.MaxChars + 1) }));
+        File.WriteAllText(lib.StylePath, "{ not json");
+        Assert.Throws<PersonaConfigException>(() => new PresetLibrary(root).Style);
+    }
+
+    [Fact]
+    public void MadeOfFindsTheirGeneratedPicturesNewestFirst()
+    {
+        string pics = Path.Combine(root, "pictures");
+        string a = PictureFiles.NewOutput(pics, "generate Vicki", new DateTimeOffset(2026, 11, 1, 10, 0, 0, TimeSpan.Zero));
+        string b = PictureFiles.NewOutput(pics, "generate Vicki", new DateTimeOffset(2026, 11, 27, 10, 0, 0, TimeSpan.Zero));
+        string other = PictureFiles.NewOutput(pics, "generate Vickie", new DateTimeOffset(2026, 11, 27, 11, 0, 0, TimeSpan.Zero));
+        string dream = PictureFiles.NewOutput(pics, "Vicki dream", new DateTimeOffset(2026, 11, 27, 12, 0, 0, TimeSpan.Zero));
+        foreach (string f in new[] { a, b, other, dream })
+        {
+            File.WriteAllText(f, "x");
+        }
+        Assert.Equal(new[] { b, a }, PictureFiles.MadeOf(pics, "Vicki"));
+        Assert.Empty(PictureFiles.MadeOf(Path.Combine(root, "none"), "Vicki"));
+    }
 }

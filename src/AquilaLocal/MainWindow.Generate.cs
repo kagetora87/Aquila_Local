@@ -176,6 +176,12 @@ public partial class MainWindow
 		tabBox.Child = tabs;
 		DockPanel.SetDock(tabBox, Dock.Top);
 		right.Children.Add(tabBox);
+		Button styleLink = Ui.Button(Ui.IconLabel("\uE790", "Picture style…"), "Btn.Link", delegate { OpenTileStyle(); });
+		styleLink.ToolTip = "Who's in these small pictures and how they're drawn, with a test";
+		styleLink.HorizontalAlignment = HorizontalAlignment.Right;
+		styleLink.Margin = new Thickness(0, 0, 0, 8);
+		DockPanel.SetDock(styleLink, Dock.Top);
+		right.Children.Add(styleLink);
 		genTileBanner = new StackPanel();
 		DockPanel.SetDock(genTileBanner, Dock.Top);
 		right.Children.Add(genTileBanner);
@@ -457,7 +463,7 @@ public partial class MainWindow
 	private Button Tile(GenPreset p, bool on)
 	{
 		Grid face = new Grid();
-		ImageSource? picture = TilePicture(Presets.StyledTilePath(p.Id));
+		ImageSource? picture = TilePicture(TilePathOrNone(p.Id));
 		if (picture != null)
 		{
 			face.Children.Add(new Border { CornerRadius = new CornerRadius(8), Background = new ImageBrush(picture) { Stretch = Stretch.UniformToFill } });
@@ -553,7 +559,7 @@ public partial class MainWindow
 		List<TileJob> jobs;
 		try
 		{
-			jobs = (only ?? Presets.MissingTiles()).Select((GenPreset p) => new TileJob(p.Id, p.Name, PresetLibrary.TilePrompt(p))).ToList();
+			jobs = (only ?? Presets.MissingTiles()).Select((GenPreset p) => new TileJob(p.Id, p.Name, PresetLibrary.TilePrompt(p, Presets.Style))).ToList();
 		}
 		catch (PersonaConfigException ex)
 		{
@@ -561,6 +567,68 @@ public partial class MainWindow
 			return Task.CompletedTask;
 		}
 		return RunTilesAsync(jobs, FillTiles, ShowGenStatus);
+	}
+
+	/// <summary>A small picture's file, or "" when the picture style file can't be read (the page says why).</summary>
+	private string TilePathOrNone(string id)
+	{
+		try
+		{
+			return Presets.StyledTilePath(id);
+		}
+		catch (PersonaConfigException)
+		{
+			return "";
+		}
+	}
+
+	/// <summary>Picture style: who's in the small choice pictures and how they're drawn, with a test picture.</summary>
+	private void OpenTileStyle()
+	{
+		if (makingTiles || generating || busy)
+		{
+			Notice("Wait for the pictures or the reply to finish, then open Picture style.");
+			return;
+		}
+		TileStyleWindow window;
+		try
+		{
+			window = new TileStyleWindow(Presets, DrawStyleTestAsync) { Owner = this };
+		}
+		catch (PersonaConfigException ex)
+		{
+			Notice(ex.Message);
+			return;
+		}
+		window.ShowDialog();
+		if (window.Saved)
+		{
+			RefreshPage();
+		}
+	}
+
+	/// <summary>Draws one test picture for Picture style with the fast model.</summary>
+	private async Task DrawStyleTestAsync(string prompt, string path, CancellationToken ct)
+	{
+		(bool ready, string problem) = PictureDrawer.Kit.Check(PictureModels.Fast);
+		if (!ready)
+		{
+			throw new InvalidOperationException("the picture engine isn't ready: " + problem);
+		}
+		if (makingTiles || generating || busy)
+		{
+			throw new InvalidOperationException("something else is being made right now.");
+		}
+		makingTiles = true;
+		try
+		{
+			await DrawAsync(PictureModels.Fast, prompt, PresetLibrary.TileSize, Array.Empty<string>(), "preset", ct, path);
+		}
+		finally
+		{
+			makingTiles = false;
+			PictureStatus(null);
+		}
 	}
 
 	/// <summary>Draws small pictures with the fast model, one at a time; refresh shows each as it's done.</summary>

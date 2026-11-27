@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.RegularExpressions;
+using AquilaLocal.Companion.Pictures;
 
 namespace AquilaLocal.Companion;
 
@@ -91,34 +92,36 @@ public static class CreatorOptions
     /// <summary>Ethnicity tiles are shown for each gender, so their pictures are per gender too.</summary>
     public static string TileId(CreatorOption o, string gender) => o.Kind == CreatorKinds.Ethnicity ? $"create-{o.Kind}-{gender}-{o.Key}" : $"create-{o.Kind}-{o.Key}";
 
-    public static string TilePrompt(CreatorOption o, string gender)
+    public static string TilePrompt(CreatorOption o, string gender, TileStyle? style = null)
     {
-        string person = "a young adult " + (Genders.IsMale(gender) ? "man" : "woman");
-        const string Studio = "plain light grey background, soft even light, clean line art, soft cel shading";
+        TileStyle s = style ?? new TileStyle();
+        string g = o.Kind == CreatorKinds.Gender ? o.Key : gender;
+        string person = s.Person(g);
+        const string Studio = "plain light grey background, soft even light";
         return o.Kind switch
         {
-            CreatorKinds.Gender => $"Anime illustration, portrait of a young adult {o.Text}, warm friendly smile, simple casual top, {Studio}.",
-            CreatorKinds.Ethnicity => $"Anime illustration, portrait of a young adult {o.Text} {(Genders.IsMale(gender) ? "man" : "woman")}, friendly relaxed expression, simple casual top, {Studio}.",
-            CreatorKinds.Hair => $"Anime illustration, head and shoulders of {person} with {o.Text}, natural hair colour, simple casual top, {Studio}.",
-            _ => $"Anime illustration, full body of {person} with {o.Text}, wearing simple fitted casual clothes, standing relaxed, {Studio}."
+            CreatorKinds.Gender => $"{s.ArtLead}. Portrait of {person}, warm friendly smile, simple casual top, {Studio}.",
+            CreatorKinds.Ethnicity => $"{s.ArtLead}. Portrait of {person}, {o.Text}, friendly relaxed expression, simple casual top, {Studio}.",
+            CreatorKinds.Hair => $"{s.ArtLead}. Head and shoulders of {person} with {o.Text}, natural hair colour, simple casual top, {Studio}.",
+            _ => $"{s.ArtLead}. Full body of {person} with {o.Text}, wearing simple fitted casual clothes, standing relaxed, {Studio}."
         };
     }
 
     /// <summary>Every small picture the creator shows, once.</summary>
-    public static List<TileJob> TileJobs()
+    public static List<TileJob> TileJobs(TileStyle? style = null)
     {
         List<TileJob> jobs = new();
         foreach (CreatorOption o in All)
         {
             if (o.Kind == CreatorKinds.Ethnicity)
             {
-                jobs.Add(new TileJob(TileId(o, Genders.Female), o.Label + " (female)", TilePrompt(o, Genders.Female)));
-                jobs.Add(new TileJob(TileId(o, Genders.Male), o.Label + " (male)", TilePrompt(o, Genders.Male)));
+                jobs.Add(new TileJob(TileId(o, Genders.Female), o.Label + " (female)", TilePrompt(o, Genders.Female, style)));
+                jobs.Add(new TileJob(TileId(o, Genders.Male), o.Label + " (male)", TilePrompt(o, Genders.Male, style)));
             }
             else
             {
                 string g = o.Kind == CreatorKinds.Gender ? o.Key : (o.For.Length > 0 ? o.For : Genders.Female);
-                jobs.Add(new TileJob(TileId(o, g), o.Label, TilePrompt(o, g)));
+                jobs.Add(new TileJob(TileId(o, g), o.Label, TilePrompt(o, g, style)));
             }
         }
         return jobs;
