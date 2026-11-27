@@ -138,10 +138,32 @@ public partial class MainWindow
 			}
 			PictureStatus("Drawing a picture…");
 			long seed = Random.Shared.NextInt64(1, int.MaxValue);
-			await PictureDrawer.DrawAsync(model, new PictureJob(prompt, size.Width, size.Height, references, seed, output), delegate(int step, int of)
+			PictureJob job = new PictureJob(prompt, size.Width, size.Height, references, seed, output);
+			Action<int, int> progress = delegate(int step, int of)
 			{
 				base.Dispatcher.InvokeAsync(() => PictureStatus($"Drawing a picture… {step}/{of}"));
-			}, ct);
+			};
+			try
+			{
+				await PictureDrawer.DrawAsync(model, job, progress, ct);
+			}
+			catch (IOException first) when (!paused && engine.Ready && !ct.IsCancellationRequested)
+			{
+				// The fast model usually fits beside the chat model, but a long chat (or reference pictures)
+				// can leave too little graphics memory. Pause the chat model and try once more; if that
+				// fails too, both errors are shown.
+				PictureStatus("Not enough graphics memory beside the chat model. Pausing it and trying again…");
+				restore = await engine.ParkAsync(ct);
+				paused = true;
+				try
+				{
+					await PictureDrawer.DrawAsync(model, job, progress, ct);
+				}
+				catch (IOException second)
+				{
+					throw new IOException(second.Message + Environment.NewLine + Environment.NewLine + "(It also failed beside the chat model: " + first.Message + ")", second);
+				}
+			}
 			File.WriteAllText(Path.ChangeExtension(output, ".txt"), prompt + Environment.NewLine + Environment.NewLine + "Model: " + PictureModels.Label(model) + Environment.NewLine + "Seed: " + seed + Environment.NewLine + "References: " + string.Join(", ", references.Select(Path.GetFileName)));
 			return output;
 		}
