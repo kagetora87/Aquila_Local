@@ -444,7 +444,7 @@ public partial class MainWindow
 			}
 		}
 		AquilaLocal.Companion.Pictures.PictureRequest request = new AquilaLocal.Companion.Pictures.PictureRequest((Genders.IsMale(runtime.Config.Gender) ? "His" : "Her") + " dream: " + dream.Text + " Paint it dreamlike: soft, surreal light and a slightly impossible feel.", dream.SheIsInIt, "scene");
-		string prompt = await WritePicturePromptAsync(request, "", dream.SheIsInIt ? name : null, appearance, references.Count > 0, "inside " + Genders.Possessive(runtime.Config.Gender) + " dream", ct, runtime.Config.Gender);
+		string prompt = await WritePicturePromptAsync(request, "", dream.SheIsInIt ? name : null, appearance, references.Count > 0, "inside " + Genders.Possessive(runtime.Config.Gender) + " dream", ct, runtime.Config.Gender, model);
 		return await DrawAsync(model, AquilaLocal.Companion.Pictures.PicturePrompt.WithReferences(prompt, references.Count), forVideo ? AquilaLocal.Companion.Pictures.VideoRequest.StillSize : request.Size(), references, name + " dream", ct);
 	}
 

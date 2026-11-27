@@ -152,16 +152,16 @@ public partial class MainWindow
 		genMotionRow = Ui.Field("What happens in the video", genMotionBox, "Leave empty to use the action's own movement.", 14);
 		left.Children.Add(genMotionRow);
 
-		ComboBox model = new ComboBox { ItemsSource = new[] { PictureModels.Label(PictureModels.Fast), PictureModels.Label(PictureModels.Best) }, SelectedIndex = genModel == PictureModels.Best ? 1 : 0, Width = 300, HorizontalAlignment = HorizontalAlignment.Left };
+		ComboBox model = new ComboBox { ItemsSource = PictureModels.All.Select(m => m.Label).ToList(), SelectedIndex = PictureModels.IndexOf(genModel), Width = 300, HorizontalAlignment = HorizontalAlignment.Left };
 		model.SelectionChanged += delegate
 		{
-			genModel = model.SelectedIndex == 1 ? PictureModels.Best : PictureModels.Fast;
+			genModel = PictureModels.All[Math.Max(0, model.SelectedIndex)].Key;
 			if (genEncoderRow != null)
 			{
-				genEncoderRow.Visibility = genModel == PictureModels.Best ? Visibility.Collapsed : Visibility.Visible;
+				genEncoderRow.Visibility = genModel == PictureModels.Fast ? Visibility.Visible : Visibility.Collapsed;
 			}
 		};
-		left.Children.Add(Ui.Field("Picture engine", model, "Fast takes about 15 seconds. Best quality takes about a minute and pauses the chat model while it draws.", 14));
+		left.Children.Add(Ui.Field("Picture engine", model, "Fast takes about 15 seconds. Best quality takes about a minute and pauses the chat model while it draws. Anime draws anime only, without censoring bodies, and can't use reference pictures.", 14));
 		ComboBox encoder = new ComboBox { ItemsSource = KleinEncoders.All.Select(e => e.Label).ToList(), Width = 300, HorizontalAlignment = HorizontalAlignment.Left };
 		encoder.SelectedIndex = Math.Max(0, KleinEncoders.All.ToList().FindIndex(e => e.Key == settings.Pictures.KleinEncoder));
 		encoder.SelectionChanged += delegate
@@ -187,7 +187,7 @@ public partial class MainWindow
 			}
 		};
 		StackPanel encoderRow = Ui.Field("Text encoder (fast engine)", encoder, "How the fast engine reads the prompt. Uncensored has its refusal training removed; 8-bit is recommended.", 10);
-		encoderRow.Visibility = genModel == PictureModels.Best ? Visibility.Collapsed : Visibility.Visible;
+		encoderRow.Visibility = genModel == PictureModels.Fast ? Visibility.Visible : Visibility.Collapsed;
 		left.Children.Add(encoderRow);
 		genEncoderRow = encoderRow;
 
@@ -684,10 +684,10 @@ public partial class MainWindow
 		}
 	}
 
-	/// <summary>Draws one test picture for Picture style with the fast model.</summary>
-	private async Task DrawStyleTestAsync(string prompt, IReadOnlyList<string> references, string path, CancellationToken ct)
+	/// <summary>Draws one test picture for Picture style with the engine chosen there.</summary>
+	private async Task DrawStyleTestAsync(string engineKey, string prompt, IReadOnlyList<string> references, string path, CancellationToken ct)
 	{
-		(bool ready, string problem) = PictureDrawer.Kit.Check(PictureModels.Fast);
+		(bool ready, string problem) = PictureDrawer.Kit.Check(engineKey);
 		if (!ready)
 		{
 			throw new InvalidOperationException("the picture engine isn't ready: " + problem);
@@ -699,7 +699,7 @@ public partial class MainWindow
 		makingTiles = true;
 		try
 		{
-			await DrawAsync(PictureModels.Fast, prompt, PresetLibrary.TileSize, references, "preset", ct, path);
+			await DrawAsync(engineKey, prompt, PresetLibrary.TileSize, references, "preset", ct, path);
 		}
 		finally
 		{
@@ -708,14 +708,15 @@ public partial class MainWindow
 		}
 	}
 
-	/// <summary>Draws small pictures with the fast model, one at a time; refresh shows each as it's done.</summary>
+	/// <summary>Draws small pictures with Picture style's engine, one at a time; refresh shows each as it's done.</summary>
 	private async Task RunTilesAsync(List<TileJob> todo, Action refresh, Action<string, bool> status)
 	{
 		if (makingTiles || generating || busy || todo.Count == 0)
 		{
 			return;
 		}
-		(bool ready, string problem) = PictureDrawer.Kit.Check(PictureModels.Fast);
+		string tileEngine = Presets.Style.Engine;
+		(bool ready, string problem) = PictureDrawer.Kit.Check(tileEngine);
 		if (!ready)
 		{
 			status("The pictures can't be made yet: " + problem, true);
@@ -737,7 +738,7 @@ public partial class MainWindow
 				status("Making pictures… " + (done + 1) + " of " + todo.Count + " (" + job.Name + ")", false);
 				string tilePath = Presets.StyledTilePath(job.Id);
 				Directory.CreateDirectory(Path.GetDirectoryName(tilePath)!);
-				await DrawAsync(PictureModels.Fast, job.Prompt, PresetLibrary.TileSize, job.References ?? Array.Empty<string>(), "preset", ct, tilePath);
+				await DrawAsync(tileEngine, job.Prompt, PresetLibrary.TileSize, job.References ?? Array.Empty<string>(), "preset", ct, tilePath);
 				done++;
 				refresh();
 			}
@@ -850,7 +851,7 @@ public partial class MainWindow
 			{
 				ShowGenStatus("Writing the prompt from " + name + "'s looks and your picks…");
 				PictureStatus("Writing the picture prompt…");
-				prompt = await WritePicturePromptAsync(request, "", name, appearance, references.Count > 0, "", ct, gender);
+				prompt = await WritePicturePromptAsync(request, "", name, appearance, references.Count > 0, "", ct, gender, model);
 			}
 			else
 			{

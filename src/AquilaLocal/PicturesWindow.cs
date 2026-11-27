@@ -45,6 +45,10 @@ public sealed class PicturesWindow : AquilaWindow
 
 	private readonly RadioButton best = new RadioButton { GroupName = "model" };
 
+	private readonly RadioButton anime = new RadioButton { GroupName = "model" };
+
+	private string ChosenModel => best.IsChecked == true ? PictureModels.Best : anime.IsChecked == true ? PictureModels.Anime : PictureModels.Fast;
+
 	private CancellationTokenSource? drawing;
 
 	public PicturesWindow(Settings settings, PictureEngine drawer, CompanionHost companion, string picturesRoot, Action saveSettings, Draw draw)
@@ -71,12 +75,17 @@ public sealed class PicturesWindow : AquilaWindow
 		(bool bestReady, string bestProblem) = drawer.Kit.Check(PictureModels.Best);
 		fast.Content = ModelLabel("FLUX 3 Image Klein (fast)", "About 15 seconds a picture (25 with reference pictures). Your chat model stays loaded.", fastReady, fastProblem);
 		best.Content = ModelLabel("Qwen-Image-2.1 (best quality)", "About 45 seconds a picture. The chat model pauses while it draws, then picks up where it was.", bestReady, bestProblem);
-		fast.IsChecked = settings.Pictures.Model != PictureModels.Best;
+		(bool animeReady, string animeProblem) = drawer.Kit.Check(PictureModels.Anime);
+		anime.Content = ModelLabel("WAI-Illustrious (anime, uncensored)", "Anime only, about 20 seconds a picture. Doesn't censor bodies, but can't use reference pictures, so faces vary more.", animeReady, animeProblem);
+		fast.IsChecked = settings.Pictures.Model != PictureModels.Best && settings.Pictures.Model != PictureModels.Anime;
 		best.IsChecked = settings.Pictures.Model == PictureModels.Best;
+		anime.IsChecked = settings.Pictures.Model == PictureModels.Anime;
 		StackPanel models = new StackPanel();
 		fast.Margin = new Thickness(0, 0, 0, 8);
 		models.Children.Add(fast);
+		best.Margin = new Thickness(0, 0, 0, 8);
 		models.Children.Add(best);
+		models.Children.Add(anime);
 		body.Children.Add(Ui.Field("Model", models));
 		ComboBox encoder = new ComboBox { ItemsSource = KleinEncoders.All.Select(e => e.Label).ToList(), Width = 300, HorizontalAlignment = HorizontalAlignment.Left };
 		encoder.SelectedIndex = Math.Max(0, KleinEncoders.All.ToList().FindIndex(e => e.Key == settings.Pictures.KleinEncoder));
@@ -154,7 +163,7 @@ public sealed class PicturesWindow : AquilaWindow
 				drawing.Cancel();
 				return;
 			}
-			string model = best.IsChecked == true ? PictureModels.Best : PictureModels.Fast;
+			string model = ChosenModel;
 			List<string> refs = useRefs.IsChecked == true ? CurrentReferences().Take(PictureCommand.MaxReferences).ToList() : new List<string>();
 			string text = prompt.Text.Trim();
 			string? name = (persona.SelectedItem as ComboBoxItem)?.Content as string;
@@ -200,7 +209,7 @@ public sealed class PicturesWindow : AquilaWindow
 		});
 		Button save = Ui.Button("Save", "Btn.Primary", delegate
 		{
-			string model = best.IsChecked == true ? PictureModels.Best : PictureModels.Fast;
+			string model = ChosenModel;
 			(bool ready, string problem) = drawer.Kit.Check(model);
 			if (enabled.IsChecked == true && !ready)
 			{

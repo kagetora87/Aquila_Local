@@ -259,5 +259,7 @@ public sealed class PresetTests : IDisposable
         TileStyle older = new() { Art = "watercolour painting" };
         Assert.Equal(older.Folder, new TileStyle { Art = "watercolour painting", Clothes = TileStyle.DefaultClothes }.Folder);
         Assert.NotEqual(older.Folder, new TileStyle { Art = "watercolour painting", Clothes = "a red dress" }.Folder);
+        Assert.NotEqual("anime", new TileStyle { Engine = PictureModels.Anime }.Folder);
+        Assert.Throws<PersonaConfigException>(() => new TileStyle { Engine = "nope" }.Validate());
     }
 }

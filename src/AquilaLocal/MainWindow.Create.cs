@@ -593,8 +593,8 @@ public partial class MainWindow
 			frame.Child = empty;
 		}
 		right.Children.Add(frame);
-		ComboBox model = new ComboBox { ItemsSource = new[] { PictureModels.Label(PictureModels.Fast), PictureModels.Label(PictureModels.Best) }, SelectedIndex = draftModel == PictureModels.Best ? 1 : 0, Width = 420 };
-		model.SelectionChanged += delegate { draftModel = model.SelectedIndex == 1 ? PictureModels.Best : PictureModels.Fast; };
+		ComboBox model = new ComboBox { ItemsSource = PictureModels.All.Select(m => m.Label).ToList(), SelectedIndex = PictureModels.IndexOf(draftModel), Width = 420 };
+		model.SelectionChanged += delegate { draftModel = PictureModels.All[Math.Max(0, model.SelectedIndex)].Key; };
 		right.Children.Add(Ui.Field("Picture engine", model, "", 10));
 		Grid actions = new Grid { Margin = new Thickness(0, 12, 0, 0) };
 		actions.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });

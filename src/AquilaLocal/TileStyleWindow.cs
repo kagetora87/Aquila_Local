@@ -22,7 +22,12 @@ public sealed class TileStyleWindow : AquilaWindow
 {
 	private readonly PresetLibrary library;
 
-	private readonly Func<string, IReadOnlyList<string>, string, CancellationToken, Task> draw;
+	private readonly Func<string, string, IReadOnlyList<string>, string, CancellationToken, Task> draw;
+
+	/// <summary>The engines offered for the small pictures (best quality is too slow for sixty of them).</summary>
+	private static readonly string[] Engines = { PictureModels.Fast, PictureModels.Anime };
+
+	private readonly ComboBox engineBox;
 
 	private readonly WrapPanel refsPanel = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
 
@@ -53,8 +58,8 @@ public sealed class TileStyleWindow : AquilaWindow
 	/// <summary>True once a new style was saved (the small pictures will be offered again).</summary>
 	public bool Saved { get; private set; }
 
-	/// <param name="draw">Draws a prompt (with reference pictures) to a file with the fast picture model (throws if it can't).</param>
-	public TileStyleWindow(PresetLibrary library, Func<string, IReadOnlyList<string>, string, CancellationToken, Task> draw)
+	/// <param name="draw">Draws a prompt (with reference pictures) to a file with the given picture model (throws if it can't).</param>
+	public TileStyleWindow(PresetLibrary library, Func<string, string, IReadOnlyList<string>, string, CancellationToken, Task> draw)
 	{
 		this.library = library;
 		this.draw = draw;
@@ -79,6 +84,8 @@ public sealed class TileStyleWindow : AquilaWindow
 		form.Children.Add(Ui.Field("The man in the pictures", man, "Used for the men's outfits and the men in Create Companion."));
 		clothes = Box(current.Clothes);
 		form.Children.Add(Ui.Field("What they wear", clothes, "In the action pictures and Create Companion's pictures. For example: \"a white lab coat open over black lace lingerie\". (Outfit presets show their own outfit.) Keep clothing here, not in the descriptions above, so the two don't fight."));
+		engineBox = new ComboBox { ItemsSource = Engines.Select(PictureModels.Label).ToList(), SelectedIndex = Math.Max(0, Array.IndexOf(Engines, current.Engine)), Width = 320, HorizontalAlignment = HorizontalAlignment.Left };
+		form.Children.Add(Ui.Field("Picture engine", engineBox, "Anime draws anime only, without censoring bodies, but can't use the reference pictures below. Fast follows reference pictures and any art style."));
 		art = Box(current.Art);
 		form.Children.Add(Ui.Field("Art style", art, "How they're drawn. For example: \"anime illustration, clean line art, soft cel shading\"."));
 		WrapPanel styles = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
@@ -99,6 +106,7 @@ public sealed class TileStyleWindow : AquilaWindow
 			man.Text = TileStyle.DefaultMan;
 			art.Text = TileStyle.DefaultArt;
 			clothes.Text = TileStyle.DefaultClothes;
+			engineBox.SelectedIndex = 0;
 		});
 		reset.HorizontalAlignment = HorizontalAlignment.Left;
 		reset.Margin = new Thickness(0, 10, 0, 0);
@@ -242,7 +250,7 @@ public sealed class TileStyleWindow : AquilaWindow
 
 	private TileStyle Edited()
 	{
-		TileStyle s = new TileStyle { Woman = woman.Text, Man = man.Text, Art = art.Text, Clothes = clothes.Text };
+		TileStyle s = new TileStyle { Woman = woman.Text, Man = man.Text, Art = art.Text, Clothes = clothes.Text, Engine = Engines[Math.Max(0, engineBox.SelectedIndex)] };
 		s.Validate();
 		return s;
 	}
@@ -279,7 +287,7 @@ public sealed class TileStyleWindow : AquilaWindow
 		try
 		{
 			Directory.CreateDirectory(library.Root);
-			await draw(prompt, refs, path, testing.Token);
+			await draw(s.Engine, prompt, refs, path, testing.Token);
 			BitmapImage image = new BitmapImage();
 			image.BeginInit();
 			image.CacheOption = BitmapCacheOption.OnLoad;
@@ -348,7 +356,7 @@ public sealed class TileStyleWindow : AquilaWindow
 		{
 			TileStyle s = Edited();
 			TileStyle old = library.Style;
-			if (s.Woman == old.Woman && s.Man == old.Man && s.Art == old.Art && s.Clothes == old.Clothes)
+			if (s.Woman == old.Woman && s.Man == old.Man && s.Art == old.Art && s.Clothes == old.Clothes && s.Engine == old.Engine)
 			{
 				Close();
 				return;

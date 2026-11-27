@@ -216,7 +216,7 @@ public partial class MainWindow
 			recent.Add((turn.User, turn.Answer));
 			string conversation = PicturePrompt.Conversation(recent, speaker);
 			PictureStatus("Writing the picture prompt…");
-			string prompt = await WritePicturePromptAsync(request, conversation, name, appearance, references.Count > 0, session.Location, ct, session.IsCompanion ? GenderOf(session.PersonaId) : Genders.Female);
+			string prompt = await WritePicturePromptAsync(request, conversation, name, appearance, references.Count > 0, session.Location, ct, session.IsCompanion ? GenderOf(session.PersonaId) : Genders.Female, model);
 			string output = await DrawAsync(model, PicturePrompt.WithReferences(prompt, references.Count), request.Size(), references, request.Description, ct);
 			turn.Pictures.Add(output);
 			if (replyViews.TryGetValue(turn.Id, out MessageView? view))
@@ -241,15 +241,16 @@ public partial class MainWindow
 	}
 
 	/// <summary>The chat model writes the image prompt on its second slot, so the conversation's cache stays as it is.</summary>
-	private async Task<string> WritePicturePromptAsync(PictureRequest request, string conversation, string? name, string? appearance, bool hasReferences, string location, CancellationToken ct, string gender = Genders.Female)
+	private async Task<string> WritePicturePromptAsync(PictureRequest request, string conversation, string? name, string? appearance, bool hasReferences, string location, CancellationToken ct, string gender = Genders.Female, string model = PictureModels.Fast)
 	{
+		hasReferences &= PictureModels.TakesReferences(model);
 		JsonObject payload = new JsonObject
 		{
 			["model"] = engine.Alias,
 			["id_slot"] = 1,
 			["messages"] = new JsonArray
 			{
-				new JsonObject { ["role"] = "system", ["content"] = PicturePrompt.WriterSystem },
+				new JsonObject { ["role"] = "system", ["content"] = PictureModels.UsesTags(model) ? PicturePrompt.WriterSystemTags : PicturePrompt.WriterSystem },
 				new JsonObject { ["role"] = "user", ["content"] = PicturePrompt.WriterUser(request, conversation, name, appearance, hasReferences, location, gender) }
 			},
 			["stream"] = false,
@@ -266,6 +267,12 @@ public partial class MainWindow
 	/// <summary>Draws one picture (pausing the chat model for the best model) and saves the prompt beside it.</summary>
 	private async Task<string> DrawAsync(string model, string prompt, (int Width, int Height) size, IReadOnlyList<string> references, string about, CancellationToken ct, string? saveAs = null)
 	{
+		if (!PictureModels.TakesReferences(model))
+		{
+			references = Array.Empty<string>();
+			prompt = PicturePrompt.WithoutReferences(prompt);
+		}
+		size = PictureModels.DrawSize(model, size);
 		string output = saveAs ?? PictureFiles.NewOutput(PicturesRoot, about, DateTimeOffset.Now);
 		bool paused = false;
 		bool restore = false;

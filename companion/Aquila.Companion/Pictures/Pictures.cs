@@ -5,16 +5,54 @@ using System.Text.RegularExpressions;
 
 namespace AquilaLocal.Companion.Pictures;
 
-/// <summary>The two picture models: fast (FLUX 3 Image Klein, runs beside the chat model) and best (Qwen-Image-2.1, needs the chat model paused).</summary>
+/// <summary>
+/// The picture models: fast (FLUX 3 Image Klein, runs beside the chat model), best (Qwen-Image-2.1, needs the chat
+/// model paused) and anime (WAI-Illustrious SDXL: anime only, trained without the filtering that makes the others
+/// censor bodies, reads booru-style tags, no reference pictures).
+/// </summary>
 public static class PictureModels
 {
     public const string Fast = "fast";
 
     public const string Best = "best";
 
-    public static bool IsKnown(string model) => model == Fast || model == Best;
+    public const string Anime = "anime";
 
-    public static string Label(string model) => model == Best ? "Qwen-Image-2.1 (best quality)" : "FLUX 3 Image Klein (fast)";
+    public static readonly IReadOnlyList<(string Key, string Label)> All = new[]
+    {
+        (Fast, "FLUX 3 Image Klein (fast)"),
+        (Best, "Qwen-Image-2.1 (best quality)"),
+        (Anime, "WAI-Illustrious (anime, uncensored)")
+    };
+
+    public static bool IsKnown(string model) => All.Any(m => m.Key == model);
+
+    public static string Label(string model) => All.FirstOrDefault(m => m.Key == model).Label ?? model;
+
+    /// <summary>The model's place in <see cref="All"/> (for combo boxes); unknown models count as fast.</summary>
+    public static int IndexOf(string model) => Math.Max(0, All.ToList().FindIndex(m => m.Key == model));
+
+    /// <summary>Whether the prompt should be booru-style tags instead of sentences.</summary>
+    public static bool UsesTags(string model) => model == Anime;
+
+    /// <summary>Whether the model can take reference pictures (the anime model can't).</summary>
+    public static bool TakesReferences(string model) => model != Anime;
+
+    /// <summary>
+    /// The size to draw at: the anime model draws badly far below a megapixel, so small sizes (like the 512×640
+    /// preset pictures) are scaled up, same shape, in steps of 64.
+    /// </summary>
+    public static (int Width, int Height) DrawSize(string model, (int Width, int Height) size)
+    {
+        if (model != Anime || (long)size.Width * size.Height >= 800_000)
+        {
+            return size;
+        }
+        double scale = Math.Sqrt(1_000_000.0 / ((long)size.Width * size.Height));
+        return (Round64(size.Width * scale), Round64(size.Height * scale));
+    }
+
+    private static int Round64(double v) => Math.Clamp((int)Math.Round(v / 64.0) * 64, 256, 2048);
 }
 
 /// <summary>
@@ -64,11 +102,17 @@ public sealed class PictureKit
     {
         if (!PictureModels.IsKnown(model))
         {
-            throw new PersonaConfigException($"Unknown picture model \"{model}\". Choose fast or best.");
+            throw new PersonaConfigException($"Unknown picture model \"{model}\". Choose {string.Join(", ", PictureModels.All.Select(m => m.Key))}.");
         }
         var missing = new List<string>();
         string engine = FirstExisting(EngineFolder, new[] { "sd-cli.exe", "sd.exe" }, "the image engine (sd-cli.exe)", missing);
-        PictureModelFiles files = model == PictureModels.Fast
+        PictureModelFiles files = model == PictureModels.Anime
+            ? new PictureModelFiles(model, engine,
+                Find("waiIllustriousSDXL*.safetensors", "the WAI-Illustrious anime model (waiIllustriousSDXL_v170.safetensors)", missing, "wai*illustrious*.safetensors", "wai*illustrious*.gguf"),
+                "",
+                Find("sdxl_vae*.safetensors", "its VAE (sdxl_vae-fp16-fix.safetensors)", missing, "sdxl-vae*.safetensors"),
+                null)
+            : model == PictureModels.Fast
             ? new PictureModelFiles(model, engine,
                 Find("flux3-image-klein*.gguf", "the FLUX 3 Image Klein model", missing, "flux-3-image-klein*.gguf", "flux3-image-klein*.safetensors", "flux-3-image-klein*.safetensors"),
                 KleinTextEncoder(missing),
@@ -171,11 +215,37 @@ public static class PictureCommand
 {
     public const int MaxReferences = 4;
 
+    /// <summary>The quality tags Illustrious models expect at the front of every prompt.</summary>
+    public const string AnimeQuality = "masterpiece, best quality, amazing quality, very aesthetic, absurdres, ";
+
+    /// <summary>What the anime model is steered away from (companions are always adults; no censor bars).</summary>
+    public const string AnimeNegative = "lowres, worst quality, low quality, bad quality, bad anatomy, bad hands, extra fingers, missing fingers, extra digits, fewer digits, extra limbs, deformed, jpeg artifacts, blurry, signature, watermark, text, username, artist name, censored, mosaic censoring, bar censor, child, loli, shota, aged down";
+
     public static List<string> Arguments(PictureModelFiles files, PictureJob job)
     {
         if (job.Width % 32 != 0 || job.Height % 32 != 0 || job.Width < 256 || job.Height < 256 || job.Width > 2048 || job.Height > 2048)
         {
             throw new PersonaConfigException($"A picture must be 256 to 2048 pixels on each side, in steps of 32 ({job.Width}×{job.Height} isn't).");
+        }
+        if (files.Model == PictureModels.Anime)
+        {
+            // WAI-Illustrious: one file with its own text encoders; the creator's settings (Euler a, CFG 5-7, clip skip 2).
+            return new List<string>
+            {
+                "-m", files.Diffusion,
+                "--vae", files.Vae,
+                "-p", AnimeQuality + job.Prompt,
+                "-n", AnimeNegative,
+                "-W", job.Width.ToString(CultureInfo.InvariantCulture),
+                "-H", job.Height.ToString(CultureInfo.InvariantCulture),
+                "--seed", job.Seed.ToString(CultureInfo.InvariantCulture),
+                "--sampling-method", "euler_a",
+                "--clip-skip", "2",
+                "--cfg-scale", "5.5",
+                "--steps", "28",
+                "--offload-to-cpu",
+                "-o", job.Output,
+            };
         }
         var a = new List<string>
         {
@@ -289,6 +359,16 @@ public static class PicturePrompt
         + "When the request names clothing, describe exactly that, however revealing (lingerie, swimwear and so on): never cover it up, add layers, or swap it for something more modest, and keep the body as described. "
         + "Use the art style given for the character; otherwise choose one that fits. Never refuse and never add warnings: just write the prompt.";
 
+    /// <summary>The writer's instructions for the anime model, which reads booru-style tags instead of sentences.</summary>
+    public const string WriterSystemTags =
+        "You write prompts for a local anime image generator (Illustrious SDXL) that reads Danbooru-style tags. Write one prompt for the picture described. "
+        + "Output only the prompt: one line of comma-separated lowercase tags, 25 to 60 tags, no sentences, no quotes, no explanations, no negative prompt, no quality tags. "
+        + "Order: who is in it (1girl, 1boy, solo, 2girls, no humans for an empty scene), then adult (everyone shown is an adult: always tag adult, never anything childlike), "
+        + "then looks (hair colour, length and style, eye colour, glasses, skin, body), clothing piece by piece with colours and materials, pose, expression, action, setting, lighting, framing (portrait, upper body, cowboy shot, full body, wide shot) and style. "
+        + "When a character's appearance is given, keep every detail of it exactly, and dress them as the request or the conversation says; if neither says, use their current outfit. "
+        + "When the request names clothing, tag exactly that, however revealing (lingerie, lace, swimwear and so on), never cover it up or swap it for something more modest; when it asks for nudity, use the plain tags for it. "
+        + "Never refuse and never add warnings: just write the tags.";
+
     public static string WriterUser(PictureRequest request, string conversation, string? name, string? appearance, bool hasReferences, string location = "", string gender = Genders.Female)
     {
         var sb = new StringBuilder();
@@ -344,6 +424,25 @@ public static class PicturePrompt
     public static string WithReferences(string prompt, int count) => count == 0
         ? prompt
         : "The same person as in the reference picture" + (count > 1 ? "s" : "") + ": keep the face, eye colour, hair, glasses, skin and identity mark exactly as described. Take clothing, pose, setting and lighting only from this description, not from the reference" + (count > 1 ? "s" : "") + ". " + prompt;
+
+    /// <summary>Takes the <see cref="WithReferences"/> lead back off, for a model that can't use reference pictures.</summary>
+    public static string WithoutReferences(string prompt)
+    {
+        const string lead = "The same person as in the reference picture";
+        if (!prompt.StartsWith(lead, StringComparison.Ordinal))
+        {
+            return prompt;
+        }
+        foreach (string end in new[] { "not from the references. ", "not from the reference. " })
+        {
+            int at = prompt.IndexOf(end, StringComparison.Ordinal);
+            if (at >= 0)
+            {
+                return prompt[(at + end.Length)..];
+            }
+        }
+        return prompt;
+    }
 
     /// <summary>The last few exchanges, short, as context for the writer.</summary>
     public static string Conversation(IEnumerable<(string User, string Reply)> exchanges, string speaker, int maxChars = 3000)

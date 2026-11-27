@@ -48,7 +48,10 @@ public sealed class TileStyle
     /// <summary>What they wear in the action pictures and Create Companion's pictures (outfit presets show their own outfit).</summary>
     public string Clothes { get; set; } = DefaultClothes;
 
-    public bool IsDefault => Woman == DefaultWoman && Man == DefaultMan && Art == DefaultArt && Clothes == DefaultClothes;
+    /// <summary>Which picture model draws them (fast or anime; see <see cref="PictureModels"/>).</summary>
+    public string Engine { get; set; } = PictureModels.Fast;
+
+    public bool IsDefault => Woman == DefaultWoman && Man == DefaultMan && Art == DefaultArt && Clothes == DefaultClothes && Engine == PictureModels.Fast;
 
     /// <summary>The tiles' folder: "anime" for the starting style, else one named after the words, so a change draws them again.</summary>
     public string Folder
@@ -59,7 +62,7 @@ public sealed class TileStyle
             {
                 return "anime";
             }
-            byte[] hash = System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(Woman + "\n" + Man + "\n" + Art + (Clothes == DefaultClothes ? "" : "\n" + Clothes)));
+            byte[] hash = System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(Woman + "\n" + Man + "\n" + Art + (Clothes == DefaultClothes ? "" : "\n" + Clothes) + (Engine == PictureModels.Fast ? "" : "\nengine:" + Engine)));
             return "style-" + Convert.ToHexString(hash, 0, 4).ToLowerInvariant();
         }
     }
@@ -77,6 +80,10 @@ public sealed class TileStyle
         Man = Tidy(Man, "who the men are");
         Art = Tidy(Art, "the art style");
         Clothes = Tidy(Clothes, "what they wear");
+        if (!PictureModels.IsKnown(Engine ?? ""))
+        {
+            throw new PersonaConfigException($"Unknown picture engine \"{Engine}\" for the small pictures.");
+        }
     }
 
     private static string Tidy(string? text, string what)

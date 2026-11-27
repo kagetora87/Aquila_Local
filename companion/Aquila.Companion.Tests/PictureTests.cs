@@ -116,6 +116,49 @@ public sealed class PictureTests
     }
 
     [Fact]
+    public void The_anime_model_is_one_checkpoint_with_tags_a_negative_prompt_and_no_references()
+    {
+        using var dir = new TempDir();
+        PictureKit kit = Kit(dir);
+        var missing = Assert.Throws<PersonaConfigException>(() => kit.Resolve(PictureModels.Anime));
+        Assert.Contains("WAI-Illustrious", missing.Message);
+        Assert.Contains("sdxl_vae-fp16-fix", missing.Message);
+
+        File.WriteAllText(Path.Combine(kit.ModelsFolder, "waiIllustriousSDXL_v170.safetensors"), "");
+        File.WriteAllText(Path.Combine(kit.ModelsFolder, "sdxl_vae-fp16-fix.safetensors"), "");
+        PictureModelFiles files = kit.Resolve(PictureModels.Anime);
+        List<string> args = PictureCommand.Arguments(files, new PictureJob("1girl, solo, adult", 832, 1216, new[] { "a.png" }, 3, "out.png"));
+
+        Assert.EndsWith("waiIllustriousSDXL_v170.safetensors", args[args.IndexOf("-m") + 1]);
+        Assert.EndsWith("sdxl_vae-fp16-fix.safetensors", args[args.IndexOf("--vae") + 1]);
+        Assert.DoesNotContain("--diffusion-model", args);
+        Assert.DoesNotContain("--llm", args);
+        Assert.DoesNotContain("-r", args);
+        Assert.StartsWith("masterpiece, best quality", args[args.IndexOf("-p") + 1]);
+        Assert.EndsWith("1girl, solo, adult", args[args.IndexOf("-p") + 1]);
+        Assert.Contains("censored", args[args.IndexOf("-n") + 1]);
+        Assert.Contains("loli", args[args.IndexOf("-n") + 1]);
+        Assert.Equal("euler_a", args[args.IndexOf("--sampling-method") + 1]);
+        Assert.Equal("2", args[args.IndexOf("--clip-skip") + 1]);
+        Assert.True(PictureModels.UsesTags(PictureModels.Anime));
+        Assert.False(PictureModels.TakesReferences(PictureModels.Anime));
+        Assert.Equal(2, PictureModels.IndexOf(PictureModels.Anime));
+    }
+
+    [Fact]
+    public void The_anime_model_draws_small_pictures_bigger_and_drops_the_reference_lead()
+    {
+        Assert.Equal((896, 1152), PictureModels.DrawSize(PictureModels.Anime, (896, 1152)));
+        (int w, int h) = PictureModels.DrawSize(PictureModels.Anime, (512, 640));
+        Assert.Equal((896, 1088), (w, h));
+        Assert.Equal((512, 640), PictureModels.DrawSize(PictureModels.Fast, (512, 640)));
+
+        Assert.Equal("A cat.", PicturePrompt.WithoutReferences(PicturePrompt.WithReferences("A cat.", 1)));
+        Assert.Equal("A cat.", PicturePrompt.WithoutReferences(PicturePrompt.WithReferences("A cat.", 3)));
+        Assert.Equal("A cat.", PicturePrompt.WithoutReferences("A cat."));
+    }
+
+    [Fact]
     public void Odd_sizes_are_refused()
     {
         using var dir = new TempDir();
