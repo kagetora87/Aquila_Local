@@ -326,6 +326,85 @@ public sealed partial class PersonaStore
         tx.Commit();
     }
 
+    /// <summary>
+    /// After her drives were edited (renamed, added, removed, re-ranged): keeps each value she had, under its new
+    /// name, clamped to its new range; a new drive starts at its starting value; a removed one is dropped. Every
+    /// change is written to the drive log, all in one transaction. Returns what changed, in plain words.
+    /// </summary>
+    /// <param name="renamedFrom">New drive name to the name it had before, for drives that were renamed.</param>
+    public List<string> ReshapeDrives(PersonaConfig config, IReadOnlyDictionary<string, string> renamedFrom, DateTimeOffset now)
+    {
+        if (config.Id != PersonaId)
+        {
+            throw new InvalidOperationException($"Drives for '{config.Id}' can't be written to '{PersonaId}'s store.");
+        }
+        using SqliteConnection c = Connect();
+        using SqliteTransaction tx = c.BeginTransaction();
+        var old = new Dictionary<string, (double Value, int Streak)>();
+        using (SqliteCommand cmd = c.CreateCommand())
+        {
+            cmd.Transaction = tx;
+            cmd.CommandText = "SELECT name,value,unmet_streak FROM drives WHERE persona_id=$p";
+            cmd.Parameters.AddWithValue("$p", PersonaId);
+            using SqliteDataReader r = cmd.ExecuteReader();
+            while (r.Read())
+            {
+                old[r.GetString(0)] = (r.GetDouble(1), r.GetInt32(2));
+            }
+        }
+        var done = new List<string>();
+        var kept = new HashSet<string>();
+        var rows = new List<(string Name, double Value, int Streak, string? From, string Reason)>();
+        foreach (DriveSpec d in config.Drives)
+        {
+            string? from = renamedFrom.TryGetValue(d.Name, out string? f) ? f : d.Name;
+            if (from != null && old.TryGetValue(from, out (double Value, int Streak) was) && kept.Add(from))
+            {
+                double v = DriveEngine.Clamp(d, was.Value);
+                string reason = from != d.Name ? $"renamed from {from}" : "";
+                if (Math.Abs(v - was.Value) > 1e-9)
+                {
+                    reason = (reason.Length > 0 ? reason + "; " : "") + $"kept inside its new range {d.Floor}-{d.Ceiling}";
+                }
+                rows.Add((d.Name, v, was.Streak, from, reason));
+                if (from != d.Name)
+                {
+                    done.Add($"{from} is now {d.Name} (kept at {v:0.0})");
+                }
+                else if (Math.Abs(v - was.Value) > 1e-9)
+                {
+                    done.Add($"{d.Name} moved to {v:0.0} to fit its new range");
+                }
+            }
+            else
+            {
+                double v = d.Initial ?? throw new PersonaConfigException($"The new drive '{d.Name}' needs a starting value.");
+                rows.Add((d.Name, DriveEngine.Clamp(d, v), 0, null, "new drive, starting value"));
+                done.Add($"{d.Name} added at {DriveEngine.Clamp(d, v):0.0}");
+            }
+        }
+        foreach ((string name, (double value, _)) in old.Where(kv => !kept.Contains(kv.Key)))
+        {
+            Exec(c, tx, "INSERT INTO drive_log(persona_id,at,drive,old,new,reason) VALUES($p,$t,$n,$o,$o,$r)",
+                ("$p", PersonaId), ("$t", Iso(now)), ("$n", name), ("$o", value), ("$r", "drive removed"));
+            done.Add($"{name} removed");
+        }
+        Exec(c, tx, "DELETE FROM drives WHERE persona_id=$p", ("$p", PersonaId));
+        foreach ((string name, double value, int streak, string? from, string reason) in rows)
+        {
+            Exec(c, tx, "INSERT INTO drives(persona_id,name,value,unmet_streak,updated_at) VALUES($p,$n,$v,$s,$t)",
+                ("$p", PersonaId), ("$n", name), ("$v", value), ("$s", streak), ("$t", Iso(now)));
+            if (reason.Length > 0)
+            {
+                double before = from != null && old.TryGetValue(from, out (double Value, int Streak) w) ? w.Value : value;
+                Exec(c, tx, "INSERT INTO drive_log(persona_id,at,drive,old,new,reason) VALUES($p,$t,$n,$o,$v,$r)",
+                    ("$p", PersonaId), ("$t", Iso(now)), ("$n", name), ("$o", before), ("$v", value), ("$r", "operator: " + reason));
+            }
+        }
+        tx.Commit();
+        return done;
+    }
+
     public List<DriveLogEntry> DriveLog(int limit = 200, string? drive = null)
     {
         using SqliteConnection c = Connect();

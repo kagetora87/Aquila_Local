@@ -397,6 +397,7 @@ public sealed class CompanionWindow : AquilaWindow
 			grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 			DriveValue v = drives[d.Name];
 			TextBlock name = Ui.Text(d.Name + (d.Name == top ? "  ★" : ""), "Type.Body");
+			name.ToolTip = (d.Description.Length > 0 ? d.Description + "\n\n" : "") + (d.IsLevel ? "A feeling level: the number is how much of it she has. Low presses on her." : "A need: the number is how much she wants it. High presses on her.");
 			name.Margin = new Thickness(0, 4, 0, 4);
 			Grid.SetRow(name, row);
 			grid.Children.Add(name);
@@ -526,61 +527,8 @@ public sealed class CompanionWindow : AquilaWindow
 		panel.Children.Add(avatarNote);
 
 		panel.Children.Add(Label("Drives"));
-		string[] columns = { "Weight", "Start", "Decay /h", "Rest", "Rise /h", "Step", "Floor", "Ceiling" };
-		Grid grid = new Grid();
-		grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });
-		foreach (string _ in columns)
-		{
-			grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-		}
-		grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-		for (int i = 0; i < columns.Length; i++)
-		{
-			TextBlock h = Ui.Text(columns[i], "Type.Caption");
-			Grid.SetColumn(h, i + 1);
-			grid.Children.Add(h);
-		}
-		var fields = new Dictionary<string, TextBox[]>();
-		int r = 1;
-		foreach (DriveSpec d in config.Drives)
-		{
-			grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-			TextBlock n = Ui.Text(d.Name, "Type.Body");
-			n.VerticalAlignment = VerticalAlignment.Center;
-			Grid.SetRow(n, r);
-			grid.Children.Add(n);
-			double?[] vals = { d.Weight, d.Initial, d.DecayPerHour, d.RestingLevel, d.RisePerHour, d.SatisfyStep, d.Floor, d.Ceiling };
-			TextBox[] boxes = new TextBox[vals.Length];
-			for (int i = 0; i < vals.Length; i++)
-			{
-				boxes[i] = new TextBox { Text = vals[i]?.ToString(CultureInfo.InvariantCulture) ?? "", Margin = new Thickness(2) };
-				Grid.SetRow(boxes[i], r);
-				Grid.SetColumn(boxes[i], i + 1);
-				grid.Children.Add(boxes[i]);
-			}
-			boxes[1].IsEnabled = !setUp;
-			boxes[1].ToolTip = setUp ? "Only used when she is first set up." : "Her value on the day she is set up.";
-			fields[d.Name] = boxes;
-			r++;
-		}
-		panel.Children.Add(grid);
-
-		var guidance = new Dictionary<string, TextBox[]>();
-		foreach (DriveSpec d in config.Drives)
-		{
-			StackPanel g = new StackPanel();
-			TextBox low = new TextBox { Text = d.Guidance.Low, MaxLength = ContextInjector.MaxGuidanceChars, Margin = new Thickness(0, 2, 0, 2) };
-			TextBox mid = new TextBox { Text = d.Guidance.Mid, MaxLength = ContextInjector.MaxGuidanceChars, Margin = new Thickness(0, 2, 0, 2) };
-			TextBox high = new TextBox { Text = d.Guidance.High, MaxLength = ContextInjector.MaxGuidanceChars, Margin = new Thickness(0, 2, 0, 2) };
-			g.Children.Add(Ui.Text("Low (below 3.5)", "Type.Caption"));
-			g.Children.Add(low);
-			g.Children.Add(Ui.Text("Middle", "Type.Caption"));
-			g.Children.Add(mid);
-			g.Children.Add(Ui.Text("High (7 and up)", "Type.Caption"));
-			g.Children.Add(high);
-			guidance[d.Name] = new[] { low, mid, high };
-			panel.Children.Add(new Expander { Header = "What " + d.Name + " tells her", Content = g, Style = Ui.Style("Expander.Quiet"), Margin = new Thickness(0, 6, 0, 0) });
-		}
+		DriveEditor driveEditor = new DriveEditor(config, setUp);
+		panel.Children.Add(driveEditor.View);
 
 		TextBox seed = null;
 		if (!setUp)
@@ -623,24 +571,7 @@ public sealed class CompanionWindow : AquilaWindow
 				edited.FavoriteColor = favourite.Text.Trim();
 				string avatarKey = avatarChoices[Math.Max(0, avatarBox.SelectedIndex)].Key;
 				edited.Avatar = avatarKey == ChooseFolder ? edited.Avatar : avatarKey;
-				foreach (DriveSpec d in edited.Drives)
-				{
-					TextBox[] b = fields[d.Name];
-					d.Weight = Num(b[0], d.Name + " weight", optional: true);
-					if (!setUp)
-					{
-						d.Initial = Num(b[1], d.Name + " start", optional: true);
-					}
-					d.DecayPerHour = Num(b[2], d.Name + " decay").Value;
-					d.RestingLevel = Num(b[3], d.Name + " rest").Value;
-					d.RisePerHour = Num(b[4], d.Name + " rise").Value;
-					d.SatisfyStep = Num(b[5], d.Name + " step").Value;
-					d.Floor = Num(b[6], d.Name + " floor").Value;
-					d.Ceiling = Num(b[7], d.Name + " ceiling").Value;
-					d.Guidance.Low = guidance[d.Name][0].Text.Trim();
-					d.Guidance.Mid = guidance[d.Name][1].Text.Trim();
-					d.Guidance.High = guidance[d.Name][2].Text.Trim();
-				}
+				Dictionary<string, string> renamed = driveEditor.ApplyTo(edited);
 				if (seed != null)
 				{
 					edited.Seed.Summary = ParseSeed(seed.Text);
@@ -655,12 +586,19 @@ public sealed class CompanionWindow : AquilaWindow
 					};
 				}
 				edited.ValidateShape();
+				List<string> moved = new List<string>();
+				if (setUp)
+				{
+					// Her stored values follow her drives (renamed, added, removed), all logged, before the new settings are saved.
+					PersonaStore driveStore = host.Registry.OpenStore(personaId);
+					moved = driveStore.ReshapeDrives(edited, renamed, DateTimeOffset.Now);
+				}
 				edited.Save(host.ConfigPath(personaId));
 				host.Forget(personaId);
-				Ok("Saved. Changes apply from her next message.");
+				Ok("Saved. Changes apply from her next message." + (moved.Count > 0 ? " Drives: " + string.Join("; ", moved) + "." : ""));
 				Build();
 			}
-			catch (Exception ex) when (ex is PersonaConfigException || ex is FormatException || ex is IOException || ex is UnauthorizedAccessException)
+			catch (Exception ex) when (ex is PersonaConfigException || ex is FormatException || ex is IOException || ex is UnauthorizedAccessException || ex is DriveStateUnavailableException || ex is Microsoft.Data.Sqlite.SqliteException)
 			{
 				Problem("Not saved: " + ex.Message);
 			}

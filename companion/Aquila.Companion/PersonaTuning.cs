@@ -21,7 +21,7 @@ public static class PersonaTuning
         ["decay"] = "fraction lost per hour toward the resting level (0.02 = 2 % per hour)",
         ["rest"] = "resting level that decay pulls toward",
         ["rise"] = "points gained per idle hour",
-        ["step"] = "how far one satisfied turn (or horizon milestone) lowers it",
+        ["step"] = "how far one satisfied turn (or horizon milestone) moves it (down for a need, up for a level)",
         ["floor"] = "lowest allowed value (horizon can't go below 3)",
         ["ceiling"] = "highest allowed value"
     };
@@ -41,7 +41,7 @@ public static class PersonaTuning
              events: {string.Join(", ", DriveEvents.All)}
         /tune drift unlock | lock          change the drift clause status
         /tune reload                       re-read persona.json after editing it by hand
-        Drives: {string.Join(", ", Drives.All)}
+        Drives: {string.Join(", ", config.Drives.Select(d => d.Name))}
         """;
 
     /// <param name="configPath">Path of the persona's persona.json.</param>
@@ -69,7 +69,7 @@ public static class PersonaTuning
             config.Save(configPath);
             return new TuningResult($"{config.Name}'s drift is now {(config.Drift.Unlocked ? "unlocked" : "locked")}.", true);
         }
-        if (!Drives.All.Contains(first))
+        if (!config.Drives.Any(d => d.Name == first))
         {
             throw new ArgumentException($"'{words[0]}' isn't a drive or a tuning command. Type /tune for help.");
         }

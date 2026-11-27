@@ -19,7 +19,7 @@ public static class MilestoneKinds
 /// <summary>Judges whether a reply addressed a drive. Swap in a model-based scorer later without touching the loop.</summary>
 public interface ISatisfactionScorer
 {
-    DriveScore Score(string drive, string userText, string replyText);
+    DriveScore Score(DriveSpec drive, string userText, string replyText);
 
     /// <param name="replySimilarityToPast">Highest similarity (0-1) between this reply and her earlier replies, or null if unknown.</param>
     List<Milestone> HorizonMilestones(string userText, string replyText, double? replySimilarityToPast);
@@ -57,16 +57,27 @@ public sealed class HeuristicScorer : ISatisfactionScorer
 
     private static readonly Regex ChoiceOffer = new(@"\b(which|choose|pick|prefer|decide|would you rather|what do you want|up to you|your call)\b|\bor\b[^.?!]*\?", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-    public DriveScore Score(string drive, string userText, string replyText)
+    /// <summary>Whether this scorer has its own words for a drive (the original four).</summary>
+    public static bool KnowsDrive(string name) => Cues.ContainsKey(name);
+
+    /// <summary>Scores one of the original drives by name (with only its built-in words).</summary>
+    public DriveScore Score(string drive, string userText, string replyText) => Score(new DriveSpec { Name = drive }, userText, replyText);
+
+    public DriveScore Score(DriveSpec spec, string userText, string replyText)
     {
+        string drive = spec.Name;
         if (drive == Drives.Horizon)
         {
             List<Milestone> m = HorizonMilestones(userText, replyText, null);
             return new DriveScore(m.Count > 0, m.Count, m.Count > 0 ? string.Join(", ", m.Select(x => x.Kind)) : "no milestone");
         }
-        if (!Cues.TryGetValue(drive, out string[]? cues))
+        string[] cues = (Cues.TryGetValue(drive, out string[]? builtIn) ? builtIn : Array.Empty<string>())
+            .Concat(spec.Cues.Select(c => Normalize(c).Trim()).Where(c => c.Length > 0))
+            .Distinct()
+            .ToArray();
+        if (cues.Length == 0)
         {
-            throw new ArgumentException($"Unknown drive '{drive}'.");
+            throw new ArgumentException($"Aquila can't tell when '{drive}' is satisfied: give it some words or phrases that show she acted on it (Companions, Settings, Drives).");
         }
         string reply = Normalize(replyText);
         List<string> hits = cues.Where(c => Has(reply, c)).ToList();

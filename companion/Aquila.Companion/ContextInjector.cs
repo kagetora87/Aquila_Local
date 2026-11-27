@@ -70,6 +70,9 @@ public static class ContextInjector
         return string.Join("; ", parts);
     }
 
+    /// <summary>After a feeling level's number, so she reads it the right way round.</summary>
+    public const string LevelMark = " (a level: high is good)";
+
     public static string DriveBlock(PersonaConfig config, IReadOnlyDictionary<string, DriveValue> drives, string topDrive)
     {
         var sb = new StringBuilder();
@@ -81,6 +84,10 @@ public static class ContextInjector
             if (spec.Name == topDrive)
             {
                 sb.Append(" TOP");
+            }
+            if (spec.IsLevel)
+            {
+                sb.Append(LevelMark);
             }
             sb.Append(": ").Append(spec.Guidance.For(v)).Append('\n');
         }

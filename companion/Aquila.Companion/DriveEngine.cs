@@ -75,8 +75,14 @@ public static class DriveEngine
         return changes;
     }
 
+    /// <summary>How hard a drive presses on her: a need presses when high, a feeling level when low.</summary>
+    public static double Pressure(DriveSpec spec, double value) => spec.IsLevel ? spec.Ceiling - value : value;
+
     public static double Priority(DriveSpec spec, double value, int unmetStreak) =>
-        value * (spec.Weight ?? 0) * (1.0 + StreakBoost * Math.Min(unmetStreak, MaxStreakBoost));
+        Pressure(spec, value) * (spec.Weight ?? 0) * (1.0 + StreakBoost * Math.Min(unmetStreak, MaxStreakBoost));
+
+    /// <summary>Her value after one satisfied turn: a need goes down a step, a feeling level goes up one.</summary>
+    public static double Satisfied(DriveSpec spec, double value) => Clamp(spec, spec.IsLevel ? value + spec.SatisfyStep : value - spec.SatisfyStep);
 
     /// <summary>The drive with the highest value x weight (boosted by its unsatisfied streak). Ties go to the earlier drive.</summary>
     public static string TopDrive(PersonaConfig config, IReadOnlyDictionary<string, DriveValue> drives)

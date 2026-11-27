@@ -17,7 +17,28 @@ public static class Drives
     public const double Min = 0.0;
     public const double Max = 10.0;
 
+    /// <summary>The five drives Aquila started with. A persona may rename, replace or add to them.</summary>
     public static readonly IReadOnlyList<string> All = new[] { Lust, Curiosity, Comfort, Loneliness, Horizon };
+
+    /// <summary>At most this many drives, so her inner-state block stays short.</summary>
+    public const int MaxDrives = 8;
+
+    public const int MaxCues = 40;
+
+    public const int MaxDescriptionChars = 200;
+
+    /// <summary>A drive name: 1 to 24 lowercase letters, digits or dashes, starting with a letter (one word, so /tune can name it).</summary>
+    public static bool IsValidName(string name) => System.Text.RegularExpressions.Regex.IsMatch(name ?? "", "^[a-z][a-z0-9-]{0,23}$");
+}
+
+/// <summary>What a drive's number means.</summary>
+public static class DriveKinds
+{
+    /// <summary>A need, like hunger: the number is how much she wants it. Satisfying it lowers it.</summary>
+    public const string Need = "need";
+
+    /// <summary>A feeling level, like comfort: the number is how much of it she has. Satisfying it raises it, and it presses on her when it's low.</summary>
+    public const string Level = "level";
 }
 
 /// <summary>Event names a user message can trigger. Each drive says in its config how much an event moves it.</summary>
@@ -71,8 +92,20 @@ public sealed class DriveSpec
     /// <summary>Linear rise per elapsed hour (idle pull), applied before decay.</summary>
     public double RisePerHour { get; set; }
 
-    /// <summary>How far one satisfied turn lowers the drive.</summary>
+    /// <summary>How far one satisfied turn moves the drive (down for a need, up for a level).</summary>
     public double SatisfyStep { get; set; } = 1.0;
+
+    /// <summary>"need" (default: satisfying lowers it) or "level" (satisfying raises it; it presses when low).</summary>
+    public string Kind { get; set; } = DriveKinds.Need;
+
+    /// <summary>What this drive is, in plain words (for you; shown in the editor).</summary>
+    public string Description { get; set; } = "";
+
+    /// <summary>Words or phrases in her reply that show she acted on this drive (added to the built-in ones for the five original drives).</summary>
+    public List<string> Cues { get; set; } = new();
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool IsLevel => Kind == DriveKinds.Level;
 
     /// <summary>Event name to additive change, for example {"novelty": 2.5}.</summary>
     public Dictionary<string, double> Events { get; set; } = new();
@@ -276,18 +309,31 @@ public sealed class PersonaConfig
         {
             throw new PersonaConfigException($"Persona '{Id}' has no name.");
         }
-        foreach (string name in Companion.Drives.All)
+        if (Drives.Count == 0 || Drives.Count > Companion.Drives.MaxDrives)
         {
-            if (Drives.Count(d => d.Name == name) != 1)
-            {
-                throw new PersonaConfigException($"{Name}'s config must define the '{name}' drive exactly once.");
-            }
+            throw new PersonaConfigException($"{Name} needs between 1 and {Companion.Drives.MaxDrives} drives (she has {Drives.Count}).");
         }
         foreach (DriveSpec d in Drives)
         {
-            if (!Companion.Drives.All.Contains(d.Name))
+            if (!Companion.Drives.IsValidName(d.Name))
             {
-                throw new PersonaConfigException($"{Name}'s config has an unknown drive '{d.Name}'.");
+                throw new PersonaConfigException($"\"{d.Name}\" can't be a drive name: use one word of 1 to 24 lowercase letters, digits or dashes, starting with a letter.");
+            }
+            if (Drives.Count(x => x.Name == d.Name) != 1)
+            {
+                throw new PersonaConfigException($"{Name} has the drive '{d.Name}' more than once.");
+            }
+            if (d.Kind != DriveKinds.Need && d.Kind != DriveKinds.Level)
+            {
+                throw new PersonaConfigException($"{Name}'s '{d.Name}' drive has kind '{d.Kind}': it must be \"need\" or \"level\".");
+            }
+            if (d.Description.Length > Companion.Drives.MaxDescriptionChars || d.Description.Contains('\n'))
+            {
+                throw new PersonaConfigException($"{Name}'s '{d.Name}' description must be one line of at most {Companion.Drives.MaxDescriptionChars} characters.");
+            }
+            if (d.Cues.Count > Companion.Drives.MaxCues || d.Cues.Any(c => string.IsNullOrWhiteSpace(c) || c.Length > 60))
+            {
+                throw new PersonaConfigException($"{Name}'s '{d.Name}' drive can have up to {Companion.Drives.MaxCues} words or phrases, each up to 60 characters.");
             }
             if (d.Floor < Companion.Drives.Min || d.Ceiling > Companion.Drives.Max || d.Floor >= d.Ceiling)
             {
@@ -323,6 +369,13 @@ public sealed class PersonaConfig
                     throw new PersonaConfigException($"{Name}'s '{d.Name}' guidance lines must be one line of at most {ContextInjector.MaxGuidanceChars} characters.");
                 }
             }
+        }
+        // Her inner-state block must fit its cap whatever her drives' values are (each line uses its longest guidance).
+        int worst = TokenEstimate.Of("[Inner state: your own drives right now, 0-10. Not typed by the user. Let the top one lead; never recite numbers.]\n[End inner state]")
+            + Drives.Sum(d => TokenEstimate.Of("- " + d.Name + " 10.0 TOP" + (d.IsLevel ? ContextInjector.LevelMark : "") + ": " + new[] { d.Guidance.Low, d.Guidance.Mid, d.Guidance.High }.MaxBy(g => g.Length) + "\n"));
+        if (worst > ContextInjector.MaxDriveBlockTokens)
+        {
+            throw new PersonaConfigException($"{Name}'s drives would need about {worst} tokens in her inner-state block, over the {ContextInjector.MaxDriveBlockTokens}-token cap. Use fewer drives or shorter guidance lines.");
         }
         var traitNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (AppearanceTrait t in Seed.Appearance.Traits)
@@ -369,6 +422,10 @@ public sealed class PersonaConfig
             if (string.IsNullOrWhiteSpace(d.Guidance.Low) || string.IsNullOrWhiteSpace(d.Guidance.Mid) || string.IsNullOrWhiteSpace(d.Guidance.High))
             {
                 missing.Add($"behaviour guidance for {d.Name}");
+            }
+            if (d.Name != Companion.Drives.Horizon && d.Cues.Count == 0 && !HeuristicScorer.KnowsDrive(d.Name))
+            {
+                missing.Add($"words that show she acted on {d.Name} (so Aquila can tell when it's satisfied)");
             }
         }
         if (Seed.Summary.Render().Contains(Placeholder))
