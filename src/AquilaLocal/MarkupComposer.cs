@@ -171,13 +171,8 @@ public sealed class MarkupComposer : RichTextBox
 		DataObject.AddPastingHandler(this, OnPasting);
 		DataObject.AddCopyingHandler(this, OnCopying);
 		PreviewTextInput += OnPreviewTextInput;
-		SelectionChanged += delegate
-		{
-			if (!placing)
-			{
-				SetMode(KindAtCaret());
-			}
-		};
+		// The mode changes only when you click Thought/Action (or press Ctrl+T/J), never by moving the caret or
+		// deleting back into a thought: once you turn it off, it stays off.
 		TextChanged += delegate
 		{
 			Ui.SetIsEmpty(this, IsEmpty);

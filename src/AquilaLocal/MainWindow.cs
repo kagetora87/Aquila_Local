@@ -2779,8 +2779,26 @@ public partial class MainWindow : AquilaWindow
 		memoryWindow.ShowDialog();
 	}
 
+	/// <summary>The whole notice (the box shows at most 1,800 characters); the copy button copies all of it.</summary>
+	private string noticeFull = "";
+
+	private void CopyNotice_Click(object sender, RoutedEventArgs e)
+	{
+		try
+		{
+			Clipboard.SetText(noticeFull.Length > 0 ? noticeFull : NoticeText.Text);
+			CopyNoticeButton.ToolTip = "Copied";
+		}
+		catch (System.Runtime.InteropServices.COMException)
+		{
+			CopyNoticeButton.ToolTip = "Couldn't copy; try again";
+		}
+	}
+
 	private void Notice(string text)
 	{
+		noticeFull = text;
+		CopyNoticeButton.ToolTip = "Copy this message";
 		NoticeText.Text = text.Truncate(1800);
 		NoticeBox.Visibility = Visibility.Visible;
 	}

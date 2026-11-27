@@ -303,6 +303,8 @@ public sealed class Engine : IDisposable
 		Port = ((IPEndPoint)tcpListener.LocalEndpoint).Port;
 		tcpListener.Stop();
 		alias = "aquila-" + Guid.NewGuid().ToString("N");
+		// llama-server refuses to start ("not a directory") if --slot-save-path doesn't exist yet.
+		Directory.CreateDirectory(slotFolder);
 		string text = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
 		ProcessStartInfo start = new ProcessStartInfo(executable)
 		{

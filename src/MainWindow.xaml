@@ -269,6 +269,7 @@
         <DockPanel>
           <TextBlock DockPanel.Dock="Left" Text="&#xE7BA;" FontFamily="{StaticResource Font.Icon}" FontSize="16" Foreground="{StaticResource Warning}" VerticalAlignment="Top" Margin="0,1,10,0" />
           <Button DockPanel.Dock="Right" Style="{StaticResource Btn.Icon}" Width="28" Height="28" FontSize="12" Content="&#xE711;" ToolTip="Dismiss" VerticalAlignment="Top" Click="Dismiss_Click" />
+          <Button Name="CopyNoticeButton" DockPanel.Dock="Right" Style="{StaticResource Btn.Icon}" Width="28" Height="28" FontSize="12" Content="&#xE8C8;" ToolTip="Copy this message" VerticalAlignment="Top" Click="CopyNotice_Click" />
           <ScrollViewer MaxHeight="110" VerticalScrollBarVisibility="Auto">
             <TextBlock Name="NoticeText" Style="{StaticResource Type.Small}" Foreground="{StaticResource Warning.Ink}" VerticalAlignment="Center" />
           </ScrollViewer>
