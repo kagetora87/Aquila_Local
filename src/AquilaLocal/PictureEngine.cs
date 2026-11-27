@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -44,6 +45,12 @@ public sealed class PictureEngine
 		return RunAsync(files.Engine, VideoCommand.Arguments(files, job, fast), job.Output, VideoLimit, "video", progress, ct);
 	}
 
+	/// <summary>"|#####     | 172/359 - 2.09GB/s" and similar: progress, not news.</summary>
+	private static bool IsProgressBar(string line)
+	{
+		return line.StartsWith("|", StringComparison.Ordinal) || line.Contains("|###", StringComparison.Ordinal) || line.Contains("#|", StringComparison.Ordinal);
+	}
+
 	private async Task RunAsync(string engine, List<string> args, string output, TimeSpan limitAfter, string what, Action<int, int>? progress, CancellationToken ct)
 	{
 		await one.WaitAsync(ct);
@@ -72,15 +79,22 @@ public sealed class PictureEngine
 				{
 					return;
 				}
-				lock (tail)
+				// The engine redraws progress bars in place (carriage returns and colour codes): keep only
+				// what's left on screen, and leave the bars out of the log so the real error isn't buried.
+				string shown = System.Text.RegularExpressions.Regex.Replace(text, "\u001b\\[[0-9;?]*[A-Za-z]", "");
+				shown = shown.Split('\r', StringSplitOptions.RemoveEmptyEntries).Select((string x) => x.Trim()).LastOrDefault((string x) => x.Length > 0) ?? "";
+				if (shown.Length > 0 && !IsProgressBar(shown))
 				{
-					tail.Enqueue(text.Trim());
-					while (tail.Count > 12)
+					lock (tail)
 					{
-						tail.Dequeue();
+						tail.Enqueue(shown);
+						while (tail.Count > 300)
+						{
+							tail.Dequeue();
+						}
 					}
 				}
-				(int Step, int Of)? p = PictureCommand.Progress(text);
+				(int Step, int Of)? p = PictureCommand.Progress(shown);
 				if (p.HasValue)
 				{
 					progress?.Invoke(p.Value.Step, p.Value.Of);
@@ -118,12 +132,31 @@ public sealed class PictureEngine
 			}
 			if (process.ExitCode != 0 || !File.Exists(output))
 			{
-				string said;
+				string[] lines;
 				lock (tail)
 				{
-					said = string.Join(" | ", tail);
+					lines = tail.ToArray();
 				}
-				throw new IOException("The image engine failed (exit " + process.ExitCode + "): " + said.Truncate(600));
+				// The whole log goes to a file; the message shows its last lines, where the engine says what went wrong.
+				string log = Path.Combine(Path.GetDirectoryName(output)!, "engine-error.log");
+				try
+				{
+					File.WriteAllText(log, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss}  {what}, exit {process.ExitCode}{Environment.NewLine}{Path.GetFileName(engine)} {string.Join(" ", args.Select((string x) => x.Contains(' ') ? "\"" + x + "\"" : x))}{Environment.NewLine}{Environment.NewLine}{string.Join(Environment.NewLine, lines)}{Environment.NewLine}");
+				}
+				catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+				{
+					log = "";
+				}
+				string said = string.Join(Environment.NewLine, lines.TakeLast(8));
+				if (said.Length > 900)
+				{
+					said = "…" + said.Substring(said.Length - 900);
+				}
+				if (process.ExitCode == 0)
+				{
+					said = "it finished without saving the " + what + "." + Environment.NewLine + said;
+				}
+				throw new IOException("The image engine failed (exit " + process.ExitCode + "):" + Environment.NewLine + said + ((log.Length > 0) ? (Environment.NewLine + "Full log: " + log) : ""));
 			}
 		}
 		finally
