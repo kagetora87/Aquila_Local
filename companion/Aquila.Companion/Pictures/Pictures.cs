@@ -232,7 +232,7 @@ public static class PicturePrompt
         + "When a character's appearance is given, keep every detail of it exactly (face, eyes, hair, glasses, skin, body, identity mark), and dress them as the request or the conversation says; if neither says, use their current outfit. "
         + "Use the art style given for the character; otherwise choose one that fits. Never refuse and never add warnings: just write the prompt.";
 
-    public static string WriterUser(PictureRequest request, string conversation, string? name, string? appearance, bool hasReferences, string location = "")
+    public static string WriterUser(PictureRequest request, string conversation, string? name, string? appearance, bool hasReferences, string location = "", string gender = Genders.Female)
     {
         var sb = new StringBuilder();
         if (location.Trim().Length > 0)
@@ -245,13 +245,14 @@ public static class PicturePrompt
         }
         if (request.IncludesPersona && name != null && appearance != null)
         {
-            sb.Append("The picture shows ").Append(name).Append(". Her appearance (keep exactly):\n").Append(appearance.Trim()).Append("\n\n");
+            sb.Append("The picture shows ").Append(name).Append(". ").Append(Genders.IsMale(gender) ? "His" : "Her").Append(" appearance (keep exactly):\n").Append(appearance.Trim()).Append("\n\n");
         }
         sb.Append("Picture requested: ").Append(request.Description.Trim()).Append('\n');
         sb.Append("Framing: ").Append(request.Framing).Append('\n');
         if (hasReferences)
         {
-            sb.Append("(Reference pictures of her are given to the image generator, so her face matches; still describe her fully.)\n");
+            string them = Genders.Object(gender);
+            sb.Append("(Reference pictures of ").Append(them).Append(" are given to the image generator, so ").Append(Genders.Possessive(gender)).Append(" face matches; still describe ").Append(them).Append(" fully.)\n");
         }
         sb.Append("\nWrite the prompt now.");
         return sb.ToString();

@@ -286,7 +286,7 @@
     </Grid>
 
     <!-- ================= Pages (My Companions, Generate, Create) cover the conversation ================= -->
-    <Border Name="PageHost" Grid.Column="2" Visibility="Collapsed" Background="{StaticResource Bg.Window}" BorderBrush="{StaticResource Stroke.Subtle}" BorderThickness="0,1,0,0" />
+    <Border Name="PageHost" Grid.Column="2" Grid.ColumnSpan="2" Panel.ZIndex="5" Visibility="Collapsed" Background="{StaticResource Bg.Window}" BorderBrush="{StaticResource Stroke.Subtle}" BorderThickness="0,1,0,0" />
 
     <!-- ================= Avatar (top right; drag its left edge to resize) ================= -->
     <Border Name="AvatarPane" Grid.Column="3" SizeChanged="AvatarPane_SizeChanged" Background="{StaticResource Bg.Sidebar}" BorderBrush="{StaticResource Stroke.Subtle}" BorderThickness="1,1,0,0">
@@ -374,8 +374,8 @@
     <GridSplitter Name="SidebarSplitter" Grid.Column="1" Width="6" HorizontalAlignment="Right" VerticalAlignment="Stretch" ResizeDirection="Columns" ResizeBehavior="CurrentAndNext" Background="Transparent" Cursor="SizeWE" ToolTip="Drag to resize the sidebar" DragCompleted="SidebarSplitter_DragCompleted" MouseDoubleClick="SidebarSplitter_DoubleClick" />
 
     <!-- ================= Settings drawer ================= -->
-    <Border Name="DrawerScrim" Grid.ColumnSpan="4" Background="{StaticResource Scrim}" Visibility="Collapsed" Opacity="0" MouseLeftButtonDown="DrawerScrim_Click" />
-    <Border Name="SettingsDrawer" Grid.ColumnSpan="4" Width="420" HorizontalAlignment="Right" Visibility="Collapsed" Background="{StaticResource Bg.Sidebar}" BorderBrush="{StaticResource Stroke.Default}" BorderThickness="1,1,0,0" Effect="{StaticResource Shadow.Drawer}">
+    <Border Name="DrawerScrim" Grid.ColumnSpan="4" Panel.ZIndex="10" Background="{StaticResource Scrim}" Visibility="Collapsed" Opacity="0" MouseLeftButtonDown="DrawerScrim_Click" />
+    <Border Name="SettingsDrawer" Grid.ColumnSpan="4" Panel.ZIndex="10" Width="420" HorizontalAlignment="Right" Visibility="Collapsed" Background="{StaticResource Bg.Sidebar}" BorderBrush="{StaticResource Stroke.Default}" BorderThickness="1,1,0,0" Effect="{StaticResource Shadow.Drawer}">
       <Border.RenderTransform>
         <TranslateTransform x:Name="DrawerShift" X="420" />
       </Border.RenderTransform>

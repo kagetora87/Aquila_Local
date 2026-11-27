@@ -486,31 +486,6 @@ public partial class MainWindow
 		return "No description yet. Add one in their settings.";
 	}
 
-	private FrameworkElement GeneratePage()
-	{
-		string who = "";
-		if (generateFor.Length > 0)
-		{
-			try
-			{
-				who = companion.Registry.Load().Personas.FirstOrDefault((PersonaEntry p) => p.Id == generateFor)?.Name ?? "";
-			}
-			catch (PersonaConfigException)
-			{
-			}
-		}
-		DockPanel page = Page("Generate", "Make pictures and videos of your companions.", null);
-		Border card = new Border { Style = Ui.Style("Card"), MaxWidth = 620, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top };
-		StackPanel body = new StackPanel();
-		body.Children.Add(Ui.Text(who.Length > 0 ? "Coming in the next update, starting with " + who + "." : "Coming in the next update.", "Type.Subtitle"));
-		TextBlock more = Ui.Text("Pick a companion and their look goes into the prompt by itself. Then choose an action, an outfit and a scene from the presets on the right (or describe your own with Custom), and make a picture or a video.", "Type.Small");
-		more.Margin = new Thickness(0, 8, 0, 0);
-		body.Children.Add(more);
-		card.Child = body;
-		page.Children.Add(card);
-		return page;
-	}
-
 	private FrameworkElement CreatePage()
 	{
 		DockPanel page = Page("Create a companion", "Bring someone new to life.", null);

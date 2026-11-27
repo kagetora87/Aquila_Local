@@ -232,7 +232,7 @@ public partial class MainWindow
 	}
 
 	/// <summary>The chat model writes the image prompt on its second slot, so the conversation's cache stays as it is.</summary>
-	private async Task<string> WritePicturePromptAsync(PictureRequest request, string conversation, string? name, string? appearance, bool hasReferences, string location, CancellationToken ct)
+	private async Task<string> WritePicturePromptAsync(PictureRequest request, string conversation, string? name, string? appearance, bool hasReferences, string location, CancellationToken ct, string gender = Genders.Female)
 	{
 		JsonObject payload = new JsonObject
 		{
@@ -241,7 +241,7 @@ public partial class MainWindow
 			["messages"] = new JsonArray
 			{
 				new JsonObject { ["role"] = "system", ["content"] = PicturePrompt.WriterSystem },
-				new JsonObject { ["role"] = "user", ["content"] = PicturePrompt.WriterUser(request, conversation, name, appearance, hasReferences, location) }
+				new JsonObject { ["role"] = "user", ["content"] = PicturePrompt.WriterUser(request, conversation, name, appearance, hasReferences, location, gender) }
 			},
 			["stream"] = false,
 			["temperature"] = 0.7,
@@ -255,9 +255,9 @@ public partial class MainWindow
 	}
 
 	/// <summary>Draws one picture (pausing the chat model for the best model) and saves the prompt beside it.</summary>
-	private async Task<string> DrawAsync(string model, string prompt, (int Width, int Height) size, IReadOnlyList<string> references, string about, CancellationToken ct)
+	private async Task<string> DrawAsync(string model, string prompt, (int Width, int Height) size, IReadOnlyList<string> references, string about, CancellationToken ct, string? saveAs = null)
 	{
-		string output = PictureFiles.NewOutput(PicturesRoot, about, DateTimeOffset.Now);
+		string output = saveAs ?? PictureFiles.NewOutput(PicturesRoot, about, DateTimeOffset.Now);
 		bool paused = false;
 		bool restore = false;
 		try
