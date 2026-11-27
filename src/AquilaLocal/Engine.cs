@@ -339,7 +339,10 @@ public sealed class Engine : IDisposable
 			"--batch-size",
 			inferenceLaunch.Batch.ToString(),
 			"--ubatch-size",
-			inferenceLaunch.MicroBatch.ToString(),
+			// With a vision projector, 1024: Gemma 4 reads an image in one micro-batch, so llama.cpp caps
+			// image tokens at this size, and 512 would halve the 1024 that --image-max-tokens asks for
+			// (measured on the laptop: +0.4 GB, chat speed unchanged).
+			(settings.ProjectorPath.Length > 0 && inferenceLaunch.Batch >= 1024 ? 1024 : inferenceLaunch.MicroBatch).ToString(),
 			"--no-webui",
 			// Lets the conversation's working memory be saved to disk and loaded back when the engine is
 			// paused for the best-quality picture model, so the chat isn't re-read afterwards.
