@@ -328,6 +328,10 @@ public sealed class Agent(Engine engine, MemoryStore? memories = null, SemanticM
 				{
 					jsonArray.Add(MakePictureDefinition.DeepClone());
 				}
+				if (MakeVideo != null)
+				{
+					jsonArray.Add(MakeVideoDefinition.DeepClone());
+				}
 				if (web != null)
 				{
 					foreach (JsonNode definition2 in WebAccess.Definitions)
@@ -604,6 +608,10 @@ public sealed class Agent(Engine engine, MemoryStore? memories = null, SemanticM
 				{
 					text8 = await MakePicture(call.Arguments.ToString(), turn, ct);
 				}
+				else if (text3 == "make_video" && MakeVideo != null)
+				{
+					text8 = await MakeVideo(call.Arguments.ToString(), turn, ct);
+				}
 				else if ((text3 == "web_search" || text3 == "web_read") ? true : false)
 				{
 					string text7 = ((web != null) ? (await web.ExecuteAsync(call.Name, call.Arguments.ToString(), ct)) : "Web access is off.");
@@ -671,6 +679,11 @@ public sealed class Agent(Engine engine, MemoryStore? memories = null, SemanticM
 
 	/// <summary>Draws a picture for the make_picture tool (null when pictures are off): arguments JSON, the turn, and returns what to tell the model.</summary>
 	public Func<string, Turn, CancellationToken, Task<string>>? MakePicture { get; set; }
+
+	/// <summary>The make_video tool (set only when video is allowed): a still, then a short animated clip.</summary>
+	public Func<string, Turn, CancellationToken, Task<string>>? MakeVideo { get; set; }
+
+	private static readonly JsonNode MakeVideoDefinition = JsonNode.Parse("{\"type\":\"function\",\"function\":{\"name\":\"make_video\",\"description\":\"Make a short video clip (about 5 seconds, no sound) with the local video generator and show it in the chat: first a still is drawn, then it is animated. Use it only when they ask for a video or clip, or when movement really matters to the moment. It takes several minutes and pauses the chat while it runs, so use it rarely and never for every message.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"description\":{\"type\":\"string\",\"description\":\"What the first frame shows: who, what they wear, pose, expression, setting, lighting\"},\"motion\":{\"type\":\"string\",\"description\":\"What happens during the clip: the movement, gestures, expression changes and camera motion\"},\"includes_you\":{\"type\":\"boolean\",\"description\":\"True if you yourself are in the video\"}},\"required\":[\"description\",\"motion\"],\"additionalProperties\":false}}}")!;
 
 	private static readonly JsonNode MakePictureDefinition = JsonNode.Parse("{\"type\":\"function\",\"function\":{\"name\":\"make_picture\",\"description\":\"Draw a picture with the local image generator and show it in the chat. Use it when they ask for a picture, photo or selfie, or when showing something would really add to the moment (how you look right now, where you are, something you describe). Describe plainly what it should show; set includes_you when you are in it. It takes 15 to 60 seconds, so don't use it for every message.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"description\":{\"type\":\"string\",\"description\":\"What the picture shows: who, what they wear, pose, expression, setting, lighting\"},\"includes_you\":{\"type\":\"boolean\",\"description\":\"True if you yourself are in the picture\"},\"framing\":{\"type\":\"string\",\"enum\":[\"portrait\",\"half body\",\"full body\",\"scene\",\"landscape\"]}},\"required\":[\"description\"],\"additionalProperties\":false}}}")!;
 

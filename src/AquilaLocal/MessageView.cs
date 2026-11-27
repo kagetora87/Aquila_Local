@@ -300,6 +300,9 @@ public sealed class MessageView : Border
 		pictures.Children.Clear();
 		foreach (string file in files)
 		{
+			// A video is shown as its first still (saved beside it as .png) with a play mark; clicking plays it.
+			bool video = IsVideo(file);
+			string still = video ? System.IO.Path.ChangeExtension(file, ".png") : file;
 			System.Windows.Media.Imaging.BitmapImage image;
 			try
 			{
@@ -307,7 +310,7 @@ public sealed class MessageView : Border
 				image.BeginInit();
 				image.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
 				image.DecodePixelWidth = 640;
-				image.UriSource = new Uri(file, UriKind.Absolute);
+				image.UriSource = new Uri(still, UriKind.Absolute);
 				image.EndInit();
 				image.Freeze();
 			}
@@ -316,7 +319,7 @@ public sealed class MessageView : Border
 				pictures.Children.Add(new TextBlock { Text = "Picture missing: " + System.IO.Path.GetFileName(file), Foreground = Ui.Brush("Text.Tertiary"), Margin = new Thickness(0, 0, 6, 6) });
 				continue;
 			}
-			System.Windows.Controls.Image thumb = new System.Windows.Controls.Image { Source = image, Stretch = Stretch.Uniform, MaxWidth = 420.0, MaxHeight = 520.0, Cursor = Cursors.Hand, ToolTip = "Open full size · " + System.IO.Path.GetFileName(file) };
+			System.Windows.Controls.Image thumb = new System.Windows.Controls.Image { Source = image, Stretch = Stretch.Uniform, MaxWidth = 420.0, MaxHeight = 520.0, Cursor = Cursors.Hand, ToolTip = (video ? "Play the video · " : "Open full size · ") + System.IO.Path.GetFileName(file) };
 			RenderOptions.SetBitmapScalingMode(thumb, BitmapScalingMode.HighQuality);
 			string path = file;
 			thumb.MouseLeftButtonUp += delegate
@@ -329,15 +332,40 @@ public sealed class MessageView : Border
 				{
 				}
 			};
+			UIElement content = thumb;
+			if (video)
+			{
+				Grid g = new Grid();
+				g.Children.Add(thumb);
+				Border play = new Border
+				{
+					Width = 56.0,
+					Height = 56.0,
+					CornerRadius = new CornerRadius(28.0),
+					Background = new SolidColorBrush(Color.FromArgb(170, 0, 0, 0)),
+					HorizontalAlignment = HorizontalAlignment.Center,
+					VerticalAlignment = VerticalAlignment.Center,
+					IsHitTestVisible = false,
+					Child = new TextBlock { Text = "\u25B6", FontSize = 24.0, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4.0, 0.0, 0.0, 0.0) }
+				};
+				g.Children.Add(play);
+				content = g;
+			}
 			pictures.Children.Add(new Border
 			{
 				CornerRadius = new CornerRadius(10.0),
 				ClipToBounds = true,
 				Margin = new Thickness(0.0, 0.0, 6.0, 6.0),
-				Child = thumb
+				Child = content
 			});
 		}
 		pictures.Visibility = (pictures.Children.Count > 0) ? Visibility.Visible : Visibility.Collapsed;
+	}
+
+	public static bool IsVideo(string file)
+	{
+		string ext = System.IO.Path.GetExtension(file).ToLowerInvariant();
+		return ext == ".webm" || ext == ".avi" || ext == ".mp4";
 	}
 
 	public void ShowPictures(IEnumerable<Attachment> attachments)

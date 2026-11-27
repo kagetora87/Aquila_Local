@@ -425,6 +425,9 @@ public sealed class JournalEntry
     /// <summary>A picture of her dream (a file in the pictures folder), or empty.</summary>
     public string Picture { get; set; } = "";
 
+    /// <summary>A short clip of her dream (the picture animated), or empty.</summary>
+    public string Video { get; set; } = "";
+
     /// <summary>The message she sent you first, or empty.</summary>
     public string Message { get; set; } = "";
 

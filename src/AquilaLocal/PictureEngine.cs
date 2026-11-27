@@ -24,18 +24,35 @@ public sealed class PictureEngine
 
 	public PictureKit Kit { get; }
 
+	/// <summary>Wan 2.2 image-to-video, in the same image folder.</summary>
+	public VideoKit Video => new VideoKit(Kit.Folder);
+
+	/// <summary>No clip may take longer than this (full quality took 14.5 minutes on the laptop).</summary>
+	public static readonly TimeSpan VideoLimit = TimeSpan.FromMinutes(30);
+
 	/// <summary>Draws one picture into job.Output. Progress reports (step, of). Throws with the engine's own words on failure.</summary>
-	public async Task DrawAsync(string model, PictureJob job, Action<int, int>? progress, CancellationToken ct)
+	public Task DrawAsync(string model, PictureJob job, Action<int, int>? progress, CancellationToken ct)
 	{
 		PictureModelFiles files = Kit.Resolve(model);
-		List<string> args = PictureCommand.Arguments(files, job);
+		return RunAsync(files.Engine, PictureCommand.Arguments(files, job), job.Output, Limit, "picture", progress, ct);
+	}
+
+	/// <summary>Makes one clip into job.Output (fast = the Lightning LoRAs when installed).</summary>
+	public Task MakeVideoAsync(VideoJob job, bool fast, Action<int, int>? progress, CancellationToken ct)
+	{
+		VideoModelFiles files = Video.Resolve();
+		return RunAsync(files.Engine, VideoCommand.Arguments(files, job, fast), job.Output, VideoLimit, "video", progress, ct);
+	}
+
+	private async Task RunAsync(string engine, List<string> args, string output, TimeSpan limitAfter, string what, Action<int, int>? progress, CancellationToken ct)
+	{
 		await one.WaitAsync(ct);
 		try
 		{
-			Directory.CreateDirectory(Path.GetDirectoryName(job.Output)!);
+			Directory.CreateDirectory(Path.GetDirectoryName(output)!);
 			ProcessStartInfo info = new ProcessStartInfo
 			{
-				FileName = files.Engine,
+				FileName = engine,
 				WorkingDirectory = Kit.EngineFolder,
 				UseShellExecute = false,
 				CreateNoWindow = true,
@@ -79,7 +96,7 @@ public sealed class PictureEngine
 			process.BeginOutputReadLine();
 			process.BeginErrorReadLine();
 			using CancellationTokenSource limit = CancellationTokenSource.CreateLinkedTokenSource(ct);
-			limit.CancelAfter(Limit);
+			limit.CancelAfter(limitAfter);
 			try
 			{
 				await process.WaitForExitAsync(limit.Token);
@@ -97,9 +114,9 @@ public sealed class PictureEngine
 				{
 					throw;
 				}
-				throw new IOException($"The picture took longer than {Limit.TotalMinutes:0} minutes and was stopped.");
+				throw new IOException($"The {what} took longer than {limitAfter.TotalMinutes:0} minutes and was stopped.");
 			}
-			if (process.ExitCode != 0 || !File.Exists(job.Output))
+			if (process.ExitCode != 0 || !File.Exists(output))
 			{
 				string said;
 				lock (tail)

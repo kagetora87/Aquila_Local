@@ -40,7 +40,7 @@ public sealed class LivingWindow : AquilaWindow
 
 	private bool closed;
 
-	public LivingWindow(Settings settings, CompanionHost companion, InnerLifeJournal journal, Func<string> status, Action saveSettings, ThinkNow thinkNow)
+	public LivingWindow(Settings settings, CompanionHost companion, InnerLifeJournal journal, Func<string> status, Action saveSettings, ThinkNow thinkNow, bool videoReady = false)
 	{
 		this.journal = journal;
 		this.status = status;
@@ -74,7 +74,9 @@ public sealed class LivingWindow : AquilaWindow
 
 		CheckBox dreams = new CheckBox { Content = "Paint her dreams", IsChecked = o.DrawDreams, Margin = new Thickness(0, 16, 0, 0) };
 		body.Children.Add(dreams);
-		body.Children.Add(Ui.Text("When she dreams, the picture model chosen in Pictures paints the dream, with her appearance and reference pictures when she's in it. The pictures are in her journal and the pictures folder. With the best-quality model the chat model pauses while it paints.", "Type.Small"));
+		CheckBox animate = new CheckBox { Content = "Also bring her dreams to life as short videos", IsChecked = settings.Video.AnimateDreams, Margin = new Thickness(24, 6, 0, 0), IsEnabled = videoReady };
+		body.Children.Add(animate);
+		body.Children.Add(Ui.Text("When she dreams, the picture model chosen in Pictures paints the dream, with her appearance and reference pictures when she's in it. The pictures are in her journal and the pictures folder. With the best-quality model the chat model pauses while it paints. Videos take a few minutes each and pause the chat model" + (videoReady ? "." : " (the video generator isn't installed yet).") , "Type.Small"));
 
 		CheckBox web = new CheckBox { Content = "Let her look things up on the internet for her own curiosity", IsChecked = o.WebLookups, Margin = new Thickness(0, 16, 0, 0) };
 		body.Children.Add(web);
@@ -167,6 +169,7 @@ public sealed class LivingWindow : AquilaWindow
 			o.Enabled = enabled.IsChecked == true;
 			(o.MinMinutes, o.MaxMinutes) = Ranges[Math.Max(0, interval.SelectedIndex)];
 			o.DrawDreams = dreams.IsChecked == true;
+			settings.Video.AnimateDreams = animate.IsChecked == true;
 			o.IdleMinutes = Idles[Math.Max(0, idle.SelectedIndex)];
 			o.WebLookups = web.IsChecked == true;
 			o.MessageFirst = first.IsChecked == true;
@@ -283,6 +286,18 @@ public sealed class LivingWindow : AquilaWindow
 			{
 				p.Children.Add(Ui.Text("(Couldn't show the dream picture: " + ex.Message + ")", "Type.Small"));
 			}
+		}
+		if (e.Video.Length > 0 && File.Exists(e.Video))
+		{
+			TextBlock play = Ui.Text("", "Type.Small");
+			Hyperlink link = new Hyperlink(new Run("▶ Play the dream (5 seconds)")) { ToolTip = e.Video };
+			string clip = e.Video;
+			link.Click += delegate
+			{
+				Process.Start(new ProcessStartInfo(clip) { UseShellExecute = true });
+			};
+			play.Inlines.Add(link);
+			p.Children.Add(play);
 		}
 		foreach (JournalLookup l in e.Lookups)
 		{

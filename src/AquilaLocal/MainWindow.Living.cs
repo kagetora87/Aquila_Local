@@ -242,7 +242,13 @@ public partial class MainWindow
 			{
 				try
 				{
-					entry.Picture = await DrawDreamAsync(runtime, personaId, name, thought, ct);
+					bool animate = settings.Video.AnimateDreams && PictureDrawer.Video.Check().Ready;
+					entry.Picture = await DrawDreamAsync(runtime, personaId, name, thought, animate, ct);
+					if (animate)
+					{
+						SetLivingStatus(name + " is dreaming… bringing the dream to life (a few minutes).");
+						entry.Video = await AnimateAsync(entry.Picture, AquilaLocal.Companion.Pictures.VideoRequest.ClipPrompt("Slow, dreamlike motion: the scene gently drifts, shifts and flows, soft light changing", thought.Text), ct);
+					}
 				}
 				catch (Exception ex) when (ex is IOException || ex is PersonaConfigException || ex is HttpRequestException || ex is UnauthorizedAccessException || ex is InvalidOperationException)
 				{
@@ -306,7 +312,7 @@ public partial class MainWindow
 	/// Paints her dream with the picture model chosen in Pictures (and her appearance and reference pictures when
 	/// she's in it). The best model pauses the chat model, which is fine: she's dreaming because you're away.
 	/// </summary>
-	private async Task<string> DrawDreamAsync(CompanionRuntime runtime, string personaId, string name, InnerThought dream, CancellationToken ct)
+	private async Task<string> DrawDreamAsync(CompanionRuntime runtime, string personaId, string name, InnerThought dream, bool forVideo, CancellationToken ct)
 	{
 		string model = settings.Pictures.Model;
 		(bool ready, string problem) = PictureDrawer.Kit.Check(model);
@@ -334,7 +340,7 @@ public partial class MainWindow
 		}
 		AquilaLocal.Companion.Pictures.PictureRequest request = new AquilaLocal.Companion.Pictures.PictureRequest("Her dream: " + dream.Text + " Paint it dreamlike: soft, surreal light and a slightly impossible feel.", dream.SheIsInIt, "scene");
 		string prompt = await WritePicturePromptAsync(request, "", dream.SheIsInIt ? name : null, appearance, references.Count > 0, "inside her dream", ct);
-		return await DrawAsync(model, AquilaLocal.Companion.Pictures.PicturePrompt.WithReferences(prompt, references.Count), request.Size(), references, name + " dream", ct);
+		return await DrawAsync(model, AquilaLocal.Companion.Pictures.PicturePrompt.WithReferences(prompt, references.Count), forVideo ? AquilaLocal.Companion.Pictures.VideoRequest.StillSize : request.Size(), references, name + " dream", ct);
 	}
 
 	/// <summary>One JSON answer from the chat model's second slot (the conversation's cache on slot 0 is untouched).</summary>
@@ -491,7 +497,7 @@ public partial class MainWindow
 				throw new InvalidOperationException(engine.Ready ? "Wait until the current reply finishes." : "The chat model isn't loaded yet.");
 			}
 			return await LiveOnceAsync(personaId, name, dream);
-		})
+		}, PictureDrawer.Video.Check().Ready)
 		{
 			Owner = this
 		};

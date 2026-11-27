@@ -122,6 +122,19 @@ public sealed class PicturesWindow : AquilaWindow
 		refSection.Children.Add(references);
 		body.Children.Add(Ui.Field("Reference pictures", refSection, "3 or 4 clear pictures of her, 768 pixels or bigger: her face, and half-body, in plain clothes. The first four (by file name) are used. Her clothes in a picture come from the conversation, not from these."));
 
+		(bool videoReady, string videoProblem) = drawer.Video.Check();
+		bool lightning = videoReady && drawer.Video.Resolve().HasLightning;
+		StackPanel videoSection = new StackPanel();
+		CheckBox videoOn = new CheckBox { Content = "Let Vicki and Aquila make short videos", IsChecked = settings.Video.Enabled && videoReady, IsEnabled = videoReady };
+		CheckBox videoFast = new CheckBox { Content = "Faster videos (Lightning: a few minutes instead of about 15)", IsChecked = settings.Video.Fast, IsEnabled = lightning, Margin = new Thickness(0, 6, 0, 0) };
+		videoSection.Children.Add(videoOn);
+		videoSection.Children.Add(videoFast);
+		TextBlock videoState = Ui.Text(videoReady ? (lightning ? "Wan 2.2 installed, with the Lightning speed-up." : "Wan 2.2 installed (no Lightning speed-up, so about 15 minutes a clip).") : videoProblem, "Type.Small");
+		videoState.Foreground = videoReady ? Ui.Brush("Accent") : Ui.Brush("Danger");
+		videoState.TextWrapping = TextWrapping.Wrap;
+		videoSection.Children.Add(videoState);
+		body.Children.Add(Ui.Field("Video", videoSection, "A 5-second clip without sound: a still is drawn with the model above (and her reference pictures), then Wan 2.2 animates it. The chat model pauses while the clip is made. Clips show in the chat; click one to play it."));
+
 		TextBox prompt = new TextBox { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Height = 70, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Text = "She sits on a sofa with a mug of coffee, smiling at the viewer, evening lamp light." };
 		Button test = Ui.Button("Draw a test picture", "Btn.Secondary", null);
 		test.HorizontalAlignment = HorizontalAlignment.Left;
@@ -189,6 +202,8 @@ public sealed class PicturesWindow : AquilaWindow
 			settings.Pictures.Enabled = enabled.IsChecked == true;
 			settings.Pictures.Model = model;
 			settings.Pictures.UseReferences = useRefs.IsChecked == true;
+			settings.Video.Enabled = videoOn.IsChecked == true;
+			settings.Video.Fast = videoFast.IsChecked == true || !lightning;
 			try
 			{
 				saveSettings();

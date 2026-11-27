@@ -2373,6 +2373,10 @@ public partial class MainWindow : AquilaWindow
 		{
 			agent.MakePicture = (string arguments, Turn pictureTurn, CancellationToken pictureCt) => MakePictureForTurnAsync(session, pictureTurn, arguments, pictureCt);
 		}
+		if (settings.Video.Enabled)
+		{
+			agent.MakeVideo = (string arguments, Turn videoTurn, CancellationToken videoCt) => MakeVideoForTurnAsync(session, videoTurn, arguments, videoCt);
+		}
 		agent.ApproveWeb = (string action) => Task.FromResult(AquilaDialog.Confirm(this, "Allow web lookup?", action + "\n\nThis search or address will be sent over the internet.", "Allow", "Don't allow"));
 		agent.LocationChanged += delegate
 		{

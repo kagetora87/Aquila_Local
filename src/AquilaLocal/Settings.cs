@@ -83,6 +83,9 @@ public class Settings
 	/// <summary>The built-in image generator.</summary>
 	public PictureOptions Pictures { get; set; } = new PictureOptions();
 
+	/// <summary>Built-in video (Wan 2.2 image-to-video).</summary>
+	public VideoOptions Video { get; set; } = new VideoOptions();
+
 	/// <summary>Living mode: personas think on their own while you're away.</summary>
 	public LivingOptions Living { get; set; } = new LivingOptions();
 
@@ -264,4 +267,17 @@ public sealed class LivingOptions
 		MaxMessagesPerDay = Math.Clamp(MaxMessagesPerDay, 1, 20),
 		QuietHours = QuietHours
 	};
+}
+
+/// <summary>Built-in video: Vicki and Aquila may make short clips (a still, then animated with Wan 2.2).</summary>
+public sealed class VideoOptions
+{
+	/// <summary>Off until you allow it.</summary>
+	public bool Enabled { get; set; }
+
+	/// <summary>Use the 4-step Lightning speed-up (a few minutes a clip instead of about 15).</summary>
+	public bool Fast { get; set; } = true;
+
+	/// <summary>Living mode: also animate her dream pictures into short clips.</summary>
+	public bool AnimateDreams { get; set; }
 }

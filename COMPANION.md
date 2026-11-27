@@ -230,6 +230,18 @@ set her up once.
 - Reference pictures live in her persona folder under `references\`; the first four by name are used. The prompt tells the model to take clothes, pose and setting from the description, not from the references.
 - Pictures are saved in `Data\pictures\yyyy-MM\` with a `.txt` beside each (prompt, model, seed, references) and shown under her reply; click one to open it full size.
 
+## Video (Wan 2.2 image-to-video)
+
+Off until allowed in the Pictures window (needs the files in `imagegen\models`: Wan2.2-I2V-A14B High/LowNoise
+Q8_0 GGUF, umt5-xxl-encoder Q8_0, wan_2.1_vae, and optionally `models\loras\wan22_i2v_lightning_{high,low}`).
+The `make_video(description, motion, includes_you)` tool draws a 1536×864 still like a picture (appearance and
+reference pictures), scales it to 960×544 and animates 81 frames (5 s, 16 fps, no sound) into a .webm saved beside
+the still. The chat model is parked during the clip (peak ~23 GB). Measured on the laptop: full quality (8+10
+steps, cfg 3.5, shift 3) 14.5 min at 832×480; Lightning (2+2 steps, cfg 1, shift 5) 202 s at 832×480 and 255 s at
+960×544, same look. `--offload-to-cpu` fails for video ("RAM graph capacity exceeded"); `--mmap` works. LoRA tags:
+`<lora:NAME:1>` (low-noise) and `<lora:|high_noise|NAME:1>` with `--lora-model-dir`. Living mode can also animate
+dream pictures ("Also bring her dreams to life").
+
 ## Living mode (thoughts of her own)
 
 Off until you turn it on (sidebar: **Living mode**). While Aquila is open and you've left it alone for a while
