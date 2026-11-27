@@ -146,6 +146,21 @@ public sealed class PictureTests
     }
 
     [Fact]
+    public void The_avoid_list_is_editable_but_always_keeps_the_adults_only_words()
+    {
+        Assert.Equal("blurry, " + PictureCommand.AnimeAlwaysAvoid, PictureCommand.AnimeNegative("  blurry,\n "));
+        Assert.Equal(PictureCommand.AnimeAlwaysAvoid, PictureCommand.AnimeNegative(""));
+        Assert.Throws<PersonaConfigException>(() => PictureCommand.AnimeNegative(new string('a', PictureCommand.MaxAvoidChars + 1)));
+
+        using var dir = new TempDir();
+        PictureKit kit = Kit(dir);
+        File.WriteAllText(Path.Combine(kit.ModelsFolder, "waiIllustriousSDXL_v170.safetensors"), "");
+        File.WriteAllText(Path.Combine(kit.ModelsFolder, "sdxl_vae-fp16-fix.safetensors"), "");
+        List<string> args = PictureCommand.Arguments(kit.Resolve(PictureModels.Anime), new PictureJob("1girl", 832, 1216, Array.Empty<string>(), 3, "out.png"), "watermark");
+        Assert.Equal("watermark, " + PictureCommand.AnimeAlwaysAvoid, args[args.IndexOf("-n") + 1]);
+    }
+
+    [Fact]
     public void The_anime_model_draws_small_pictures_bigger_and_drops_the_reference_lead()
     {
         Assert.Equal((896, 1152), PictureModels.DrawSize(PictureModels.Anime, (896, 1152)));

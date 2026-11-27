@@ -35,7 +35,7 @@ public sealed class PictureEngine
 	public Task DrawAsync(string model, PictureJob job, Action<int, int>? progress, CancellationToken ct)
 	{
 		PictureModelFiles files = Kit.Resolve(model);
-		return RunAsync(files.Engine, PictureCommand.Arguments(files, job), job.Output, Limit, "picture", progress, ct);
+		return RunAsync(files.Engine, PictureCommand.Arguments(files, job, Kit.AnimeAvoid), job.Output, Limit, "picture", progress, ct);
 	}
 
 	/// <summary>Makes one clip into job.Output (fast = the Lightning LoRAs when installed).</summary>

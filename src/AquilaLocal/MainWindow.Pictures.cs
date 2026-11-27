@@ -25,7 +25,12 @@ public partial class MainWindow
 	{
 		get
 		{
-			pictureEngine ??= new PictureEngine(Path.Combine(AppContext.BaseDirectory, "imagegen"));
+			if (pictureEngine == null)
+			{
+				pictureEngine = new PictureEngine(Path.Combine(AppContext.BaseDirectory, "imagegen"));
+				// Set once here; the Pictures window changes it while you try things and puts it back on Cancel.
+				pictureEngine.Kit.AnimeAvoid = settings.Pictures.AnimeAvoid ?? PictureCommand.AnimeAvoidDefault;
+			}
 			// The chosen text encoder for FLUX 3 Image Klein (settings, Pictures window or the Generate screen).
 			pictureEngine.Kit.KleinEncoder = KleinEncoders.IsKnown(settings.Pictures.KleinEncoder) ? settings.Pictures.KleinEncoder : KleinEncoders.Standard;
 			return pictureEngine;

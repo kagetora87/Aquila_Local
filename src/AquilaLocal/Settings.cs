@@ -238,6 +238,9 @@ public sealed class PictureOptions
 
 	/// <summary>The text encoder FLUX 3 Image Klein reads prompts with: "standard", "uncensored-q8" or "uncensored-bf16".</summary>
 	public string KleinEncoder { get; set; } = AquilaLocal.Companion.Pictures.KleinEncoders.Standard;
+
+	/// <summary>The anime engine's avoid list (negative prompt); the adults-only words are always added to it.</summary>
+	public string AnimeAvoid { get; set; } = AquilaLocal.Companion.Pictures.PictureCommand.AnimeAvoidDefault;
 }
 
 /// <summary>Living mode: thoughts of her own while you're away, kept in a journal and in her memory.</summary>

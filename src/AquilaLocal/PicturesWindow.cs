@@ -96,6 +96,20 @@ public sealed class PicturesWindow : AquilaWindow
 		};
 		body.Children.Add(Ui.Field("Text encoder (FLUX 3 Image Klein)", encoder, "How the fast model reads the prompt. The uncensored versions have their refusal training removed; 8-bit is the recommended one, 16-bit is twice the size for a tiny difference."));
 
+		TextBox avoid = new TextBox { Text = settings.Pictures.AnimeAvoid ?? PictureCommand.AnimeAvoidDefault, AcceptsReturn = false, TextWrapping = TextWrapping.Wrap, MinHeight = 70, MaxLength = PictureCommand.MaxAvoidChars, VerticalContentAlignment = VerticalAlignment.Top };
+		avoid.TextChanged += delegate
+		{
+			// Try it below uses the list straight away; Save keeps it, Cancel puts the saved one back.
+			drawer.Kit.AnimeAvoid = avoid.Text;
+		};
+		Button avoidReset = Ui.Button("Back to the starting list", "Btn.Link", delegate { avoid.Text = PictureCommand.AnimeAvoidDefault; });
+		avoidReset.HorizontalAlignment = HorizontalAlignment.Left;
+		avoidReset.Margin = new Thickness(0, 4, 0, 0);
+		StackPanel avoidSection = new StackPanel();
+		avoidSection.Children.Add(avoid);
+		avoidSection.Children.Add(avoidReset);
+		body.Children.Add(Ui.Field("Avoid (anime engine)", avoidSection, "Words separated by commas that the anime engine steers away from. Remove one to allow it, add one to keep it out. \"" + PictureCommand.AnimeAlwaysAvoid + "\" is always added, so everyone stays an adult."));
+
 		CheckBox useRefs = new CheckBox { Content = "Use her reference pictures so she looks the same every time", IsChecked = settings.Pictures.UseReferences, Margin = new Thickness(0, 16, 0, 0) };
 		body.Children.Add(useRefs);
 
@@ -220,6 +234,17 @@ public sealed class PicturesWindow : AquilaWindow
 			settings.Pictures.Model = model;
 			settings.Pictures.KleinEncoder = KleinEncoders.All[Math.Max(0, encoder.SelectedIndex)].Key;
 			settings.Pictures.UseReferences = useRefs.IsChecked == true;
+			try
+			{
+				PictureCommand.AnimeNegative(avoid.Text);
+			}
+			catch (PersonaConfigException ex)
+			{
+				Problem(ex.Message);
+				return;
+			}
+			settings.Pictures.AnimeAvoid = avoid.Text.Trim();
+			drawer.Kit.AnimeAvoid = settings.Pictures.AnimeAvoid;
 			settings.Video.Enabled = videoOn.IsChecked == true;
 			settings.Video.Fast = videoFast.IsChecked == true || !lightning;
 			try
@@ -240,6 +265,7 @@ public sealed class PicturesWindow : AquilaWindow
 		base.Closed += delegate
 		{
 			drawing?.Cancel();
+			drawer.Kit.AnimeAvoid = settings.Pictures.AnimeAvoid ?? PictureCommand.AnimeAvoidDefault;
 		};
 		if (persona.Items.Count > 0)
 		{

@@ -98,6 +98,9 @@ public sealed class PictureKit
     /// <summary>The text encoder FLUX 3 Image Klein uses (see <see cref="KleinEncoders"/>).</summary>
     public string KleinEncoder { get; set; } = KleinEncoders.Standard;
 
+    /// <summary>What the anime model steers away from (editable in Pictures; the adults-only words are always added).</summary>
+    public string AnimeAvoid { get; set; } = PictureCommand.AnimeAvoidDefault;
+
     public PictureModelFiles Resolve(string model)
     {
         if (!PictureModels.IsKnown(model))
@@ -218,10 +221,26 @@ public static class PictureCommand
     /// <summary>The quality tags Illustrious models expect at the front of every prompt.</summary>
     public const string AnimeQuality = "masterpiece, best quality, amazing quality, very aesthetic, absurdres, ";
 
-    /// <summary>What the anime model is steered away from (companions are always adults; no censor bars).</summary>
-    public const string AnimeNegative = "lowres, worst quality, low quality, bad quality, bad anatomy, bad hands, extra fingers, missing fingers, extra digits, fewer digits, extra limbs, deformed, jpeg artifacts, blurry, signature, watermark, text, username, artist name, censored, mosaic censoring, bar censor, child, loli, shota, aged down";
+    /// <summary>The starting "avoid" list for the anime model (its negative prompt): common flaws and censor bars.</summary>
+    public const string AnimeAvoidDefault = "lowres, worst quality, low quality, bad quality, bad anatomy, bad hands, extra fingers, missing fingers, extra digits, fewer digits, extra limbs, deformed, jpeg artifacts, blurry, signature, watermark, text, username, artist name, censored, mosaic censoring, bar censor";
 
-    public static List<string> Arguments(PictureModelFiles files, PictureJob job)
+    /// <summary>Always added to the avoid list, whatever it says: companions are always adults.</summary>
+    public const string AnimeAlwaysAvoid = "child, loli, shota, aged down";
+
+    public const int MaxAvoidChars = 1500;
+
+    /// <summary>The negative prompt: the (tidied) avoid list plus the adults-only words.</summary>
+    public static string AnimeNegative(string? avoid)
+    {
+        string a = System.Text.RegularExpressions.Regex.Replace((avoid ?? "").Replace('\r', ' ').Replace('\n', ' '), @"\s{2,}", " ").Trim().Trim(',').Trim();
+        if (a.Length > MaxAvoidChars)
+        {
+            throw new PersonaConfigException("Keep the avoid list under " + MaxAvoidChars + " characters.");
+        }
+        return a.Length == 0 ? AnimeAlwaysAvoid : a + ", " + AnimeAlwaysAvoid;
+    }
+
+    public static List<string> Arguments(PictureModelFiles files, PictureJob job, string? avoid = AnimeAvoidDefault)
     {
         if (job.Width % 32 != 0 || job.Height % 32 != 0 || job.Width < 256 || job.Height < 256 || job.Width > 2048 || job.Height > 2048)
         {
@@ -235,7 +254,7 @@ public static class PictureCommand
                 "-m", files.Diffusion,
                 "--vae", files.Vae,
                 "-p", AnimeQuality + job.Prompt,
-                "-n", AnimeNegative,
+                "-n", AnimeNegative(avoid),
                 "-W", job.Width.ToString(CultureInfo.InvariantCulture),
                 "-H", job.Height.ToString(CultureInfo.InvariantCulture),
                 "--seed", job.Seed.ToString(CultureInfo.InvariantCulture),
