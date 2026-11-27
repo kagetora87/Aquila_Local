@@ -130,6 +130,12 @@ public sealed class Agent(Engine engine, MemoryStore? memories = null, SemanticM
 			turn.PersonalityId = "persona:" + session.PersonaId;
 			turn.PersonalityName = session.PersonaName;
 			turn.InnerState = "[Now: " + DateTime.Now.ToString("dddd d MMMM yyyy, h:mm tt") + "]\n" + LocationLine(session) + prepared.InnerState;
+			string balance = AquilaLocal.Companion.ConversationBalance.Cue(session.Turns.Where((Turn t) => t != turn && t.Status == "complete" && !t.Unprompted).TakeLast(AquilaLocal.Companion.ConversationBalance.Window).Select((Turn t) => t.Answer).ToList());
+			if (balance.Length > 0)
+			{
+				turn.InnerState += "\n" + balance;
+				Log(turn, session.PersonaName + ": she's been asking a lot of questions, so this time she shares instead");
+			}
 			Log(turn, $"{session.PersonaName}: top drive {prepared.TopDrive}" + (prepared.Recalled.Count > 0 ? $" · recalled {prepared.Recalled.Count} past moment(s)" : ""));
 			system = prepared.SystemPrompt;
 		}

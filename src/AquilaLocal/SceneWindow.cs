@@ -128,9 +128,13 @@ public sealed class SceneWindow : AquilaWindow
 
 	// ----- Picking or creating a scene -----
 
+	/// <summary>Who is in the open scene, in the order they joined (empty when no scene is open).</summary>
+	public event Action<IReadOnlyList<(string Id, string Name)>>? CastChanged;
+
 	private void ShowPicker()
 	{
 		scene = null;
+		CastChanged?.Invoke(Array.Empty<(string Id, string Name)>());
 		StackPanel body = new StackPanel();
 		List<(string Id, string Title, DateTimeOffset CreatedAt, string? Problem)> scenes = host.Scenes.List();
 		StackPanel existing = new StackPanel();
@@ -422,6 +426,7 @@ public sealed class SceneWindow : AquilaWindow
 		{
 			castBar.Children.Add(CastChip(m));
 		}
+		CastChanged?.Invoke(scene.Manifest.Cast.Select((SceneMember m) => (m.PersonaId, m.Name)).ToList());
 		Button add = Ui.Button(Ui.IconLabel(Ui.Glyph.Add, "Add someone"), "Btn.Ghost");
 		add.Margin = new Thickness(0, 0, 8, 6);
 		add.IsEnabled = !busy && scene.Manifest.Cast.Count < SceneManifest.MaxCast;

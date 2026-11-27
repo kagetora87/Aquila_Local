@@ -46,7 +46,7 @@ public partial class MainWindow
 	private void FitSidebar()
 	{
 		double width = (AvatarColumn.ActualWidth > 0.0) ? AvatarColumn.ActualWidth : AvatarColumn.Width.Value;
-		double tallest = Math.Max(120.0, base.ActualHeight - 120.0);
+		double tallest = Math.Max(120.0, base.ActualHeight - 300.0);
 		AvatarSlot.Height = Math.Clamp((width - 40.0) * 1.35, 120.0, tallest);
 	}
 

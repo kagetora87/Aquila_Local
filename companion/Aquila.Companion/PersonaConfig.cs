@@ -212,6 +212,9 @@ public sealed class PersonaConfig
     /// <summary>Her speaking voice in the app's voice library (for example "Clone: vicki" or "Kitten: Luna"). Empty uses the app's voice.</summary>
     public string Voice { get; set; } = "";
 
+    /// <summary>Her favourite colour, shown with her name beside the avatar: a colour name (teal) or a hex code (#4FC3F7). Empty uses the app's accent.</summary>
+    public string FavoriteColor { get; set; } = "";
+
     public static readonly JsonSerializerOptions Json = new()
     {
         WriteIndented = true,

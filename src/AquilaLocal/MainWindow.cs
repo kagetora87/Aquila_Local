@@ -488,6 +488,7 @@ public partial class MainWindow : AquilaWindow
 		avatarUtterance = utterance;
 		listeningTimer?.Stop();
 		spriteView?.SetState(SpriteStateFor(state));
+		ShowAvatarStatus();
 		avatar.SetStateAsync(state, preview: false, "none", utterance);
 	}
 
@@ -2014,6 +2015,7 @@ public partial class MainWindow : AquilaWindow
 		ShowLocation();
 		RefreshContextMeter();
 		ImageSource? avatar = RefreshChatAvatar(current);
+		RefreshAvatarIdentity();
 		replyViews.Clear();
 		userViews.Clear();
 		Welcome.Visibility = ((current.Turns.Count != 0) ? Visibility.Collapsed : Visibility.Visible);
@@ -2181,7 +2183,15 @@ public partial class MainWindow : AquilaWindow
 		}
 		SceneWindow window = new SceneWindow(companion, director, () => settings, speakLine, SaveMarkupLook, (string text, CancellationToken ct) => PlayCuedSoundsAsync(persona: true, text, ct));
 		window.Owner = this;
-		window.ShowDialog();
+		window.CastChanged += ShowRoom;
+		try
+		{
+			window.ShowDialog();
+		}
+		finally
+		{
+			ShowRoom(Array.Empty<(string Id, string Name)>());
+		}
 	}
 
 	private void Companion_Click(object sender, RoutedEventArgs e)
@@ -2216,6 +2226,10 @@ public partial class MainWindow : AquilaWindow
 		ImageSource? avatar = (session.IsCompanion && session.PersonaId.Length > 0) ? companion.ProfilePicture(session.PersonaId) : null;
 		ChatAvatar.Fill = (avatar != null) ? new ImageBrush(avatar) { Stretch = Stretch.UniformToFill } : null;
 		ChatAvatar.Visibility = (avatar != null) ? Visibility.Visible : Visibility.Collapsed;
+		if (session == current)
+		{
+			RefreshAvatarIdentity();
+		}
 		return avatar;
 	}
 

@@ -442,6 +442,17 @@ public sealed class CompanionWindow : AquilaWindow
 		voiceNote.TextWrapping = TextWrapping.Wrap;
 		panel.Children.Add(voiceNote);
 
+		panel.Children.Add(Label("Her favourite colour (her name is shown in it, under the avatar)"));
+		TextBox favourite = new TextBox { Text = config.FavoriteColor, Width = 320, HorizontalAlignment = HorizontalAlignment.Left, ToolTip = "A colour name like teal, crimson or lavender, or a code like #4FC3F7. Leave empty for the app's colour." };
+		Border swatch = new Border { Width = 22, Height = 22, CornerRadius = new CornerRadius(4), Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+		void ShowSwatch()
+		{
+			swatch.Background = MainWindow.TryColour(favourite.Text, out Color c) ? new SolidColorBrush(c) : Brushes.Transparent;
+		}
+		favourite.TextChanged += delegate { ShowSwatch(); };
+		ShowSwatch();
+		panel.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Children = { favourite, swatch } });
+
 		panel.Children.Add(Label("Drives"));
 		string[] columns = { "Weight", "Start", "Decay /h", "Rest", "Rise /h", "Step", "Floor", "Ceiling" };
 		Grid grid = new Grid();
@@ -533,6 +544,11 @@ public sealed class CompanionWindow : AquilaWindow
 				edited.Drift.Text = drift.Text.Trim();
 				edited.Drift.Unlocked = unlocked.IsChecked == true;
 				edited.Voice = choices[Math.Max(0, voice.SelectedIndex)].Key;
+				if (favourite.Text.Trim().Length > 0 && !MainWindow.TryColour(favourite.Text, out _))
+				{
+					throw new PersonaConfigException("\u201C" + favourite.Text.Trim() + "\u201D isn't a colour Aquila knows. Use a name like teal or a code like #4FC3F7.");
+				}
+				edited.FavoriteColor = favourite.Text.Trim();
 				foreach (DriveSpec d in edited.Drives)
 				{
 					TextBox[] b = fields[d.Name];

@@ -339,11 +339,11 @@ public sealed class AnimationsWindow : AquilaWindow
 		};
 		CheckBox loop = new CheckBox
 		{
-			Content = "Repeat while active",
+			Content = (animation.Kind == SpriteKind.Gesture) ? "Keep repeating (don't go back to idle)" : "Repeat while active",
 			IsChecked = animation.Loops,
 			Margin = new Thickness(16.0, 0.0, 0.0, 0.0),
 			VerticalAlignment = VerticalAlignment.Center,
-			ToolTip = "Base states usually repeat; gestures usually play once."
+			ToolTip = (animation.Kind == SpriteKind.Gesture) ? "Ticked: once it starts, it loops until she does something else (thinks, talks, listens) or another gesture plays. Unticked: it plays once, then she goes back to idle." : "Base states usually repeat."
 		};
 		Grid.SetColumn(loop, 2);
 		grid.Children.Add(loop);

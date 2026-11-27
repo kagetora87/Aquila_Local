@@ -164,7 +164,15 @@ public sealed class SpriteAvatarView : Grid
 		if (spriteKind != baseState || playing == null)
 		{
 			baseState = spriteKind;
-			if (!playingGesture)
+			// A repeating gesture keeps going until she does something new (thinks, talks, listens);
+			// going back to idle doesn't stop it.
+			bool repeatingGesture = playingGesture && playing != null && playing.Kind == SpriteKind.Gesture && playing.Loops;
+			if (repeatingGesture && spriteKind != SpriteKind.Idle)
+			{
+				queued.Clear();
+				StartBase();
+			}
+			else if (!playingGesture)
 			{
 				StartBase();
 			}
@@ -178,7 +186,7 @@ public sealed class SpriteAvatarView : Grid
 		{
 			return false;
 		}
-		if (playingGesture && playing != null && playing.Kind == SpriteKind.Gesture)
+		if (playingGesture && playing != null && playing.Kind == SpriteKind.Gesture && !playing.Loops)
 		{
 			// Let the current gesture finish; play this one right after it.
 			if (playing != spriteAnimation && queued.Count < MaxQueued && !queued.Contains(spriteAnimation))
@@ -314,6 +322,12 @@ public sealed class SpriteAvatarView : Grid
 		{
 			return;
 		}
+		if (playingGesture && playing.Loops && queued.Count == 0 && playing.Kind == SpriteKind.Gesture)
+		{
+			// "Repeat while active" on a gesture: loop it straight away, no idle in between.
+			RestartCurrent();
+			return;
+		}
 		if (playingGesture || !playing.Loops)
 		{
 			if (queued.Count > 0)
@@ -337,6 +351,16 @@ public sealed class SpriteAvatarView : Grid
 				return;
 			}
 		}
+		RestartCurrent();
+	}
+
+	private void RestartCurrent()
+	{
+		if (playing == null)
+		{
+			return;
+		}
+		frame = 0;
 		if (playing.IsVideo)
 		{
 			video.Position = TimeSpan.Zero;
