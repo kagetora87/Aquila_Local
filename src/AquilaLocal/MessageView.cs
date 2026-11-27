@@ -27,7 +27,7 @@ public sealed class MessageView : Border
 
 	private readonly StackPanel bodyHost = new StackPanel();
 
-	/// <summary>Attached pictures, shown in the user's bubble.</summary>
+	/// <summary>Attached pictures in the user's bubble, or pictures drawn for a reply under it.</summary>
 	private readonly WrapPanel pictures = new WrapPanel { Visibility = Visibility.Collapsed, Margin = new Thickness(0.0, 0.0, 0.0, 6.0) };
 
 	/// <summary>Small clickable notices under a reply's header, such as "New memory created".</summary>
@@ -133,13 +133,13 @@ public sealed class MessageView : Border
 			StackPanel stackPanel3 = new StackPanel
 			{
 				Orientation = Orientation.Horizontal,
-				Height = 28.0,
+				Height = 56.0,
 				Margin = new Thickness(0.0, 0.0, 0.0, 6.0)
 			};
 			UIElement element = (avatar != null) ? new Ellipse
 			{
-				Width = 28.0,
-				Height = 28.0,
+				Width = 56.0,
+				Height = 56.0,
 				VerticalAlignment = VerticalAlignment.Center,
 				Fill = new ImageBrush(avatar) { Stretch = Stretch.UniformToFill }
 			} : new Border
@@ -214,6 +214,9 @@ public sealed class MessageView : Border
 			}
 			stackPanel2.Children.Add(waiting);
 			stackPanel2.Children.Add(bodyHost);
+			// Pictures and clips she made for this reply, under her words.
+			pictures.Margin = new Thickness(0.0, 8.0, 0.0, 2.0);
+			stackPanel2.Children.Add(pictures);
 			actions.Opacity = 0.7;
 			stackPanel2.Children.Add(actions);
 			activity = PlainBox(12.0, "Text.Secondary");

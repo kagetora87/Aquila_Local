@@ -37,6 +37,9 @@ public class Settings
 
 	public bool Thinking { get; set; }
 
+	/// <summary>Sidebar width in pixels, set by dragging its edge.</summary>
+	public double SidebarWidth { get; set; } = 272.0;
+
 	public int ThinkingBudget { get; set; } = 1024;
 
 	[JsonIgnore]

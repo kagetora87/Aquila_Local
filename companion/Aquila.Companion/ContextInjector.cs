@@ -33,7 +33,7 @@ public static class ContextInjector
         string system = SystemPrompt(config, summary, aboutUser, soundboard);
         string driveBlock = DriveBlock(config, drives, topDrive);
         string appearance = AppearanceBlock(config.Name, card);
-        string inner = driveBlock + "\n" + appearance + (achievements.Length > 0 ? "\n" + achievements : "");
+        string inner = driveBlock + "\n" + appearance + (achievements.Length > 0 ? "\n" + achievements : "") + "\n" + ThoughtMarkup.TurnReminder(config.Name);
         return new InjectedContext(system, pinned, driveBlock, appearance, inner);
     }
 

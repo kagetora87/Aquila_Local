@@ -112,6 +112,8 @@ public sealed class ThoughtMarkupTests
             ThoughtMarkup.Person = MarkupPerson.First;
         }
         Assert.Contains("<action>I smile</action>", ThoughtMarkup.Guidance("Vicki"));
+        Assert.Contains("<action>", ThoughtMarkup.TurnReminder("Vicki"));
+        Assert.Contains("Vicki", ThoughtMarkup.TurnReminder("Vicki"));
     }
 
     [Fact]

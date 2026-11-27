@@ -163,9 +163,14 @@ public static class ThoughtMarkup
 
     /// <summary>How thoughts and actions work, for a persona's system prompt.</summary>
     public static string Guidance(string name) =>
-        "Thoughts and actions: write what you visibly do inside <action>...</action> (everyone present sees it) and what you privately think inside <thought>...</thought> (nobody in the story hears it). Everything else is what you say aloud. Use both naturally and often, the way a person in a story would, but keep each one short. "
+        "Thoughts and actions: write what you visibly do inside <action>...</action> (everyone present sees it) and what you privately think inside <thought>...</thought> (nobody in the story hears it). Everything else is what you say aloud. Use both in most replies, the way a person in a story would: nearly every reply has at least one short action (a gesture, an expression, what your hands are doing), and a short thought whenever you feel or notice something you wouldn't say out loud. Keep each one brief. "
         + PersonRule(name) + " "
         + "The user can use them too. Their <action> is something they visibly do, and your character sees it. Their <thought> is private: your character cannot hear or know it, so never mention it, answer it, or act as if you knew it. As the storyteller you may let it quietly shape where things go, only when that fits naturally.";
+
+    /// <summary>A one-line nudge given with every message (near the end of the context, where models listen most),
+    /// because a rule only in the system prompt fades as a chat grows and earlier replies without tags set the habit.</summary>
+    public static string TurnReminder(string name) =>
+        $"[Style: as {name}, include at least one short <action>...</action> in this reply, and a short <thought>...</thought> if you feel something you wouldn't say aloud.]";
 
     /// <summary>The first- or third-person rule for one persona's thoughts and actions.</summary>
     public static string PersonRule(string name) => Person == MarkupPerson.Third
