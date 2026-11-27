@@ -283,7 +283,8 @@ public partial class MainWindow
 		bool restore = false;
 		try
 		{
-			if (model == PictureModels.Best && engine.Ready)
+			// The anime model peaked at about 10 GB on the laptop, more than is left beside the chat model.
+			if ((model == PictureModels.Best || model == PictureModels.Anime) && engine.Ready)
 			{
 				PictureStatus("Pausing the chat model to make room for the picture…");
 				restore = await engine.ParkAsync(ct);

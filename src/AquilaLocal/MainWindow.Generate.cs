@@ -161,7 +161,7 @@ public partial class MainWindow
 				genEncoderRow.Visibility = genModel == PictureModels.Fast ? Visibility.Visible : Visibility.Collapsed;
 			}
 		};
-		left.Children.Add(Ui.Field("Picture engine", model, "Fast takes about 15 seconds. Best quality takes about a minute and pauses the chat model while it draws. Anime draws anime only, without censoring bodies, and can't use reference pictures.", 14));
+		left.Children.Add(Ui.Field("Picture engine", model, "Fast takes about 15 seconds. Best quality takes about a minute and pauses the chat model while it draws. Anime takes about 16 seconds, pauses the chat model too, draws anime only without censoring bodies, and can't use reference pictures.", 14));
 		ComboBox encoder = new ComboBox { ItemsSource = KleinEncoders.All.Select(e => e.Label).ToList(), Width = 300, HorizontalAlignment = HorizontalAlignment.Left };
 		encoder.SelectedIndex = Math.Max(0, KleinEncoders.All.ToList().FindIndex(e => e.Key == settings.Pictures.KleinEncoder));
 		encoder.SelectionChanged += delegate

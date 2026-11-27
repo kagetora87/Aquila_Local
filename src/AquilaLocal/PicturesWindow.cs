@@ -76,7 +76,7 @@ public sealed class PicturesWindow : AquilaWindow
 		fast.Content = ModelLabel("FLUX 3 Image Klein (fast)", "About 15 seconds a picture (25 with reference pictures). Your chat model stays loaded.", fastReady, fastProblem);
 		best.Content = ModelLabel("Qwen-Image-2.1 (best quality)", "About 45 seconds a picture. The chat model pauses while it draws, then picks up where it was.", bestReady, bestProblem);
 		(bool animeReady, string animeProblem) = drawer.Kit.Check(PictureModels.Anime);
-		anime.Content = ModelLabel("WAI-Illustrious (anime, uncensored)", "Anime only, about 20 seconds a picture. Doesn't censor bodies, but can't use reference pictures, so faces vary more.", animeReady, animeProblem);
+		anime.Content = ModelLabel("WAI-Illustrious (anime, uncensored)", "Anime only, about 16 seconds a picture. The chat model pauses while it draws. Doesn't censor bodies, but can't use reference pictures, so faces vary more.", animeReady, animeProblem);
 		fast.IsChecked = settings.Pictures.Model != PictureModels.Best && settings.Pictures.Model != PictureModels.Anime;
 		best.IsChecked = settings.Pictures.Model == PictureModels.Best;
 		anime.IsChecked = settings.Pictures.Model == PictureModels.Anime;
