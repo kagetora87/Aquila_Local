@@ -40,6 +40,7 @@ public partial class MainWindow
 		};
 		RefreshShell();
 		UpdateSendEnabled();
+		InitializeReceipts();
 	}
 
 	/// <summary>The avatar fills its pane's width at a portrait shape, but never taller than the window allows.</summary>

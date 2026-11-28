@@ -259,6 +259,7 @@
                   <ContextMenu />
                 </Button.ContextMenu>
               </Button>
+              <Button Name="EmojiButton" Style="{StaticResource Btn.Icon}" Width="36" Height="36" Margin="4,0,0,0" Content="&#xE76E;" ToolTip="Emoji (or type :heart: or :) )" Click="EmojiPicker_Click" />
               <Button Name="PictureMomentButton" Style="{StaticResource Btn.Icon}" Width="36" Height="36" Margin="4,0,0,0" Content="&#xE722;" ToolTip="Picture this moment: she draws what she imagines you two are doing right now" Visibility="Collapsed" Click="PictureMoment_Click" />
               <local:MarkupToggles x:Name="MarkupBar" Margin="8,0,0,0" VerticalAlignment="Center" />
             </StackPanel>

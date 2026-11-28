@@ -217,6 +217,12 @@ public sealed class MessageView : Border
 			// Pictures and clips she made for this reply, under her words.
 			pictures.Margin = new Thickness(0.0, 8.0, 0.0, 2.0);
 			stackPanel2.Children.Add(pictures);
+			// Your reaction to her reply, under her words.
+			reaction.HorizontalAlignment = HorizontalAlignment.Left;
+			reaction.Margin = new Thickness(0.0, 4.0, 0.0, 2.0);
+			reaction.Background = Ui.Brush("Surface.3");
+			reaction.BorderBrush = Ui.Brush("Surface.1");
+			stackPanel2.Children.Add(reaction);
 			actions.Opacity = 0.7;
 			stackPanel2.Children.Add(actions);
 			activity = PlainBox(12.0, "Text.Secondary");

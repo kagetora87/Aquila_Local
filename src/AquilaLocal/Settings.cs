@@ -101,6 +101,9 @@ public class Settings
 	/// <summary>Let personas play sounds from the soundboard.</summary>
 	public bool SoundboardEnabled { get; set; } = true;
 
+	/// <summary>Companions see when you've read their messages, and may follow up if you leave them on read.</summary>
+	public bool ReadReceipts { get; set; } = true;
+
 	/// <summary>Soundboard volume, 0 to 1.</summary>
 	public double SoundboardVolume { get; set; } = 0.8;
 

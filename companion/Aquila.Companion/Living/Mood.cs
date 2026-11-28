@@ -92,6 +92,8 @@ public static class MoodMarkup
             return text ?? "";
         }
         string s = Tag.Replace(text, "");
+        // A reaction written as markup (some models do that instead of calling the tool) is hidden the same way.
+        s = ReactMarkup.Strip(s);
         s = Partial.Replace(s.TrimEnd(), "");
         return s.TrimEnd();
     }
@@ -103,7 +105,7 @@ public static class MoodMarkup
         {
             return text ?? "";
         }
-        return Tag.Replace(text, m => new string(' ', m.Length));
+        return ReactMarkup.Mask(Tag.Replace(text, m => new string(' ', m.Length)));
     }
 
     /// <summary>One lowercase word (or a short phrase cut to its first word), letters and hyphens only.</summary>

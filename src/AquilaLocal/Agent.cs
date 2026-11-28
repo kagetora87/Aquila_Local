@@ -557,6 +557,13 @@ public sealed class Agent(Engine engine, MemoryStore? memories = null, SemanticM
 				if (persona)
 				{
 					// Her hidden mood tag sets how she feels; the reply everyone sees and hears is without it.
+					// Some models write the reaction into the reply instead of calling the tool: take it as her reaction.
+					string? inline = AquilaLocal.Companion.ReactMarkup.Read(turn.Answer);
+					if (inline != null && turn.Reaction.Length == 0 && IsSingleEmoji(inline))
+					{
+						turn.Reaction = inline;
+						this.Reacted?.Invoke(inline);
+					}
 					AquilaLocal.Companion.Living.MoodState? mood = AquilaLocal.Companion.Living.MoodMarkup.Read(turn.Answer, DateTimeOffset.Now);
 					if (mood != null)
 					{

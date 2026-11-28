@@ -291,6 +291,11 @@ public sealed class MarkupComposer : RichTextBox
 		{
 			return;
 		}
+		if ((e.Text == ":" || e.Text == " ") && TryEmoji(e.Text))
+		{
+			e.Handled = true;
+			return;
+		}
 		if ((e.Text == "*" || e.Text == "_") && TryCloseMarker(e.Text[0]))
 		{
 			e.Handled = true;
@@ -408,6 +413,48 @@ public sealed class MarkupComposer : RichTextBox
 			t = t.GetNextContextPosition(LogicalDirection.Forward);
 		}
 		return null;
+	}
+
+	/// <summary>Puts text (an emoji from the picker) where the caret is, in the current mode.</summary>
+	public void InsertText(string text)
+	{
+		Focus();
+		Insert(text, mode);
+	}
+
+	/// <summary>Typing the closing colon of :heart:, or a space after a face like :) or &lt;3, turns it into the emoji.</summary>
+	private bool TryEmoji(string typed)
+	{
+		if (!Selection.IsEmpty)
+		{
+			return false;
+		}
+		string before = CaretPosition.GetTextInRun(LogicalDirection.Backward);
+		int length;
+		string emoji;
+		bool hit = typed == ":"
+			? AquilaLocal.Companion.EmojiShortcodes.TryShortcode(before, out length, out emoji)
+			: AquilaLocal.Companion.EmojiShortcodes.TryFace(before, out length, out emoji);
+		if (!hit)
+		{
+			return false;
+		}
+		TextPointer? start = CaretPosition.GetPositionAtOffset(-length, LogicalDirection.Backward);
+		if (start == null)
+		{
+			return false;
+		}
+		BeginChange();
+		try
+		{
+			new TextRange(start, CaretPosition).Text = "";
+			Insert(emoji + (typed == " " ? " " : ""), mode);
+		}
+		finally
+		{
+			EndChange();
+		}
+		return true;
 	}
 
 	private void Insert(string text, MarkupKind kind)

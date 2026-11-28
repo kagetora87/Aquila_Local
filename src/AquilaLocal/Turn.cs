@@ -45,6 +45,23 @@ public class Turn
 	/// <summary>The companion's emoji reaction to this message, if she gave one.</summary>
 	public string Reaction { get; set; } = "";
 
+	/// <summary>Your emoji reaction to her reply, if you gave one (she's told about it with your next message).</summary>
+	public string UserReaction { get; set; } = "";
+
+	/// <summary>When her reply finished.</summary>
+	public DateTimeOffset? AnsweredAt { get; set; }
+
+	/// <summary>When you saw her reply (Aquila was in front with this chat open).</summary>
+	public DateTimeOffset? ReadAt { get; set; }
+
+	/// <summary>She wrote this on her own because you'd read her last message and not replied.</summary>
+	public bool FollowUp { get; set; }
+
+	/// <summary>How many times she's considered following up on this reply, and whether she's let it rest.</summary>
+	public int FollowUpChecks { get; set; }
+
+	public bool FollowUpSettled { get; set; }
+
 	public string SpeechMood { get; set; } = "neutral";
 
 	public string SpeechMoodSource { get; set; } = "default";

@@ -516,7 +516,7 @@ public partial class MainWindow
 	/// slot), and the message lands in your latest chat with her with a sound.
 	/// </summary>
 	/// <param name="cue">What prompts her (by default: the thought she can't keep to herself).</param>
-	private async Task<(ChatSession Chat, Turn Turn)> MessageFirstAsync(CompanionRuntime runtime, string personaId, string name, ChatSession? chat, InnerThought thought, TimeSpan sinceTheyWrote, CancellationToken ct, string? cue = null)
+	private async Task<(ChatSession Chat, Turn Turn)> MessageFirstAsync(CompanionRuntime runtime, string personaId, string name, ChatSession? chat, InnerThought thought, TimeSpan sinceTheyWrote, CancellationToken ct, string? cue = null, string? turnContext = null)
 	{
 		runtime.AboutUser = companion.LoadAboutYou().Render();
 		try
@@ -565,11 +565,12 @@ public partial class MainWindow
 		Turn turn = new Turn
 		{
 			User = "",
-			Context = InnerLifePrompt.ReachOutContext(thought, now),
+			Context = turnContext ?? InnerLifePrompt.ReachOutContext(thought, now),
 			Answer = message,
 			Status = "complete",
 			Unprompted = true,
 			Created = now,
+			AnsweredAt = now,
 			Mood = mood?.Word ?? "",
 			MoodStrength = mood?.Strength ?? 0,
 			MoodWhy = mood?.Why ?? ""

@@ -896,7 +896,17 @@ public partial class MainWindow : AquilaWindow
 				select p).ToList() : new List<InstalledModel>());
 			if (settings.ModelPath.Length > 0 && !list.Any((InstalledModel m) => m.Path.Equals(settings.ModelPath, StringComparison.OrdinalIgnoreCase)))
 			{
-				list.Add(new InstalledModel(Path.GetFileNameWithoutExtension(settings.ModelPath), settings.ModelPath));
+				// The models folder can be a link to another folder (on the laptop it points at the old
+				// install's models), so the chosen model may be the same file under another path: show it once.
+				int same = list.FindIndex((InstalledModel m) => SameFile(m.Path, settings.ModelPath));
+				if (same >= 0)
+				{
+					list[same] = new InstalledModel(list[same].Name, settings.ModelPath);
+				}
+				else
+				{
+					list.Add(new InstalledModel(Path.GetFileNameWithoutExtension(settings.ModelPath), settings.ModelPath));
+				}
 			}
 			InstalledModelsCombo.ItemsSource = list;
 			InstalledModelsCombo.SelectedItem = list.FirstOrDefault((InstalledModel m) => m.Path.Equals(settings.ModelPath, StringComparison.OrdinalIgnoreCase));
@@ -904,6 +914,19 @@ public partial class MainWindow : AquilaWindow
 		finally
 		{
 			refreshingModels = false;
+		}
+	}
+
+	/// <summary>Same name and size: the same model file reached through two folders.</summary>
+	private static bool SameFile(string a, string b)
+	{
+		try
+		{
+			return Path.GetFileName(a).Equals(Path.GetFileName(b), StringComparison.OrdinalIgnoreCase) && File.Exists(a) && File.Exists(b) && new FileInfo(a).Length == new FileInfo(b).Length;
+		}
+		catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is ArgumentException || ex is NotSupportedException)
+		{
+			return false;
 		}
 	}
 
@@ -1873,6 +1896,13 @@ public partial class MainWindow : AquilaWindow
 
 	private void AddReplyActions(MessageView view, ChatSession session, Turn turn)
 	{
+		if (session.IsCompanion && turn.Status == "complete" && !string.IsNullOrWhiteSpace(turn.Answer))
+		{
+			view.AddAction("\uE76E", "React with an emoji", delegate
+			{
+				ShowReactionPicker(view, session, turn);
+			});
+		}
 		if (turn.Status == "complete" && !string.IsNullOrWhiteSpace(turn.Answer))
 		{
 			view.AddAction(Ui.Glyph.Audio, "Save as audio (a sound file you can play or send)", delegate
@@ -2227,6 +2257,7 @@ public partial class MainWindow : AquilaWindow
 			userViews[turn.Id] = messageView;
 			MessageView messageView2 = new MessageView(current.Speaker, animate: false, avatar);
 			ShowReply(messageView2, turn, generating: false);
+			messageView2.SetReaction(turn.UserReaction, "You");
 			Messages.Children.Add(messageView2);
 			replyViews[turn.Id] = messageView2;
 			RefreshNotices(current, turn);
@@ -2237,6 +2268,7 @@ public partial class MainWindow : AquilaWindow
 		ChatScroll.ScrollToEnd();
 		RefreshContextControls();
 		RefreshShell();
+		MarkRead();
 	}
 
 
@@ -2546,7 +2578,13 @@ public partial class MainWindow : AquilaWindow
 		}
 		NoticeBox.Visibility = Visibility.Collapsed;
 		InterruptLiving();
+		followUpCts?.Cancel();
 		ChatSession session = current;
+		// What she's told about her last message: your reaction to it and, with read receipts, when you read it.
+		Turn? previous = session.Turns.LastOrDefault((Turn t) => t.Status == "complete");
+		string aboutLast = (!cued && session.IsCompanion && previous != null)
+			? AquilaLocal.Companion.ReadReceipts.NextMessageNote(previous.UserReaction, previous.AnsweredAt, previous.ReadAt, DateTimeOffset.Now, settings.ReadReceipts)
+			: "";
 		Turn turn = cued ? new Turn
 		{
 			User = "",
@@ -2556,7 +2594,8 @@ public partial class MainWindow : AquilaWindow
 			Status = "generating"
 		} : new Turn
 		{
-			User = (string.IsNullOrWhiteSpace(Composer.Text) ? "Please review the attached files." : Composer.Text.Trim()),
+			User = (string.IsNullOrWhiteSpace(Composer.Text) ? "Please review the attached files." : AquilaLocal.Companion.EmojiShortcodes.ReplaceAll(Composer.Text.Trim())),
+			Cue = aboutLast,
 			Attachments = pendingAttachments.ToList(),
 			Status = "generating",
 			Spoken = pendingSpoken
@@ -2666,6 +2705,8 @@ public partial class MainWindow : AquilaWindow
 		try
 		{
 			await agent.RunAsync(settings, session, turn, operation.Token);
+			turn.AnsweredAt = DateTimeOffset.Now;
+			MarkRead();
 			gestures?.Flush();
 			SetAvatarState("idle");
 			store.SaveChat(session);
