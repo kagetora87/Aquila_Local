@@ -1033,6 +1033,11 @@ public partial class MainWindow : AquilaWindow
 			if (remember)
 			{
 				selectedProfile.Remember(settings.Inference, contextTokens);
+				if (settings.Inference.AutoContextPerModel && modelInfoReady && settings.ModelPath.Length > 0)
+				{
+					settings.Inference.ModelContexts ??= new Dictionary<string, int>();
+					settings.Inference.ModelContexts[InferencePreferences.ModelKey(settings.ModelPath)] = contextTokens;
+				}
 			}
 			ContextSlider.Maximum = Math.Log2(num);
 			ContextSlider.Value = Math.Log2(contextTokens);
@@ -1149,7 +1154,8 @@ public partial class MainWindow : AquilaWindow
 			Recommended = num
 		};
 		ThresholdCanvas.Visibility = Visibility.Visible;
-		ContextThresholds.Text = $"Profile target {num:N0} · Native max {advice.NativeMaximum:N0}";
+		(int Context, bool Remembered)? perModel = PerModelContext();
+		ContextThresholds.Text = $"Profile target {num:N0} · Native max {advice.NativeMaximum:N0}" + (perModel is (int, bool remembered) ? (remembered ? " · Your setting for this model" : " · Best fit for this model") : "");
 		ProfileTargetMarker.ToolTip = $"Profile target: {num:N0} tokens. This is the profile’s default allowance.";
 		bool flag = launch.ExpertCpuLayers == 0;
 		bool flag2 = !launch.CpuOnly && !launch.FullOffload;
@@ -1429,6 +1435,7 @@ public partial class MainWindow : AquilaWindow
 		InferencePreferences inference = settings.Inference;
 		ProfileCombo.SelectedValue = inference.Profile;
 		LaptopQ4Check.IsChecked = inference.LaptopQ4;
+		AutoContextCheck.IsChecked = inference.AutoContextPerModel;
 		CustomCacheCombo.SelectedValue = inference.CustomCache;
 		ExpertLayersBox.Text = inference.ExpertCpuLayers.ToString(CultureInfo.InvariantCulture);
 		CreativeCheck.IsChecked = inference.Creative;
@@ -1450,6 +1457,8 @@ public partial class MainWindow : AquilaWindow
 			HighContext = inference.HighContext,
 			LaptopContext = inference.LaptopContext,
 			CustomContext = inference.CustomContext,
+			AutoContextPerModel = (AutoContextCheck.IsChecked == true),
+			ModelContexts = inference.ModelContexts ?? new Dictionary<string, int>(),
 			LaptopQ4 = (LaptopQ4Check.IsChecked == true),
 			CustomCache = ((CustomCacheCombo.SelectedValue as string) ?? "f16"),
 			ExpertCpuLayers = Integer(ExpertLayersBox, "MoE expert layers"),
@@ -1573,7 +1582,48 @@ public partial class MainWindow : AquilaWindow
 
 	private int RequestedContext()
 	{
-		return AutoPlan?.AutoContext ?? SelectedProfile.Requested(settings.Inference);
+		return AutoPlan?.AutoContext ?? PerModelContext()?.Context ?? SelectedProfile.Requested(settings.Inference);
+	}
+
+	/// <summary>
+	/// In a manual profile with "Adjust automatically for each model" on: the context you last chose for this
+	/// model, or for one you haven't tuned yet, the largest that fits fully on the graphics card (capped by the
+	/// profile). Null when it's off or the model and hardware aren't known yet.
+	/// </summary>
+	private (int Context, bool Remembered)? PerModelContext()
+	{
+		InferencePreferences inference = settings.Inference;
+		if (inference == null || !inference.AutoContextPerModel || SelectedProfile.Key == "Auto" || !modelInfoReady || settings.ModelPath.Length == 0)
+		{
+			return null;
+		}
+		int max = Math.Min(SelectedProfile.Maximum, modelInfo.NativeContext);
+		if (inference.ContextFor(settings.ModelPath) is int mine)
+		{
+			return (Math.Min(mine, max), true);
+		}
+		InferenceGpu gpu = settings.Hardware?.Gpu;
+		if ((object)gpu == null || !modelInfo.MetadataKnown)
+		{
+			return null;
+		}
+		InferenceLaunch launch = CurrentLaunch();
+		if (launch.CpuOnly)
+		{
+			return null;
+		}
+		long projector = ((settings.ProjectorPath.Length > 0 && File.Exists(settings.ProjectorPath)) ? new FileInfo(settings.ProjectorPath).Length : 0);
+		int fit = InferenceLaunch.FullGpuContext(gpu, modelInfo, projector, launch.Cache);
+		return fit > 0 ? (Math.Min(fit, max), false) : null;
+	}
+
+	private void AutoContext_Changed(object sender, RoutedEventArgs e)
+	{
+		if (uiReady && settings.Inference != null)
+		{
+			settings.Inference.AutoContextPerModel = AutoContextCheck.IsChecked == true;
+			SetContext(RequestedContext());
+		}
 	}
 
 	private void RenderProfile(InferenceLaunch launch, long freeSystem, long? freeGpu)
@@ -1582,6 +1632,8 @@ public partial class MainWindow : AquilaWindow
 		bool automatic = SelectedProfile.Key == "Auto";
 		ContextSlider.IsEnabled = !automatic;
 		ContextCombo.IsEnabled = !automatic;
+		// Automatic mode already sizes the context for each model.
+		AutoContextCheck.Visibility = automatic ? Visibility.Collapsed : Visibility.Visible;
 		InferenceLaunch plan = AutoPlan;
 		if (plan != null)
 		{
@@ -1593,6 +1645,7 @@ public partial class MainWindow : AquilaWindow
 			return;
 		}
 		LaptopQ4Check.Visibility = ((!(SelectedProfile.Key == "Laptop")) ? Visibility.Collapsed : Visibility.Visible);
+		AutoContextCheck.Visibility = Visibility.Visible;
 		CustomCachePanel.Visibility = ((!(SelectedProfile.Key == "Custom")) ? Visibility.Collapsed : Visibility.Visible);
 		GpuBox.IsEnabled = SelectedProfile.Key == "Custom";
 		ExpertLayersBox.IsEnabled = modelInfoReady && modelInfo.ExpertCount > 1 && !launch.CpuOnly && SelectedProfile.Key != "High";

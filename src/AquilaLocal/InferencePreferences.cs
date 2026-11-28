@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.IO;
 
 namespace AquilaLocal;
 
@@ -11,6 +13,19 @@ public sealed class InferencePreferences
 	public int LaptopContext { get; set; } = 16384;
 
 	public int CustomContext { get; set; } = 8192;
+
+	/// <summary>In the manual profiles: switching models sets the context to the one you last chose for that
+	/// model, or for a model you haven't tuned, the largest that fits on the graphics card. On by default.</summary>
+	public bool AutoContextPerModel { get; set; } = true;
+
+	/// <summary>Your context choice for each model, by file name (lower case).</summary>
+	public Dictionary<string, int> ModelContexts { get; set; } = new Dictionary<string, int>();
+
+	public static string ModelKey(string modelPath) => Path.GetFileName(modelPath ?? "").ToLowerInvariant();
+
+	/// <summary>What you chose for this model, if anything sensible.</summary>
+	public int? ContextFor(string modelPath) =>
+		ModelContexts != null && ModelContexts.TryGetValue(ModelKey(modelPath), out int v) && v >= 2048 && v <= 262144 ? v : null;
 
 	public bool LaptopQ4 { get; set; }
 

@@ -486,6 +486,7 @@
               </Canvas>
               <TextBlock Name="ContextThresholds" Text="Reading model details…" Style="{StaticResource Type.Small}" TextWrapping="Wrap" />
               <TextBlock Name="ContextRisk" Style="{StaticResource Type.Small}" Margin="0,6,0,0" />
+              <CheckBox Name="AutoContextCheck" Content="Adjust automatically for each model" IsChecked="True" Margin="0,10,0,0" Checked="AutoContext_Changed" Unchecked="AutoContext_Changed" ToolTip="When you switch models, the conversation length changes to what you last chose for that model. For a model you haven't set yet, it picks the largest length that fits on your graphics card." />
 
               <TextBlock Text="Graphics card activity" Style="{StaticResource Type.Label}" />
               <Border Style="{StaticResource Card}" Padding="12">

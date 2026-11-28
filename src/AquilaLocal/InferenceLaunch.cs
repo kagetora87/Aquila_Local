@@ -80,19 +80,10 @@ public sealed record InferenceLaunch(string Device, string Layers, string Cache,
 				Summary = $"No graphics card found, so the processor runs the model (slower). Conversations up to {Describe(ctx)}."
 			};
 		}
-		long usable = Math.Min(gpu.FreeBytes > 0 ? gpu.FreeBytes : gpu.DedicatedBytes, gpu.DedicatedBytes);
-		long reserve = Math.Max(3 * GiB / 2, gpu.DedicatedBytes / 16);
-		// With a projector the engine runs 1024-token micro-batches and the vision encoder, which need a
-		// little more working memory. Calibrated on the laptop with Gemma 4 31B (23.1 GB free): this plans
-		// 64K, which measured 22.3 GB at peak while reading an image; past ~72K it spilled.
-		long workspace = GiB + (projectorBytes > 0 ? GiB / 4 + projectorBytes : 0);
-		long weights = model.FileBytes;
-		long kvBudget = usable - reserve - workspace - weights - (long)(model.FixedKvBytes * (17.0 / 32.0));
-		double kvPerToken = Math.Max(1024.0, model.KvBytesPerToken) * (17.0 / 32.0);
-		if (kvBudget >= (long)(kvPerToken * 8192))
+		int fit = FullGpuContext(gpu, model, projectorBytes, "q8_0");
+		if (fit > 0)
 		{
-			int ctx = (int)Math.Clamp(kvBudget / kvPerToken, 8192.0, native);
-			ctx = Math.Max(8192, ctx / 4096 * 4096);
+			int ctx = fit;
 			return new InferenceLaunch(gpu.Device, "auto", "q8_0", 0, UseMmap: false, FullOffload: true)
 			{
 				AutoContext = ctx,
@@ -105,6 +96,42 @@ public sealed record InferenceLaunch(string Device, string Layers, string Cache,
 			AutoContext = partial,
 			Summary = $"This model is bigger than {gpu.Name}'s memory, so part of it runs on the processor (slower). Conversations up to {Describe(partial)}."
 		};
+	}
+
+	/// <summary>Context cache size relative to f16 for each cache type (8.5 and 4.5 bits per value).</summary>
+	public static double CacheFactor(string cache) => cache switch
+	{
+		"q8_0" => 17.0 / 32.0,
+		"q4_0" => 9.0 / 32.0,
+		_ => 1.0
+	};
+
+	/// <summary>
+	/// The largest context (a multiple of 4,096, at least 8,192, at most the model's own maximum) that fits
+	/// with the whole model on the graphics card, keeping a safety margin for Windows and other apps; 0 when
+	/// not even 8,192 fits. With a projector the engine runs 1024-token micro-batches and the vision encoder,
+	/// which need a little more working memory. Calibrated on the laptop: Gemma 4 31B (23.1 GB free) plans 64K,
+	/// measured 22.3 GB at peak while reading an image, and spilled past ~72K.
+	/// </summary>
+	public static int FullGpuContext(InferenceGpu gpu, ModelInfo model, long projectorBytes, string cache)
+	{
+		int native = Math.Clamp(model.NativeContext, 2048, 262144);
+		double factor = CacheFactor(cache);
+		long usable = Math.Min(gpu.FreeBytes > 0 ? gpu.FreeBytes : gpu.DedicatedBytes, gpu.DedicatedBytes);
+		long reserve = Math.Max(3 * GiB / 2, gpu.DedicatedBytes / 16);
+		long workspace = GiB + (projectorBytes > 0 ? GiB / 4 + projectorBytes : 0);
+		long kvBudget = usable - reserve - workspace - model.FileBytes - (long)(model.FixedKvBytes * factor);
+		double kvPerToken = Math.Max(1024.0, model.KvBytesPerToken) * factor;
+		if (kvBudget < (long)(kvPerToken * Math.Min(8192, native)))
+		{
+			return 0;
+		}
+		if (native <= 8192)
+		{
+			return native;
+		}
+		int ctx = (int)Math.Clamp(kvBudget / kvPerToken, 8192.0, native);
+		return Math.Min(native, Math.Max(8192, ctx / 4096 * 4096));
 	}
 
 	/// <summary>Tokens in plain words: roughly 0.75 words per token, about 400 words per page.</summary>
