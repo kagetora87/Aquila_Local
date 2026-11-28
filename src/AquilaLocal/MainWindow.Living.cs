@@ -411,6 +411,17 @@ public partial class MainWindow
 				asleep ? DreamThemes.Pick(Random.Shared, top, config.Drives.FirstOrDefault((DriveSpec d) => d.Name == top)?.Description ?? "") : "",
 				asleep ? RecentDreamsOfAll(now) : null);
 
+			// Her own sleeping mind picks what the dream grows from; now and then it's just an odd dream from the list.
+			DreamSeed? seed = null;
+			if (asleep && Random.Shared.NextDouble() >= DreamSeeds.OddDreamShare)
+			{
+				SetLivingStatus(name + " is drifting off…");
+				seed = DreamSeeds.Parse(await AskInnerLifeAsync(DreamSeeds.Prompt(name, config.Gender), InnerLifePrompt.WriterUser(input with { DreamTheme = "" }), ct));
+				if (seed != null)
+				{
+					input = input with { DreamTheme = DreamSeeds.Line(Random.Shared, seed) };
+				}
+			}
 			if (asleep)
 			{
 				SetLivingStatus(name + " is dreaming…");
@@ -440,6 +451,14 @@ public partial class MainWindow
 			if (asleep)
 			{
 				thought = thought with { Kind = ThoughtKinds.Dream, LookUp = "" };
+			}
+			if (seed != null)
+			{
+				entry.Note = (entry.Note + " Grew from: " + (seed.Source.Length > 0 ? seed.Source : seed.Theme) + (seed.Why.Length > 0 ? " (" + seed.Why.TrimEnd('.') + ")." : ".")).Trim();
+			}
+			else if (asleep)
+			{
+				entry.Note = (entry.Note + " An odd dream, from nowhere in particular.").Trim();
 			}
 			entry.Kind = thought.Kind;
 			entry.Text = thought.Text;

@@ -241,3 +241,21 @@ public sealed class DreamVarietyTests
         Assert.Contains("green jacket", AquilaLocal.Companion.Pictures.PicturePrompt.WriterUser(new AquilaLocal.Companion.Pictures.PictureRequest("us", true, "scene"), "", "Mae", "Mae", false, "", Genders.Female, ("Ru", "green jacket")));
     }
 }
+
+public sealed class DreamSeedTests
+{
+    [Fact]
+    public void ASeedComesFromHerLifeAndLeadsTheDream()
+    {
+        DreamSeed? seed = AquilaLocal.Companion.Living.DreamSeeds.Parse("Sure: {\"source\":\"Ru going quiet {after} the argument\",\"theme\":\"searching an empty station for someone\",\"why\":\"it still stings\"}");
+        Assert.NotNull(seed);
+        string line = AquilaLocal.Companion.Living.DreamSeeds.Line(new Random(1), seed!);
+        Assert.Contains("Ru going quiet", line);
+        Assert.Contains("searching an empty station", line);
+        string words = AquilaLocal.Companion.Genders.Words(line, AquilaLocal.Companion.Genders.Female);
+        Assert.Contains("{after}", words);
+        Assert.Null(AquilaLocal.Companion.Living.DreamSeeds.Parse("{\"source\":\"x\"}"));
+        Assert.Null(AquilaLocal.Companion.Living.DreamSeeds.Parse("no json"));
+        Assert.Contains("weighing on her", AquilaLocal.Companion.Genders.Words(AquilaLocal.Companion.Living.DreamSeeds.Prompt("Mae"), AquilaLocal.Companion.Genders.Female) );
+    }
+}

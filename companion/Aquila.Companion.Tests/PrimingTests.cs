@@ -262,3 +262,52 @@ public sealed class PrimingTests
         Assert.Equal(0, store.AddImportedExchanges("sophia-chat.txt", c.Recall, new float[]?[] { null, null }, TestPersona.T0.AddHours(1)));
     }
 }
+
+public sealed class DocxColourTests
+{
+    private static string Docx(params (string Colour, string Text)[] paragraphs)
+    {
+        string path = Path.Combine(Path.GetTempPath(), "aquila-colours-" + Guid.NewGuid().ToString("N") + ".docx");
+        string body = string.Concat(paragraphs.Select(p => "<w:p><w:r>" + (p.Colour.Length > 0 ? "<w:rPr><w:color w:val=\"" + p.Colour + "\"/></w:rPr>" : "") + "<w:t xml:space=\"preserve\">" + System.Security.SecurityElement.Escape(p.Text) + "</w:t></w:r></w:p>"));
+        using (var zip = System.IO.Compression.ZipFile.Open(path, System.IO.Compression.ZipArchiveMode.Create))
+        {
+            using var w = new StreamWriter(zip.CreateEntry("word/document.xml").Open());
+            w.Write("<?xml version=\"1.0\"?><w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body>" + body + "</w:body></w:document>");
+        }
+        return path;
+    }
+
+    [Fact]
+    public void SpeakersAreLearntFromColoursLabelledOnce()
+    {
+        string path = Docx(("", "Our chat"), ("", "Ru: hey you"), ("C00000", "Mae: *looks up* Hi."), ("C00000", "Missed you."), ("", "Same."), ("C00000", "Good."));
+        try
+        {
+            string text = AquilaLocal.Companion.Priming.SourceText.FromDocx(path);
+            Assert.Contains("Ru: hey you", text);
+            Assert.Contains("Mae: *looks up* Hi.\nMissed you.", text);
+            Assert.Contains("\nRu: Same.", text);
+            Assert.Contains("\nMae: Good.", text);
+            Assert.DoesNotContain("Ru: Our chat", text);
+            Assert.Equal(2, AquilaLocal.Companion.Priming.SourceText.Speakers(text).Count);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void UncolouredDocumentsComeOutAsTheyAre()
+    {
+        string path = Docx(("", "Ru: hi"), ("", "Mae: hello"));
+        try
+        {
+            Assert.Equal("Ru: hi\nMae: hello\n", AquilaLocal.Companion.Priming.SourceText.FromDocx(path));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+}
