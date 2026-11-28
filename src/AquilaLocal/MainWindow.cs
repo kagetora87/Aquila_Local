@@ -2154,6 +2154,7 @@ public partial class MainWindow : AquilaWindow
 		base.CommandBindings.Add(new CommandBinding(DeleteChatCommand, DeleteChat_Executed, DeleteChat_CanExecute));
 		base.CommandBindings.Add(new CommandBinding(RenameChatCommand, RenameChat_Executed, DeleteChat_CanExecute));
 		base.CommandBindings.Add(new CommandBinding(ArchiveChatCommand, ArchiveChat_Executed, DeleteChat_CanExecute));
+		base.CommandBindings.Add(new CommandBinding(CarryOverCommand, CarryOver_Executed, CarryOver_CanExecute));
 		LivingChanged += RefreshJournalButton;
 		MessageView.AnimateRequested += AnimateChatPicture;
 		store = new Storage(dataRoot);
@@ -2377,7 +2378,9 @@ public partial class MainWindow : AquilaWindow
 		}
 		Turn? lastTalk = chats.Where((ChatSession c) => c != session && c.PersonaId == session.PersonaId).SelectMany((ChatSession c) => c.Turns).Where((Turn t) => t.Status == "complete").OrderByDescending((Turn t) => t.Created).FirstOrDefault();
 		string since = (lastTalk == null) ? "This is the very first time you two are talking." : ("You last talked on " + AquilaLocal.Companion.ContextInjector.When(lastTalk.Created, DateTimeOffset.Now) + ".");
-		string cue = "[No message from them yet. They've just opened a new chat with you. " + since
+		string cue = session.CarryOver.Trim().Length > 0
+			? "[No message from them yet. They've just opened a new chat to carry on from your last one. " + since + " Pick up right where you left off (your notes say how things stood), in your own voice, as if no time had passed unless it has. Keep it short.]"
+			: "[No message from them yet. They've just opened a new chat with you. " + since
 			+ " Start the conversation yourself, in your own voice: something that fits who you are, how you feel right now, the time of day, and what you remember about them and where things stand (a plan, something they mentioned, something on your mind). Don't open with a generic greeting or by asking how you can help. Keep it short.]";
 		await SendAsync(cue);
 	}

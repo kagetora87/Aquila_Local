@@ -106,6 +106,12 @@ public class ChatSession
 		}
 	}
 
+	/// <summary>The page she starts this chat with: what she carried over from an earlier chat ("" for none).</summary>
+	public string CarryOver { get; set; } = "";
+
+	/// <summary>The title of the chat it was carried over from.</summary>
+	public string CarriedFrom { get; set; } = "";
+
 	/// <summary>Put away: hidden from the chat list unless archived chats are shown. Nothing is deleted.</summary>
 	public bool Archived { get; set; }
 
