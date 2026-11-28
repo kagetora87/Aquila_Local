@@ -51,32 +51,129 @@ public static class SourceText
     public static string Normalise(string text) =>
         Regex.Replace((text ?? "").TrimStart('\uFEFF').Replace("\r\n", "\n").Replace('\r', '\n'), @"\n{4,}", "\n\n\n").Trim();
 
+    /// <summary>
+    /// A Word document's text. When speakers are told apart by text colour, label the first message of each colour
+    /// once ("Ru: ...") and every later message in that colour is labelled the same way here, so the chat reads as
+    /// "Name: words" lines. Documents without colours (or without labels) come out as they are.
+    /// </summary>
     public static string FromDocx(string path)
     {
         using ZipArchive zip = ZipFile.OpenRead(path);
         ZipArchiveEntry entry = zip.GetEntry("word/document.xml") ?? throw new InvalidDataException($"“{Path.GetFileName(path)}” doesn't look like a Word document.");
         using Stream s = entry.Open();
         XDocument doc = XDocument.Load(s);
+        return LabelByColour(Segments(doc));
+    }
+
+    /// <summary>The text in pieces of one colour each ("" for automatic/black), paragraph breaks kept.</summary>
+    internal static List<(string Colour, string Text)> Segments(XDocument doc)
+    {
         XNamespace w = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
-        var sb = new StringBuilder();
+        var segments = new List<(string Colour, StringBuilder Text)>();
+        void Add(string colour, string text)
+        {
+            if (text.Length == 0)
+            {
+                return;
+            }
+            // Spaces and line breaks don't change who's speaking.
+            if (segments.Count > 0 && (segments[^1].Colour == colour || text.Trim().Length == 0))
+            {
+                segments[^1].Text.Append(text);
+                return;
+            }
+            segments.Add((colour, new StringBuilder(text)));
+        }
         foreach (XElement p in doc.Descendants(w + "p"))
         {
-            foreach (XElement node in p.Descendants())
+            string paragraphColour = Colour(p.Element(w + "pPr")?.Element(w + "rPr"), w);
+            foreach (XElement r in p.Descendants(w + "r"))
             {
-                if (node.Name == w + "t")
+                string colour = Colour(r.Element(w + "rPr"), w);
+                if (colour.Length == 0)
                 {
-                    sb.Append(node.Value);
+                    colour = paragraphColour;
                 }
-                else if (node.Name == w + "tab")
+                var sb = new StringBuilder();
+                foreach (XElement node in r.Elements())
                 {
-                    sb.Append('\t');
+                    if (node.Name == w + "t")
+                    {
+                        sb.Append(node.Value);
+                    }
+                    else if (node.Name == w + "tab")
+                    {
+                        sb.Append('\t');
+                    }
+                    else if (node.Name == w + "br" || node.Name == w + "cr")
+                    {
+                        sb.Append('\n');
+                    }
                 }
-                else if (node.Name == w + "br")
-                {
-                    sb.Append('\n');
-                }
+                Add(colour, sb.ToString());
             }
-            sb.Append('\n');
+            Add(segments.Count > 0 ? segments[^1].Colour : "", "\n");
+        }
+        return segments.Select(x => (x.Colour, x.Text.ToString())).ToList();
+    }
+
+    private static string Colour(XElement? rPr, XNamespace w)
+    {
+        // Text colour first; highlighted or shaded text counts too (some chats are coloured that way).
+        string v = ((string?)rPr?.Element(w + "color")?.Attribute(w + "val") ?? "").Trim().ToUpperInvariant();
+        if (v.Length > 0 && v != "AUTO" && v != "000000")
+        {
+            return v;
+        }
+        string h = ((string?)rPr?.Element(w + "highlight")?.Attribute(w + "val") ?? "").Trim().ToUpperInvariant();
+        if (h.Length > 0 && h != "NONE")
+        {
+            return "HL-" + h;
+        }
+        string fill = ((string?)rPr?.Element(w + "shd")?.Attribute(w + "fill") ?? "").Trim().ToUpperInvariant();
+        return fill.Length > 0 && fill != "AUTO" && fill != "FFFFFF" ? "SH-" + fill : "";
+    }
+
+    private static readonly Regex LeadingLabel = new(@"^\s*([^:\n\r]{1,40}?)\s*:\s", RegexOptions.CultureInvariant);
+
+    /// <summary>
+    /// Labels each coloured piece with its colour's speaker, learnt from the first piece of that colour that starts
+    /// with "Name:". Without any learnt label the text is returned unchanged.
+    /// </summary>
+    internal static string LabelByColour(List<(string Colour, string Text)> segments)
+    {
+        var names = new Dictionary<string, string>();
+        foreach ((string colour, string text) in segments)
+        {
+            if ((names.TryGetValue(colour, out string? known) && known.Length > 0) || text.Trim().Length == 0)
+            {
+                continue;
+            }
+            // The first line in this colour that starts with "Name:" names it (a heading before it doesn't count).
+            Match? m = text.Split('\n').Select(line => LeadingLabel.Match(line + " ")).FirstOrDefault(x => x.Success && !x.Groups[1].Value.Contains("http", StringComparison.OrdinalIgnoreCase));
+            names[colour] = m != null ? m.Groups[1].Value.Trim() : "";
+        }
+        // Colours only count when at least two speakers were labelled (one colour alone is just formatting).
+        bool useColours = names.Values.Count(n => n.Length > 0) >= 2 || (names.Values.Count(n => n.Length > 0) == 1 && names.Count >= 2);
+        var sb = new StringBuilder();
+        foreach ((string colour, string text) in segments)
+        {
+            if (!useColours || !names.TryGetValue(colour, out string? name) || name.Length == 0 || text.Trim().Length == 0)
+            {
+                sb.Append(text);
+                continue;
+            }
+            if (sb.Length > 0 && sb[^1] != '\n')
+            {
+                sb.Append('\n');
+            }
+            // Already labelled where you wrote the name in: keep it as you wrote it.
+            if (text.Split('\n').Any(line => LeadingLabel.Match(line + " ") is { Success: true } x && x.Groups[1].Value.Trim().Equals(name, StringComparison.OrdinalIgnoreCase)))
+            {
+                sb.Append(text.TrimStart(' ', '\t'));
+                continue;
+            }
+            sb.Append(name).Append(": ").Append(text.TrimStart(' ', '\t', '\n'));
         }
         return sb.ToString();
     }

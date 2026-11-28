@@ -39,6 +39,12 @@ public class Turn
 
 	public string MoodWhy { get; set; } = "";
 
+	/// <summary>The parts of her inner world this reply touched (from her mood tag), so themes can rest when they keep coming back.</summary>
+	public List<string> About { get; set; } = new List<string>();
+
+	/// <summary>Her quick read on how you felt and what you wanted, when she wrote this reply.</summary>
+	public string Reading { get; set; } = "";
+
 	/// <summary>You said this aloud (it was transcribed from the microphone) rather than typed it.</summary>
 	public bool Spoken { get; set; }
 

@@ -66,13 +66,23 @@ public partial class MainWindow
 		{
 			ask.IsOpen = false;
 		});
+		string her = (current.IsCompanion ? Genders.Object(GenderOf(current.PersonaId)) : "them");
+		System.Windows.Controls.Button secret = Ui.Button("Just for me", "Btn.Secondary", delegate
+		{
+			ask.IsOpen = false;
+			_ = PictureMomentAsync(tell: false);
+		});
+		secret.ToolTip = current.PersonaName + " won't know you took it: the picture is only shown to you, and " + her + " isn't told.";
+		secret.Margin = new Thickness(8, 0, 0, 0);
 		System.Windows.Controls.Button yes = Ui.Button("Yes", "Btn.Primary", delegate
 		{
 			ask.IsOpen = false;
 			_ = PictureMomentAsync();
 		});
+		yes.ToolTip = current.PersonaName + " sees the picture and reacts to it.";
 		yes.Margin = new Thickness(8, 0, 0, 0);
 		buttons.Children.Add(no);
+		buttons.Children.Add(secret);
 		buttons.Children.Add(yes);
 		panel.Children.Add(buttons);
 		ask.Child = new System.Windows.Controls.Border { Style = Ui.Style("Popup.Surface"), Padding = new Thickness(14, 12, 14, 12), Child = panel };
@@ -83,7 +93,8 @@ public partial class MainWindow
 		ask.IsOpen = true;
 	}
 
-	private async Task PictureMomentAsync()
+	/// <param name="tell">False: "Just for me". The picture is shown to you only; she isn't told and doesn't react.</param>
+	private async Task PictureMomentAsync(bool tell = true)
 	{
 		if (pendingSpeechResume is { IsCompleted: false })
 		{
@@ -135,7 +146,11 @@ public partial class MainWindow
 			drawingMoment = false;
 			SetBusy(value: false);
 		}
-		if (drawn.HasValue && current == session)
+		if (drawn.HasValue && !tell)
+		{
+			Notice("Picture saved just for you. " + session.PersonaName + " doesn't know you took it.");
+		}
+		if (drawn.HasValue && tell && current == session)
 		{
 			await ReactToMomentAsync(session, drawn.Value.File, drawn.Value.Result);
 		}
@@ -168,7 +183,7 @@ public partial class MainWindow
 		string cue = "[No message from them. They just pressed \"Picture this moment\", asking you to picture what the two of you are doing right now, and you drew it. It's shown in the chat under your last message."
 			+ ((what.Length > 0) ? (" Your picture shows: " + what.Trim()) : "")
 			+ " React to it now, in your own voice and in the moment: how you feel about it, what you notice or like, or what it makes you want to do. Keep it short. Don't describe the picture back to them or mention prompts or tools.]";
-		await SendAsync(cue, picture);
+		await SendAsync(cue, picture, quiet: true);
 	}
 
 	/// <summary>The make_picture tool: returns what the model is told (never throws for an ordinary failure).</summary>
@@ -221,7 +236,7 @@ public partial class MainWindow
 			recent.Add((turn.User, turn.Answer));
 			string conversation = PicturePrompt.Conversation(recent, speaker);
 			PictureStatus("Writing the picture prompt…");
-			string prompt = await WritePicturePromptAsync(request, conversation, name, appearance, references.Count > 0, session.Location, ct, session.IsCompanion ? GenderOf(session.PersonaId) : Genders.Female, model);
+			string prompt = await WritePicturePromptAsync(request, conversation, name, appearance, references.Count > 0, session.Location, ct, session.IsCompanion ? GenderOf(session.PersonaId) : Genders.Female, model, session.IsCompanion ? YouAsSeenBy(session.PersonaId) : null);
 			string output = await DrawAsync(model, PicturePrompt.WithReferences(prompt, references.Count), request.Size(), references, request.Description, ct);
 			turn.Pictures.Add(output);
 			if (replyViews.TryGetValue(turn.Id, out MessageView? view))
@@ -245,8 +260,34 @@ public partial class MainWindow
 		}
 	}
 
+	/// <summary>
+	/// You, as this companion pictures you: their own image of you if they have one, otherwise your About you
+	/// appearance. Null when there's nothing to go on.
+	/// </summary>
+	private (string Name, string Looks)? YouAsSeenBy(string personaId)
+	{
+		try
+		{
+			AboutYou about = companion.LoadAboutYou();
+			string image = "";
+			try
+			{
+				image = companion.Open(personaId).Config.ImageOfYou.Trim();
+			}
+			catch (Exception ex) when (ex is IOException || ex is PersonaConfigException || ex is DriveStateUnavailableException || ex is UnauthorizedAccessException)
+			{
+			}
+			string looks = image.Length > 0 ? image : about.Appearance.Trim();
+			return looks.Length > 0 ? (about.Nickname.Trim(), looks) : null;
+		}
+		catch (Exception ex) when (ex is IOException || ex is PersonaConfigException || ex is UnauthorizedAccessException || ex is System.Text.Json.JsonException)
+		{
+			return null;
+		}
+	}
+
 	/// <summary>The chat model writes the image prompt on its second slot, so the conversation's cache stays as it is.</summary>
-	private async Task<string> WritePicturePromptAsync(PictureRequest request, string conversation, string? name, string? appearance, bool hasReferences, string location, CancellationToken ct, string gender = Genders.Female, string model = PictureModels.Fast)
+	private async Task<string> WritePicturePromptAsync(PictureRequest request, string conversation, string? name, string? appearance, bool hasReferences, string location, CancellationToken ct, string gender = Genders.Female, string model = PictureModels.Fast, (string Name, string Looks)? you = null)
 	{
 		hasReferences &= PictureModels.TakesReferences(model);
 		JsonObject payload = new JsonObject
@@ -256,7 +297,7 @@ public partial class MainWindow
 			["messages"] = new JsonArray
 			{
 				new JsonObject { ["role"] = "system", ["content"] = PictureModels.UsesTags(model) ? PicturePrompt.WriterSystemTags : PicturePrompt.WriterSystem },
-				new JsonObject { ["role"] = "user", ["content"] = PicturePrompt.WriterUser(request, conversation, name, appearance, hasReferences, location, gender) }
+				new JsonObject { ["role"] = "user", ["content"] = PicturePrompt.WriterUser(request, conversation, name, appearance, hasReferences, location, gender, you) }
 			},
 			["stream"] = false,
 			["temperature"] = 0.7,

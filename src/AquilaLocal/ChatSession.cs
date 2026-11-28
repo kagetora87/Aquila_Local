@@ -106,5 +106,52 @@ public class ChatSession
 		}
 	}
 
+	/// <summary>The page she starts this chat with: what she carried over from an earlier chat ("" for none).</summary>
+	public string CarryOver { get; set; } = "";
+
+	/// <summary>The title of the chat it was carried over from.</summary>
+	public string CarriedFrom { get; set; } = "";
+
+	/// <summary>Put away: hidden from the chat list unless archived chats are shown. Nothing is deleted.</summary>
+	public bool Archived { get; set; }
+
+	/// <summary>Replies answered after this count toward unread markers (set once by the main window).</summary>
+	[System.Text.Json.Serialization.JsonIgnore]
+	public static DateTimeOffset UnreadSince { get; set; } = DateTimeOffset.MaxValue;
+
+	/// <summary>Her replies you haven't seen yet: the newest ones, after your last message, not yet read.</summary>
+	[System.Text.Json.Serialization.JsonIgnore]
+	public int Unread
+	{
+		get
+		{
+			if (!IsCompanion)
+			{
+				return 0;
+			}
+			int n = 0;
+			for (int i = Turns.Count - 1; i >= 0; i--)
+			{
+				Turn t = Turns[i];
+				if (t.ReadAt != null || t.Status != "complete" || t.AnsweredAt == null || t.AnsweredAt < UnreadSince || string.IsNullOrWhiteSpace(t.Answer))
+				{
+					break;
+				}
+				n++;
+			}
+			return n;
+		}
+	}
+
+	[System.Text.Json.Serialization.JsonIgnore]
+	public bool HasUnread => Unread > 0;
+
+	[System.Text.Json.Serialization.JsonIgnore]
+	public string UnreadText => Unread > 9 ? "9+" : Unread.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+	[System.Text.Json.Serialization.JsonIgnore]
+	public string ArchiveLabel => Archived ? "Unarchive" : "Archive";
+
+	[System.Text.Json.Serialization.JsonIgnore]
 	public string Subtitle => (IsCompanion ? PersonaName + " · " : "") + Updated.LocalDateTime.ToString("MMM d · h:mm tt");
 }

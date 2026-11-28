@@ -142,13 +142,35 @@ public partial class MainWindow
 				return;
 			}
 			bool night = LivingSchedule.IsNight(now.LocalDateTime.Hour, policy);
-			PersonaEntry next = personas.OrderBy((PersonaEntry p) => LivingSchedule.NextThought(LastThoughtOf(p.Id), livingStarted, policy, JitterOf(p.Id), night)).First();
-			DateTimeOffset due = LivingSchedule.NextThought(LastThoughtOf(next.Id), livingStarted, policy, JitterOf(next.Id), night);
 			// An open Aquila window (pictures, a scene, settings…) means you're here.
 			if (OwnedWindows.Count > 0)
 			{
 				lastActivity = now;
 			}
+			bool away = now - lastActivity >= TimeSpan.FromMinutes(policy.IdleMinutes);
+			// While you're chatting with one companion, the others go on living (thinking and dreaming on the
+			// second slot between your messages); their dream pictures wait until you're away.
+			string chattingWith = (current?.IsCompanion == true) ? current.PersonaId : "";
+			if (!away)
+			{
+				personas = personas.Where((PersonaEntry p) => p.Id != chattingWith).ToList();
+				if (personas.Count == 0)
+				{
+					SetLivingStatus("Waiting until you've been away " + policy.IdleMinutes + " minutes.");
+					return;
+				}
+			}
+			else if (!LivingBusy && engine.Ready && await PaintPendingDreamAsync())
+			{
+				return;
+			}
+			// Once a night, while she sleeps, she goes over the day; about once a week she grows a little from it.
+			if (night && !LivingBusy && engine.Ready && await SleepWorkAsync(personas, now))
+			{
+				return;
+			}
+			PersonaEntry next = personas.OrderBy((PersonaEntry p) => LivingSchedule.NextThought(LastThoughtOf(p.Id), livingStarted, policy, JitterOf(p.Id), night)).First();
+			DateTimeOffset due = LivingSchedule.NextThought(LastThoughtOf(next.Id), livingStarted, policy, JitterOf(next.Id), night);
 			// A dream that stayed with her comes first: once she's awake and allowed to, she tells you about it.
 			if (settings.Living.MessageFirst && !night && LivingSchedule.WhyNotNow(now, now, lastActivity, policy, LivingBusy, engine.Ready) == null)
 			{
@@ -166,18 +188,104 @@ public partial class MainWindow
 					}
 				}
 			}
-			string? why = LivingSchedule.WhyNotNow(now, due, lastActivity, policy, LivingBusy, engine.Ready);
+			// With you here, she only waits for a short pause (you reading or typing to someone else), not for you to leave.
+			DateTimeOffset activity = away ? lastActivity : lastActivity - TimeSpan.FromMinutes(policy.IdleMinutes) + PauseWhileHere;
+			string? why = LivingSchedule.WhyNotNow(now, due, activity, policy, LivingBusy, engine.Ready);
 			if (why != null)
 			{
-				SetLivingStatus(next.Name + ": " + why + ".");
+				SetLivingStatus(next.Name + ": " + (away ? why : why.Replace("waiting until you've been away " + policy.IdleMinutes + " minutes", "waiting for a pause in your chat")) + ".");
 				return;
 			}
-			await LiveOnceAsync(next.Id, next.Name);
+			await LiveOnceAsync(next.Id, next.Name, paintLater: !away);
 		}
 		catch (Exception ex) when (ex is PersonaConfigException || ex is IOException || ex is UnauthorizedAccessException)
 		{
 			LivingProblem(ex.Message);
 		}
+	}
+
+	/// <summary>With you in the app, how long a pause in your chat lets another companion think.</summary>
+	private static readonly TimeSpan PauseWhileHere = TimeSpan.FromSeconds(40);
+
+	/// <summary>Paints the oldest dream whose picture waited while you were busy (last two days). True if it painted one.</summary>
+	private async Task<bool> PaintPendingDreamAsync()
+	{
+		if (!settings.Living.DrawDreams || livingRunning)
+		{
+			return false;
+		}
+		DateTimeOffset now = DateTimeOffset.Now;
+		foreach (PersonaEntry p in LivingPersonas())
+		{
+			JournalEntry? waiting = Journal.Read(p.Id).FirstOrDefault((JournalEntry e) => e.PicturePending && e.Kind == ThoughtKinds.Dream && now - e.At < TimeSpan.FromDays(2));
+			if (waiting == null)
+			{
+				continue;
+			}
+			livingRunning = true;
+			livingCts = new CancellationTokenSource();
+			try
+			{
+				SetLivingStatus(p.Name + "'s dream from " + waiting.At.ToLocalTime().ToString("h:mm tt") + " is being painted…");
+				CompanionRuntime runtime = companion.Open(p.Id);
+				InnerThought dream = new InnerThought(ThoughtKinds.Dream, waiting.Text, "", waiting.Urge, "", waiting.SheIsInIt, waiting.TheyAreInIt)
+				{
+					MoodWord = waiting.MoodWord,
+					MoodWhy = waiting.MoodWhy
+				};
+				bool animate = settings.Video.AnimateDreams && PictureDrawer.Video.Check().Ready;
+				waiting.Picture = await DrawDreamAsync(runtime, p.Id, p.Name, dream, animate, livingCts.Token);
+				if (animate)
+				{
+					waiting.Video = await AnimateAsync(waiting.Picture, AquilaLocal.Companion.Pictures.VideoRequest.ClipPrompt("Slow, dreamlike motion: the scene gently drifts, shifts and flows, soft light changing", waiting.Text), livingCts.Token);
+				}
+				waiting.PicturePending = false;
+				waiting.Note = waiting.Note.Replace(PaintLaterNote, "").Trim();
+				Journal.Replace(waiting);
+				SetLivingStatus(p.Name + "'s dream picture is ready.");
+				LivingChanged?.Invoke();
+			}
+			catch (OperationCanceledException)
+			{
+				SetLivingStatus(p.Name + "'s dream picture waits: you came back.");
+			}
+			catch (Exception ex) when (ex is IOException || ex is PersonaConfigException || ex is HttpRequestException || ex is UnauthorizedAccessException || ex is InvalidOperationException || ex is DriveStateUnavailableException)
+			{
+				// Don't retry it forever: note it and move on.
+				waiting.PicturePending = false;
+				waiting.Note = (waiting.Note.Replace(PaintLaterNote, "") + " The dream picture didn't work: " + ex.Message.Truncate(300)).Trim();
+				Journal.Replace(waiting);
+				LivingProblem(ex.Message);
+			}
+			finally
+			{
+				PictureStatus(null);
+				livingRunning = false;
+				livingCts?.Dispose();
+				livingCts = null;
+			}
+			return true;
+		}
+		return false;
+	}
+
+	private const string PaintLaterNote = "Its picture will be painted once you're away.";
+
+	/// <summary>What every companion dreamt lately (last day and a half), newest first, so a new dream doesn't reuse them.</summary>
+	private List<string> RecentDreamsOfAll(DateTimeOffset now)
+	{
+		List<JournalEntry> all = new List<JournalEntry>();
+		foreach (PersonaEntry p in companion.Registry.Load().Personas)
+		{
+			try
+			{
+				all.AddRange(Journal.Read(p.Id).Where((JournalEntry e) => e.Kind == ThoughtKinds.Dream && now - e.At < TimeSpan.FromHours(36)));
+			}
+			catch (Exception ex) when (ex is IOException || ex is PersonaConfigException || ex is UnauthorizedAccessException)
+			{
+			}
+		}
+		return all.OrderByDescending((JournalEntry e) => e.At).Take(10).Select((JournalEntry e) => e.Text).ToList();
 	}
 
 	/// <summary>When telling you about a dream failed, the next try waits a while.</summary>
@@ -258,7 +366,8 @@ public partial class MainWindow
 
 	/// <summary>One thought for one persona. Returns her journal entry, or null if it was stopped or failed (the reason is in the status).</summary>
 	/// <param name="dream">True to dream now whatever the time (the "Have a dream now" button).</param>
-	private async Task<JournalEntry?> LiveOnceAsync(string personaId, string name, bool dream = false)
+	/// <param name="paintLater">You're in the app (with someone else): a dream's picture waits until you're away.</param>
+	private async Task<JournalEntry?> LiveOnceAsync(string personaId, string name, bool dream = false, bool paintLater = false)
 	{
 		if (livingRunning)
 		{
@@ -273,8 +382,10 @@ public partial class MainWindow
 			SetLivingStatus(name + " is thinking…");
 			CompanionRuntime runtime = companion.Open(personaId);
 			PersonaConfig config = runtime.Config;
-			bool asleep = dream || LivingSchedule.IsNight(now.LocalDateTime.Hour, settings.Living.Policy());
-			bool canLookUp = settings.Living.WebLookups && !asleep;
+			bool night = LivingSchedule.IsNight(now.LocalDateTime.Hour, settings.Living.Policy());
+			// At night most thoughts are dreams, but now and then she lies awake thinking instead.
+			bool asleep = dream || LivingSchedule.DreamsNow(night, Random.Shared.NextDouble());
+			bool canLookUp = settings.Living.WebLookups && !night;
 
 			Dictionary<string, DriveValue> drives = runtime.Store.ReadDrives(config.Drives.Select((DriveSpec d) => d.Name));
 			foreach (DriveChange change in DriveEngine.Tick(config, drives, runtime.Store.LastTick, now))
@@ -282,6 +393,11 @@ public partial class MainWindow
 				drives[change.Drive] = drives[change.Drive] with { Value = change.New };
 			}
 			string top = DriveEngine.TopDrive(config, drives);
+			if (!night)
+			{
+				// Her day is planned with her first waking thought, so it's ready when you write.
+				await EnsureTodayAsync(personaId, ct);
+			}
 			List<JournalEntry> history = Journal.Read(personaId);
 			DateTimeOffset lastTalk = runtime.Store.LastInteraction;
 			MoodState? moodNow = companion.Moods.Current(personaId);
@@ -300,11 +416,29 @@ public partial class MainWindow
 				canLookUp,
 				asleep,
 				moodText,
-				config.Gender);
+				config.Gender,
+				config.ImageOfYou.Trim().Length > 0 ? config.ImageOfYou : companion.LoadAboutYou().Appearance,
+				asleep ? DreamThemes.Pick(Random.Shared, top, config.Drives.FirstOrDefault((DriveSpec d) => d.Name == top)?.Description ?? "") : "",
+				asleep ? RecentDreamsOfAll(now) : null);
 
+			// Her own sleeping mind picks what the dream grows from; now and then it's just an odd dream from the list.
+			DreamSeed? seed = null;
+			if (asleep && Random.Shared.NextDouble() >= DreamSeeds.OddDreamShare)
+			{
+				SetLivingStatus(name + " is drifting off…");
+				seed = DreamSeeds.Parse(await AskInnerLifeAsync(DreamSeeds.Prompt(name, config.Gender), InnerLifePrompt.WriterUser(input with { DreamTheme = "" }), ct));
+				if (seed != null)
+				{
+					input = input with { DreamTheme = DreamSeeds.Line(Random.Shared, seed) };
+				}
+			}
 			if (asleep)
 			{
 				SetLivingStatus(name + " is dreaming…");
+			}
+			else if (night)
+			{
+				SetLivingStatus(name + " is lying awake, thinking…");
 			}
 			string system = asleep ? InnerLifePrompt.DreamSystem(name, config.Gender) : InnerLifePrompt.WriterSystem(name, canLookUp, config.Gender);
 			InnerThought thought = InnerLifePrompt.Parse(await AskInnerLifeAsync(system, InnerLifePrompt.WriterUser(input), ct), name);
@@ -328,13 +462,28 @@ public partial class MainWindow
 			{
 				thought = thought with { Kind = ThoughtKinds.Dream, LookUp = "" };
 			}
+			if (seed != null)
+			{
+				entry.Note = (entry.Note + " Grew from: " + (seed.Source.Length > 0 ? seed.Source : seed.Theme) + (seed.Why.Length > 0 ? " (" + seed.Why.TrimEnd('.') + ")." : ".")).Trim();
+			}
+			else if (asleep)
+			{
+				entry.Note = (entry.Note + " An odd dream, from nowhere in particular.").Trim();
+			}
 			entry.Kind = thought.Kind;
 			entry.Text = thought.Text;
 			entry.Urge = thought.Urge;
 			entry.MoodWord = thought.MoodWord;
 			entry.MoodStrength = thought.MoodStrength;
 			entry.MoodWhy = thought.MoodWhy;
-			if (thought.Kind == ThoughtKinds.Dream && settings.Living.DrawDreams)
+			entry.SheIsInIt = thought.SheIsInIt;
+			entry.TheyAreInIt = thought.TheyAreInIt;
+			if (thought.Kind == ThoughtKinds.Dream && settings.Living.DrawDreams && paintLater)
+			{
+				entry.PicturePending = true;
+				entry.Note = PaintLaterNote;
+			}
+			else if (thought.Kind == ThoughtKinds.Dream && settings.Living.DrawDreams)
 			{
 				try
 				{
@@ -443,13 +592,20 @@ public partial class MainWindow
 				references = AquilaLocal.Companion.Pictures.PictureFiles.References(companion.Folder(personaId)).Take(AquilaLocal.Companion.Pictures.PictureCommand.MaxReferences).ToList();
 			}
 		}
-		AquilaLocal.Companion.Pictures.PictureRequest request = new AquilaLocal.Companion.Pictures.PictureRequest((Genders.IsMale(runtime.Config.Gender) ? "His" : "Her") + " dream: " + dream.Text + " Paint it dreamlike: soft, surreal light and a slightly impossible feel.", dream.SheIsInIt, "scene");
-		string prompt = await WritePicturePromptAsync(request, "", dream.SheIsInIt ? name : null, appearance, references.Count > 0, "inside " + Genders.Possessive(runtime.Config.Gender) + " dream", ct, runtime.Config.Gender, model);
+		string her = Genders.IsMale(runtime.Config.Gender) ? "His" : "Her";
+		string feeling = dream.MoodWord.Length > 0 ? " " + her + " feeling in it: " + dream.MoodWord + (dream.MoodWhy.Length > 0 ? " (" + dream.MoodWhy + ")" : "") + "." : "";
+		AquilaLocal.Companion.Pictures.PictureRequest request = new AquilaLocal.Companion.Pictures.PictureRequest(
+			her + " dream: " + dream.Text + feeling
+			+ " Paint the dream's key moment as the dreamer saw it, true to what it shows and the feeling it carries (what " + Genders.Subject(runtime.Config.Gender) + " longs for or fears in it), dreamlike and a little impossible."
+			+ (dream.TheyAreInIt ? " The person " + name + " talks with is in it." : " The person " + name + " talks with is not in it."),
+			dream.SheIsInIt, "scene");
+		(string Name, string Looks)? you = dream.TheyAreInIt ? YouAsSeenBy(personaId) : null;
+		string prompt = await WritePicturePromptAsync(request, "", dream.SheIsInIt ? name : null, appearance, references.Count > 0, "inside " + Genders.Possessive(runtime.Config.Gender) + " dream", ct, runtime.Config.Gender, model, you);
 		return await DrawAsync(model, AquilaLocal.Companion.Pictures.PicturePrompt.WithReferences(prompt, references.Count), forVideo ? AquilaLocal.Companion.Pictures.VideoRequest.StillSize : request.Size(), references, name + " dream", ct);
 	}
 
 	/// <summary>One JSON answer from the chat model's second slot (the conversation's cache on slot 0 is untouched).</summary>
-	private async Task<string> AskInnerLifeAsync(string system, string user, CancellationToken ct)
+	private async Task<string> AskInnerLifeAsync(string system, string user, CancellationToken ct, int maxTokens = 700, double temperature = 0.95)
 	{
 		JsonObject payload = new JsonObject
 		{
@@ -461,9 +617,9 @@ public partial class MainWindow
 				new JsonObject { ["role"] = "user", ["content"] = user }
 			},
 			["stream"] = false,
-			["temperature"] = 0.95,
+			["temperature"] = temperature,
 			["top_p"] = 0.95,
-			["max_tokens"] = 700,
+			["max_tokens"] = maxTokens,
 			["chat_template_kwargs"] = new JsonObject { ["enable_thinking"] = false },
 			["response_format"] = new JsonObject { ["type"] = "json_object" }
 		};

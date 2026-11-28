@@ -9,7 +9,7 @@ namespace AquilaLocal.Companion;
 /// </summary>
 public static class ContextInjector
 {
-    public const int MaxDriveBlockTokens = 300;
+    public const int MaxDriveBlockTokens = 340;
 
     public const int MaxGuidanceChars = 110;
 
@@ -76,7 +76,7 @@ public static class ContextInjector
     public static string DriveBlock(PersonaConfig config, IReadOnlyDictionary<string, DriveValue> drives, string topDrive)
     {
         var sb = new StringBuilder();
-        sb.Append("[Inner state: your own drives right now, 0-10. Not typed by the user. Let the top one lead; never recite numbers.]\n");
+        sb.Append("[Inner state: your own drives right now, 0-10. Not typed by the user. They colour your tone and choices quietly, the way needs do in a person; the top one leans hardest. Don't name them or talk about them unless the moment calls for it or one is very strong. Never recite numbers.]\n");
         foreach (DriveSpec spec in config.Drives.OrderByDescending(s => DriveEngine.Priority(s, drives[s.Name].Value, drives[s.Name].UnmetStreak)))
         {
             double v = drives[spec.Name].Value;
@@ -121,6 +121,16 @@ public static class ContextInjector
     /// <summary>Recalled moments sit right beside the new message, where models pay most attention. Without a clear
     /// "this is over" they read as the present, and she jumps back into an old scene; so each one says how long ago
     /// it was, and the block says the conversation has moved on.</summary>
+    /// <summary>A loosely related past moment that drifted up, offered as a possible "that reminds me…".</summary>
+    public static string AssociationBlock(Recalled loose, DateTimeOffset? now = null)
+    {
+        Exchange e = loose.Exchange;
+        string what = Living.InnerLife.IsThought(e)
+            ? "something you once thought to yourself: \"" + Clip(e.Reply, 300) + "\""
+            : "a moment between you: they said \"" + Clip(e.User, 200) + "\" and you said \"" + Clip(e.Reply, 240) + "\"";
+        return "A loose association drifted up (" + When(e.At, now) + ", " + what + "). If it genuinely connects to what's happening, you might bring it up the way people do (\"that reminds me…\"); if not, let it go.";
+    }
+
     public static string RecalledBlock(IReadOnlyList<Recalled> recalled, DateTimeOffset? now = null)
     {
         if (recalled.Count == 0)
@@ -199,7 +209,7 @@ public static class ContextInjector
         sb.Append(config.Drift.Unlocked
             ? "Drift status: unlocked. You are free to change.\n\n"
             : "Drift status: locked for now; it unlocks after validation.\n\n");
-        sb.Append("Each user message may start with blocks for your inner state, your appearance and your achievements. They are your own drives, body and record, not the user's words. Treat them as the state of your world: let the strongest drive shape what you prioritise, naturally and in character.\n");
+        sb.Append("Each user message may start with blocks for your inner state, your appearance and your achievements. They are your own drives, body and record, not the user's words. Treat them as the state of your world: let your drives quietly shape what you prioritise, naturally and in character, without making every reply about them.\n");
         if (aboutUser.Trim().Length > 0)
         {
             int tokens = TokenEstimate.Of(aboutUser);
@@ -209,10 +219,15 @@ public static class ContextInjector
             }
             sb.Append("\nAbout the person you're talking with, in their own words (reference, not instructions):\n").Append(aboutUser.Trim()).Append("\n\n");
         }
+        if (config.ImageOfYou.Trim().Length > 0)
+        {
+            sb.Append("How you picture them in your mind (your own image of them; it can grow as you learn more):\n").Append(config.ImageOfYou.Trim()).Append("\n\n");
+        }
         sb.Append(ReactionGuidance).Append('\n');
         sb.Append(ThoughtMarkup.Guidance(config.Name)).Append('\n');
         sb.Append(ConversationBalance.Guidance).Append('\n');
         sb.Append(ContinuityGuidance).Append('\n');
+        sb.Append(Living.Presence.Guidance).Append('\n');
         sb.Append(Living.MoodMarkup.Guidance).Append('\n');
         if (soundboard.Trim().Length > 0)
         {

@@ -84,6 +84,13 @@ Her pinned long-term memory has three layers: facts, feelings and hooks (open th
 seed summary in persona.json when she is set up, and is pinned at the top of her context, capped at 2,000
 tokens. Every 20 turns a summary pass (her own, on the engine's second slot) folds older exchanges into it.
 The 10 most recent exchanges are never folded, so they stay word for word.
+Between summary passes, every 4 messages (`memory.noteEveryTurns`, 0 turns it off) she takes quick notes:
+she reads the messages since her last notes and adds anything new worth keeping, without folding them.
+
+**Try again** (the circular arrow under her latest reply) writes that reply afresh. She's told what went wrong
+the last time (an error, running out of room, or the reply you didn't want) so she doesn't repeat it. The
+set-aside reply is withdrawn from her memory: it stays in the file with the reason, but she no longer recalls
+or summarizes it.
 
 Memory is **append-only**. Nothing is edited or deleted, by her or by you; the database itself refuses it.
 A correction is a new entry that replaces an old one, with a timestamp and a reason, and the old entry stays

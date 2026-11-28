@@ -107,6 +107,7 @@ public sealed partial class PersonaStore
             CREATE TABLE sessions(persona_id TEXT NOT NULL, chat_id TEXT NOT NULL, started_at TEXT NOT NULL, last_at TEXT NOT NULL, turns INTEGER NOT NULL, PRIMARY KEY(persona_id, chat_id));
             """);
         Exec(c, tx, AppearanceSchema);
+        AddWithdrawals(c, tx);
         store.SetMeta(c, tx, "schema", SchemaVersion.ToString(CultureInfo.InvariantCulture));
         store.SetMeta(c, tx, "created_at", Iso(now));
         store.SetMeta(c, tx, "last_tick", Iso(now));
@@ -171,6 +172,7 @@ public sealed partial class PersonaStore
             {
                 Exec(c, null, "ALTER TABLE exchanges ADD COLUMN spoken INTEGER NOT NULL DEFAULT 0; CREATE TRIGGER IF NOT EXISTS exchanges_spoken_immutable BEFORE UPDATE OF spoken ON exchanges BEGIN SELECT RAISE(ABORT, 'exchanges are append-only'); END;");
             }
+            AddWithdrawals(c, null);
         }
         catch (SqliteException ex)
         {
@@ -529,7 +531,7 @@ public sealed partial class PersonaStore
     {
         using SqliteConnection c = Connect();
         using SqliteCommand cmd = c.CreateCommand();
-        cmd.CommandText = "SELECT id,vector FROM exchanges WHERE persona_id=$p AND id>$a AND vector IS NOT NULL ORDER BY id";
+        cmd.CommandText = "SELECT id,vector FROM exchanges WHERE persona_id=$p AND id>$a AND vector IS NOT NULL AND withdrawn=0 ORDER BY id";
         cmd.Parameters.AddWithValue("$p", PersonaId);
         cmd.Parameters.AddWithValue("$a", afterId);
         var list = new List<(long, float[])>();
@@ -550,7 +552,7 @@ public sealed partial class PersonaStore
         }
         using SqliteConnection c = Connect();
         using SqliteCommand cmd = c.CreateCommand();
-        cmd.CommandText = $"SELECT id,chat_id,turn_id,at,user_text,reply_text,folded,spoken FROM exchanges WHERE persona_id=$p AND id IN ({string.Join(",", wanted.Select((_, i) => "$i" + i))})";
+        cmd.CommandText = $"SELECT id,chat_id,turn_id,at,user_text,reply_text,folded,spoken FROM exchanges WHERE persona_id=$p AND withdrawn=0 AND id IN ({string.Join(",", wanted.Select((_, i) => "$i" + i))})";
         cmd.Parameters.AddWithValue("$p", PersonaId);
         for (int i = 0; i < wanted.Length; i++)
         {
@@ -559,11 +561,80 @@ public sealed partial class PersonaStore
         return ReadExchanges(cmd);
     }
 
+    /// <summary>
+    /// Stores made before replies could be tried again get the withdrawn flag (it can only ever go from 0 to 1)
+    /// and the append-only log of why each was set aside. Nothing existing is touched.
+    /// </summary>
+    private static void AddWithdrawals(SqliteConnection c, SqliteTransaction? tx)
+    {
+        if (Scalar<long>(c, tx, "SELECT COUNT(*) FROM pragma_table_info('exchanges') WHERE name='withdrawn'") == 0)
+        {
+            Exec(c, tx, "ALTER TABLE exchanges ADD COLUMN withdrawn INTEGER NOT NULL DEFAULT 0;");
+        }
+        Exec(c, tx, """
+            CREATE TRIGGER IF NOT EXISTS exchanges_withdrawn_once BEFORE UPDATE OF withdrawn ON exchanges WHEN OLD.withdrawn=1 OR NEW.withdrawn<>1 BEGIN SELECT RAISE(ABORT, 'a withdrawn exchange stays withdrawn'); END;
+            CREATE TABLE IF NOT EXISTS exchange_withdrawals(id INTEGER PRIMARY KEY AUTOINCREMENT, persona_id TEXT NOT NULL, exchange_id INTEGER NOT NULL, at TEXT NOT NULL, reason TEXT NOT NULL);
+            CREATE TRIGGER IF NOT EXISTS exchange_withdrawals_no_update BEFORE UPDATE ON exchange_withdrawals BEGIN SELECT RAISE(ABORT, 'the withdrawal log is append-only'); END;
+            CREATE TRIGGER IF NOT EXISTS exchange_withdrawals_no_delete BEFORE DELETE ON exchange_withdrawals BEGIN SELECT RAISE(ABORT, 'the withdrawal log is append-only'); END;
+            """);
+    }
+
+    /// <summary>
+    /// Sets aside the exchange for a reply that was tried again: it stays in the file (append-only) with the reason,
+    /// but she no longer recalls it or folds it into her memory. Returns false when that turn was never remembered.
+    /// </summary>
+    public bool WithdrawExchange(string turnId, string reason, DateTimeOffset at)
+    {
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            throw new ArgumentException("Setting an exchange aside needs a reason.");
+        }
+        using SqliteConnection c = Connect();
+        using SqliteTransaction tx = c.BeginTransaction();
+        long id = Scalar<long>(c, tx, "SELECT id FROM exchanges WHERE persona_id=$p AND turn_id=$tu AND withdrawn=0", ("$p", PersonaId), ("$tu", turnId));
+        if (id <= 0)
+        {
+            tx.Rollback();
+            return false;
+        }
+        Exec(c, tx, "UPDATE exchanges SET withdrawn=1 WHERE persona_id=$p AND id=$i", ("$p", PersonaId), ("$i", id));
+        Exec(c, tx, "INSERT INTO exchange_withdrawals(persona_id,exchange_id,at,reason) VALUES($p,$i,$t,$r)", ("$p", PersonaId), ("$i", id), ("$t", Iso(at)), ("$r", reason.Trim()));
+        tx.Commit();
+        return true;
+    }
+
+    /// <summary>The newest exchange her quick note-taking has already looked at (0: none yet).</summary>
+    public long NotedThrough => long.Parse(GetMeta("noted_through") ?? "0", CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// One quick note-taking pass, atomically: new and superseding entries from the latest exchanges, which stay
+    /// verbatim in her chat (nothing is folded; the full summary pass still folds them later).
+    /// </summary>
+    public List<long> ApplyNotesPass(IEnumerable<(string Layer, string Text)> additions, IEnumerable<(long Id, string Text, string Reason)> corrections,
+        long notedThroughId, DateTimeOffset at)
+    {
+        var written = new List<long>();
+        using SqliteConnection c = Connect();
+        using SqliteTransaction tx = c.BeginTransaction();
+        foreach ((long id, string text, string reason) in corrections)
+        {
+            written.Add(SupersedeIn(c, tx, id, text, MemoryAuthors.Persona, reason, at));
+        }
+        foreach ((string layer, string text) in additions)
+        {
+            written.Add(InsertMemory(c, tx, at, layer, text, MemoryAuthors.Persona, null, "noted as it happened"));
+        }
+        long before = long.Parse(GetMeta(c, "noted_through", tx) ?? "0", CultureInfo.InvariantCulture);
+        SetMeta(c, tx, "noted_through", Math.Max(before, notedThroughId).ToString(CultureInfo.InvariantCulture));
+        tx.Commit();
+        return written;
+    }
+
     public List<Exchange> UnfoldedExchanges()
     {
         using SqliteConnection c = Connect();
         using SqliteCommand cmd = c.CreateCommand();
-        cmd.CommandText = "SELECT id,chat_id,turn_id,at,user_text,reply_text,folded,spoken FROM exchanges WHERE persona_id=$p AND folded=0 ORDER BY id";
+        cmd.CommandText = "SELECT id,chat_id,turn_id,at,user_text,reply_text,folded,spoken FROM exchanges WHERE persona_id=$p AND folded=0 AND withdrawn=0 ORDER BY id";
         cmd.Parameters.AddWithValue("$p", PersonaId);
         return ReadExchanges(cmd);
     }
@@ -573,7 +644,7 @@ public sealed partial class PersonaStore
         using SqliteConnection c = Connect();
         using SqliteCommand cmd = c.CreateCommand();
         // Conversations remembered from before Aquila are recalled by meaning, never shown as "the last things said".
-        cmd.CommandText = "SELECT id,chat_id,turn_id,at,user_text,reply_text,folded,spoken FROM exchanges WHERE persona_id=$p AND chat_id NOT LIKE 'imported:%' ORDER BY id DESC LIMIT $l";
+        cmd.CommandText = "SELECT id,chat_id,turn_id,at,user_text,reply_text,folded,spoken FROM exchanges WHERE persona_id=$p AND withdrawn=0 AND chat_id NOT LIKE 'imported:%' ORDER BY id DESC LIMIT $l";
         cmd.Parameters.AddWithValue("$p", PersonaId);
         cmd.Parameters.AddWithValue("$l", count);
         List<Exchange> list = ReadExchanges(cmd);

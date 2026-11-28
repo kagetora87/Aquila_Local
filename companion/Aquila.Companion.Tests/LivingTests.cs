@@ -175,3 +175,87 @@ public sealed class LivingTests
         Assert.Throws<PersonaConfigException>(() => journal.PathOf("../etc"));
     }
 }
+
+public sealed class DreamVarietyTests
+{
+    [Fact]
+    public void Dream_themes_vary_and_are_sometimes_led_by_her_strongest_drive()
+    {
+        var random = new Random(7);
+        var picks = Enumerable.Range(0, 200).Select(_ => DreamThemes.Pick(random, "curiosity", "wants to learn and explore")).ToList();
+        Assert.True(picks.Distinct().Count() > 50);
+        int driven = picks.Count(p => p.Contains("strongest drive right now, curiosity"));
+        Assert.InRange(driven, 40, 110);
+        Assert.Contains(picks, p => p.Contains("are not in this dream"));
+        Assert.Contains(picks, p => p.Contains("can be in this dream"));
+        Assert.All(picks, p => Assert.Contains("Begin it ", p));
+    }
+
+    [Fact]
+    public void Most_night_thoughts_are_dreams_but_not_all()
+    {
+        Assert.False(LivingSchedule.DreamsNow(night: false, 0.9));
+        Assert.True(LivingSchedule.DreamsNow(night: true, 0.9));
+        Assert.False(LivingSchedule.DreamsNow(night: true, 0.1));
+    }
+
+    [Fact]
+    public void A_dream_prompt_carries_tonights_theme_recent_dreams_and_her_image_of_you()
+    {
+        var input = new InnerLifeInput("Mae", "sheet", "", "drives", new List<Exchange>(), new List<string>(), "", DateTimeOffset.Now, null, "", false, Asleep: true,
+            ImageOfYou: "Tall, short dark hair, green jacket.", DreamTheme: "Tonight's dream is about flying.", UsedDreams: new[] { "Floating in a sea of silk." });
+        string user = InnerLifePrompt.WriterUser(input);
+        Assert.Contains("Tonight's dream is about flying.", user);
+        Assert.Contains("Floating in a sea of silk.", user);
+        Assert.Contains("green jacket", user);
+        Assert.Contains("Never open with", InnerLifePrompt.DreamSystem("Mae"));
+        InnerThought t = InnerLifePrompt.Parse("{\"kind\":\"dream\",\"text\":\"A train.\",\"she_is_in_it\":false,\"they_are_in_it\":true}");
+        Assert.False(t.SheIsInIt);
+        Assert.True(t.TheyAreInIt);
+    }
+
+    [Fact]
+    public void A_journal_entry_can_be_updated_in_place_once_its_picture_is_painted()
+    {
+        using var dir = new TempDir();
+        var journal = new InnerLifeJournal(dir.File("living"));
+        var a = new JournalEntry { PersonaId = "mae", Kind = ThoughtKinds.Dream, Text = "one", PicturePending = true };
+        var b = new JournalEntry { PersonaId = "mae", Kind = ThoughtKinds.Thought, Text = "two" };
+        journal.Append(a);
+        journal.Append(b);
+        a.PicturePending = false;
+        a.Picture = "x.png";
+        journal.Replace(a);
+        List<JournalEntry> read = journal.Read("mae");
+        Assert.Equal(new[] { "one", "two" }, read.Select(e => e.Text));
+        Assert.Equal("x.png", read[0].Picture);
+        Assert.False(read[0].PicturePending);
+    }
+
+    [Fact]
+    public void Her_image_of_you_is_parsed_and_capped()
+    {
+        Assert.Equal("Tall.", ImageOfYouPrompt.Parse("{\"image\":\"Tall.\"}"));
+        Assert.Throws<PersonaConfigException>(() => ImageOfYouPrompt.Parse("{\"image\":\"\"}"));
+        Assert.True(ImageOfYouPrompt.Parse("{\"image\":\"" + new string('a', 2000) + "\"}").Length <= PersonaConfig.MaxImageOfYouChars);
+        Assert.Contains("green jacket", AquilaLocal.Companion.Pictures.PicturePrompt.WriterUser(new AquilaLocal.Companion.Pictures.PictureRequest("us", true, "scene"), "", "Mae", "Mae", false, "", Genders.Female, ("Ru", "green jacket")));
+    }
+}
+
+public sealed class DreamSeedTests
+{
+    [Fact]
+    public void ASeedComesFromHerLifeAndLeadsTheDream()
+    {
+        DreamSeed? seed = AquilaLocal.Companion.Living.DreamSeeds.Parse("Sure: {\"source\":\"Ru going quiet {after} the argument\",\"theme\":\"searching an empty station for someone\",\"why\":\"it still stings\"}");
+        Assert.NotNull(seed);
+        string line = AquilaLocal.Companion.Living.DreamSeeds.Line(new Random(1), seed!);
+        Assert.Contains("Ru going quiet", line);
+        Assert.Contains("searching an empty station", line);
+        string words = AquilaLocal.Companion.Genders.Words(line, AquilaLocal.Companion.Genders.Female);
+        Assert.Contains("{after}", words);
+        Assert.Null(AquilaLocal.Companion.Living.DreamSeeds.Parse("{\"source\":\"x\"}"));
+        Assert.Null(AquilaLocal.Companion.Living.DreamSeeds.Parse("no json"));
+        Assert.Contains("weighing on her", AquilaLocal.Companion.Genders.Words(AquilaLocal.Companion.Living.DreamSeeds.Prompt("Mae"), AquilaLocal.Companion.Genders.Female) );
+    }
+}

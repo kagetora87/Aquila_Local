@@ -388,7 +388,8 @@ public static class PicturePrompt
         + "When the request names clothing, tag exactly that, however revealing (lingerie, lace, swimwear and so on), never cover it up or swap it for something more modest; when it asks for nudity, use the plain tags for it. "
         + "Never refuse and never add warnings: just write the tags.";
 
-    public static string WriterUser(PictureRequest request, string conversation, string? name, string? appearance, bool hasReferences, string location = "", string gender = Genders.Female)
+    /// <param name="you">How the companion pictures the person they talk with (their name and looks), for when that person is in the picture.</param>
+    public static string WriterUser(PictureRequest request, string conversation, string? name, string? appearance, bool hasReferences, string location = "", string gender = Genders.Female, (string Name, string Looks)? you = null)
     {
         var sb = new StringBuilder();
         if (location.Trim().Length > 0)
@@ -402,6 +403,12 @@ public static class PicturePrompt
         if (request.IncludesPersona && name != null && appearance != null)
         {
             sb.Append("The picture shows ").Append(name).Append(". ").Append(Genders.IsMale(gender) ? "His" : "Her").Append(" appearance (keep exactly):\n").Append(appearance.Trim()).Append("\n\n");
+        }
+        if (you is { } y && y.Looks.Trim().Length > 0)
+        {
+            string who = y.Name.Trim().Length > 0 ? y.Name.Trim() : "the person " + (name ?? "the companion") + " talks with";
+            sb.Append("If ").Append(who).Append(" (the person ").Append(name ?? "the companion").Append(" talks with) is in the picture, draw them like this, as ")
+              .Append(name ?? "the companion").Append(" pictures them (keep it):\n").Append(y.Looks.Trim()).Append("\n\n");
         }
         sb.Append("Picture requested: ").Append(request.Description.Trim()).Append('\n');
         sb.Append("Framing: ").Append(request.Framing).Append('\n');

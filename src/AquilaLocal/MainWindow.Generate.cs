@@ -555,36 +555,71 @@ public partial class MainWindow
 			_ = MakeTilesAsync(new List<GenPreset> { p });
 		};
 		face.Children.Add(redraw);
-		Button b = TileButton(face, p.Name, on, (on ? "Picked (click again to unpick): " : "") + p.Prompt + (p.Custom ? "\n\nOne of your own. Right-click to remove it." : ""));
+		Button b = TileButton(face, p.Name, on, (on ? "Picked (click again to unpick): " : "") + p.Prompt + "\n\nRight-click to edit or remove it.");
 		b.Click += delegate { Choose(p.Kind, p.Id); };
-		if (p.Custom)
+		ContextMenu menu = new ContextMenu();
+		MenuItem edit = new MenuItem { Header = "Edit…", Icon = Ui.Icon("\uE70F", 14) };
+		edit.Click += delegate { EditPreset(p); };
+		menu.Items.Add(edit);
+		MenuItem remove = new MenuItem { Header = "Remove this preset", Icon = Ui.Icon("\uE74D", 14, "Danger"), Foreground = Ui.Brush("Danger") };
+		remove.Click += delegate
 		{
-			ContextMenu menu = new ContextMenu();
-			MenuItem remove = new MenuItem { Header = "Remove this preset", Icon = Ui.Icon("", 14, "Danger"), Foreground = Ui.Brush("Danger") };
-			remove.Click += delegate
+			string message = p.Custom
+				? "Remove “" + p.Name + "” and its picture? This can't be undone."
+				: "Remove “" + p.Name + "” from the list? It's one of the built-in presets, so you can bring it back any time (right-click Custom).";
+			if (!AquilaDialog.Confirm(this, "Remove preset", message, "Remove", "Cancel", DialogKind.Danger))
 			{
-				if (!AquilaDialog.Confirm(this, "Remove preset", "Remove “" + p.Name + "” and its picture?", "Remove", "Cancel", DialogKind.Danger))
+				return;
+			}
+			try
+			{
+				Presets.Remove(p.Id);
+				if (ChosenFor(p.Kind) == p.Id)
 				{
-					return;
+					Choose(p.Kind, p.Id);
 				}
-				try
-				{
-					Presets.Remove(p.Id);
-					if (ChosenFor(p.Kind) == p.Id)
-					{
-						Choose(p.Kind, p.Id);
-					}
-				}
-				catch (Exception ex) when (ex is PersonaConfigException || ex is IOException || ex is UnauthorizedAccessException)
-				{
-					ShowGenStatus("The preset wasn't removed: " + ex.Message, bad: true);
-				}
-				FillTiles();
-			};
-			menu.Items.Add(remove);
-			b.ContextMenu = menu;
-		}
+			}
+			catch (Exception ex) when (ex is PersonaConfigException || ex is IOException || ex is UnauthorizedAccessException)
+			{
+				ShowGenStatus("The preset wasn't removed: " + ex.Message, bad: true);
+			}
+			FillTiles();
+		};
+		menu.Items.Add(remove);
+		b.ContextMenu = menu;
 		return b;
+	}
+
+	/// <summary>Edit on a preset: its words and its picture's prompt; draws its picture again when asked.</summary>
+	private void EditPreset(GenPreset p)
+	{
+		CustomPresetWindow window = new CustomPresetWindow(Presets, p.Kind, p, TilePromptWriter()) { Owner = this };
+		if (window.ShowDialog() == true && window.Added != null)
+		{
+			FillTiles();
+			if (window.DrawPicture)
+			{
+				_ = MakeTilesAsync(new List<GenPreset> { window.Added });
+			}
+		}
+	}
+
+	/// <summary>The chat model writing a preset picture's prompt from the standard one (null while no model is loaded).</summary>
+	private Func<string, string, CancellationToken, Task<string>>? TilePromptWriter()
+	{
+		if (!engine.Ready)
+		{
+			return null;
+		}
+		return async (string standard, string framing, CancellationToken ct) =>
+		{
+			if (!engine.Ready)
+			{
+				throw new InvalidOperationException("the chat model isn't loaded.");
+			}
+			string model = Presets.Style.Engine;
+			return await WritePicturePromptAsync(new PictureRequest("A small preview picture for a preset: " + standard, false, framing), "", null, null, false, "", ct, Genders.Female, model);
+		};
 	}
 
 	private Button CustomTile(string kind)
@@ -596,14 +631,55 @@ public partial class MainWindow
 		((Border)((StackPanel)b.Content).Children[0]).BorderBrush = Ui.Brush("Accent.SubtleStroke");
 		b.Click += delegate
 		{
-			CustomPresetWindow window = new CustomPresetWindow(Presets, kind) { Owner = this };
+			CustomPresetWindow window = new CustomPresetWindow(Presets, kind, null, TilePromptWriter()) { Owner = this };
 			if (window.ShowDialog() == true && window.Added != null)
 			{
 				Choose(kind, window.Added.Id);
-				_ = MakeTilesAsync(new List<GenPreset> { window.Added });
+				if (window.DrawPicture)
+				{
+					_ = MakeTilesAsync(new List<GenPreset> { window.Added });
+				}
 			}
 		};
+		List<GenPreset> removed;
+		try
+		{
+			removed = Presets.Removed(kind);
+		}
+		catch (PersonaConfigException)
+		{
+			removed = new List<GenPreset>();
+		}
+		if (removed.Count > 0)
+		{
+			ContextMenu menu = new ContextMenu();
+			MenuItem all = new MenuItem { Header = "Bring back all " + removed.Count + " removed" };
+			all.Click += delegate { RestorePresets(removed.Select((GenPreset r) => r.Id)); };
+			menu.Items.Add(all);
+			menu.Items.Add(new Separator());
+			foreach (GenPreset r in removed)
+			{
+				MenuItem one = new MenuItem { Header = "Bring back “" + r.Name + "”" };
+				one.Click += delegate { RestorePresets(new[] { r.Id }); };
+				menu.Items.Add(one);
+			}
+			b.ContextMenu = menu;
+			b.ToolTip += "\n\nRight-click to bring back presets you removed.";
+		}
 		return b;
+	}
+
+	private void RestorePresets(IEnumerable<string> ids)
+	{
+		try
+		{
+			Presets.Restore(ids);
+		}
+		catch (Exception ex) when (ex is PersonaConfigException || ex is IOException || ex is UnauthorizedAccessException)
+		{
+			ShowGenStatus("The presets weren't brought back: " + ex.Message, bad: true);
+		}
+		FillTiles();
 	}
 
 	/// <summary>A small picture read into memory (the file isn't kept open), or null.</summary>

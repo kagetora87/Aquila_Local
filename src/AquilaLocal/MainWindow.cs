@@ -213,6 +213,8 @@ public partial class MainWindow : AquilaWindow
 
 	public static RoutedUICommand RenameChatCommand { get; } = new RoutedUICommand("Rename chat", "RenameChatCommand", typeof(MainWindow));
 
+	public static RoutedUICommand ArchiveChatCommand { get; } = new RoutedUICommand("Archive chat", "ArchiveChatCommand", typeof(MainWindow));
+
 	public static RoutedUICommand DeleteChatCommand { get; } = new RoutedUICommand("Delete chat", "DeleteChatCommand", typeof(MainWindow));
 
 	private InferenceProfile SelectedProfile => InferenceProfile.Resolve(settings.Inference, settings.Hardware);
@@ -620,6 +622,42 @@ public partial class MainWindow : AquilaWindow
 		IL_0038:
 		e.CanExecute = (byte)canExecute != 0;
 		e.Handled = true;
+	}
+
+	/// <summary>Puts a chat away (or brings it back). Archived chats leave the list unless the archive button shows them.</summary>
+	private void ArchiveChat_Executed(object sender, ExecutedRoutedEventArgs e)
+	{
+		e.Handled = true;
+		ChatSession? chat = DeleteTarget(e.Parameter);
+		if (busy || attaching || featuresClosing || chat == null || !chats.Contains(chat))
+		{
+			return;
+		}
+		chat.Archived = !chat.Archived;
+		try
+		{
+			store.SaveChat(chat);
+		}
+		catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+		{
+			chat.Archived = !chat.Archived;
+			Notice("The chat couldn't be saved: " + ex.Message);
+			return;
+		}
+		if (chat.Archived && chat == current && !showArchived)
+		{
+			ChatSession? next = chats.FirstOrDefault(c => c != chat && !c.Archived);
+			if (next != null)
+			{
+				ChatsList.SelectedItem = next;
+			}
+			else
+			{
+				NewChat();
+			}
+		}
+		ApplyChatFilter();
+		RefreshChatRows();
 	}
 
 	private void DeleteChat_Executed(object sender, ExecutedRoutedEventArgs e)
@@ -1033,6 +1071,11 @@ public partial class MainWindow : AquilaWindow
 			if (remember)
 			{
 				selectedProfile.Remember(settings.Inference, contextTokens);
+				if (settings.Inference.AutoContextPerModel && modelInfoReady && settings.ModelPath.Length > 0)
+				{
+					settings.Inference.ModelContexts ??= new Dictionary<string, int>();
+					settings.Inference.ModelContexts[InferencePreferences.ModelKey(settings.ModelPath)] = contextTokens;
+				}
 			}
 			ContextSlider.Maximum = Math.Log2(num);
 			ContextSlider.Value = Math.Log2(contextTokens);
@@ -1149,7 +1192,8 @@ public partial class MainWindow : AquilaWindow
 			Recommended = num
 		};
 		ThresholdCanvas.Visibility = Visibility.Visible;
-		ContextThresholds.Text = $"Profile target {num:N0} · Native max {advice.NativeMaximum:N0}";
+		(int Context, bool Remembered)? perModel = PerModelContext();
+		ContextThresholds.Text = $"Profile target {num:N0} · Native max {advice.NativeMaximum:N0}" + (perModel is (int, bool remembered) ? (remembered ? " · Your setting for this model" : " · Best fit for this model") : "");
 		ProfileTargetMarker.ToolTip = $"Profile target: {num:N0} tokens. This is the profile’s default allowance.";
 		bool flag = launch.ExpertCpuLayers == 0;
 		bool flag2 = !launch.CpuOnly && !launch.FullOffload;
@@ -1429,6 +1473,7 @@ public partial class MainWindow : AquilaWindow
 		InferencePreferences inference = settings.Inference;
 		ProfileCombo.SelectedValue = inference.Profile;
 		LaptopQ4Check.IsChecked = inference.LaptopQ4;
+		AutoContextCheck.IsChecked = inference.AutoContextPerModel;
 		CustomCacheCombo.SelectedValue = inference.CustomCache;
 		ExpertLayersBox.Text = inference.ExpertCpuLayers.ToString(CultureInfo.InvariantCulture);
 		CreativeCheck.IsChecked = inference.Creative;
@@ -1450,6 +1495,8 @@ public partial class MainWindow : AquilaWindow
 			HighContext = inference.HighContext,
 			LaptopContext = inference.LaptopContext,
 			CustomContext = inference.CustomContext,
+			AutoContextPerModel = (AutoContextCheck.IsChecked == true),
+			ModelContexts = inference.ModelContexts ?? new Dictionary<string, int>(),
 			LaptopQ4 = (LaptopQ4Check.IsChecked == true),
 			CustomCache = ((CustomCacheCombo.SelectedValue as string) ?? "f16"),
 			ExpertCpuLayers = Integer(ExpertLayersBox, "MoE expert layers"),
@@ -1573,7 +1620,48 @@ public partial class MainWindow : AquilaWindow
 
 	private int RequestedContext()
 	{
-		return AutoPlan?.AutoContext ?? SelectedProfile.Requested(settings.Inference);
+		return AutoPlan?.AutoContext ?? PerModelContext()?.Context ?? SelectedProfile.Requested(settings.Inference);
+	}
+
+	/// <summary>
+	/// In a manual profile with "Adjust automatically for each model" on: the context you last chose for this
+	/// model, or for one you haven't tuned yet, the largest that fits fully on the graphics card (capped by the
+	/// profile). Null when it's off or the model and hardware aren't known yet.
+	/// </summary>
+	private (int Context, bool Remembered)? PerModelContext()
+	{
+		InferencePreferences inference = settings.Inference;
+		if (inference == null || !inference.AutoContextPerModel || SelectedProfile.Key == "Auto" || !modelInfoReady || settings.ModelPath.Length == 0)
+		{
+			return null;
+		}
+		int max = Math.Min(SelectedProfile.Maximum, modelInfo.NativeContext);
+		if (inference.ContextFor(settings.ModelPath) is int mine)
+		{
+			return (Math.Min(mine, max), true);
+		}
+		InferenceGpu gpu = settings.Hardware?.Gpu;
+		if ((object)gpu == null || !modelInfo.MetadataKnown)
+		{
+			return null;
+		}
+		InferenceLaunch launch = CurrentLaunch();
+		if (launch.CpuOnly)
+		{
+			return null;
+		}
+		long projector = ((settings.ProjectorPath.Length > 0 && File.Exists(settings.ProjectorPath)) ? new FileInfo(settings.ProjectorPath).Length : 0);
+		int fit = InferenceLaunch.FullGpuContext(gpu, modelInfo, projector, launch.Cache);
+		return fit > 0 ? (Math.Min(fit, max), false) : null;
+	}
+
+	private void AutoContext_Changed(object sender, RoutedEventArgs e)
+	{
+		if (uiReady && settings.Inference != null)
+		{
+			settings.Inference.AutoContextPerModel = AutoContextCheck.IsChecked == true;
+			SetContext(RequestedContext());
+		}
 	}
 
 	private void RenderProfile(InferenceLaunch launch, long freeSystem, long? freeGpu)
@@ -1582,6 +1670,8 @@ public partial class MainWindow : AquilaWindow
 		bool automatic = SelectedProfile.Key == "Auto";
 		ContextSlider.IsEnabled = !automatic;
 		ContextCombo.IsEnabled = !automatic;
+		// Automatic mode already sizes the context for each model.
+		AutoContextCheck.Visibility = automatic ? Visibility.Collapsed : Visibility.Visible;
 		InferenceLaunch plan = AutoPlan;
 		if (plan != null)
 		{
@@ -1593,6 +1683,7 @@ public partial class MainWindow : AquilaWindow
 			return;
 		}
 		LaptopQ4Check.Visibility = ((!(SelectedProfile.Key == "Laptop")) ? Visibility.Collapsed : Visibility.Visible);
+		AutoContextCheck.Visibility = Visibility.Visible;
 		CustomCachePanel.Visibility = ((!(SelectedProfile.Key == "Custom")) ? Visibility.Collapsed : Visibility.Visible);
 		GpuBox.IsEnabled = SelectedProfile.Key == "Custom";
 		ExpertLayersBox.IsEnabled = modelInfoReady && modelInfo.ExpertCount > 1 && !launch.CpuOnly && SelectedProfile.Key != "High";
@@ -1894,8 +1985,17 @@ public partial class MainWindow : AquilaWindow
 		}
 	}
 
+	private const string TryAgainTip = "Try this reply again";
+
 	private void AddReplyActions(MessageView view, ChatSession session, Turn turn)
 	{
+		if (turn.Status != "generating" && session.Turns.LastOrDefault() == turn)
+		{
+			view.AddAction("\uE72C", TryAgainTip, delegate
+			{
+				_ = TryAgainAsync(session, turn);
+			});
+		}
 		if (session.IsCompanion && turn.Status == "complete" && !string.IsNullOrWhiteSpace(turn.Answer))
 		{
 			view.AddAction("\uE76E", "React with an emoji", delegate
@@ -1910,6 +2010,62 @@ public partial class MainWindow : AquilaWindow
 				_ = SaveReplyAudioAsync(session, turn);
 			});
 		}
+	}
+
+	/// <summary>
+	/// Try again: the latest reply is set aside and written afresh. The model is told what went wrong last time
+	/// (the error, that it ran out of room, or the reply they didn't want) so it doesn't do the same again. In her
+	/// chats, the set-aside reply is withdrawn from her memory too (kept in the file, with the reason).
+	/// </summary>
+	private async Task TryAgainAsync(ChatSession session, Turn turn)
+	{
+		if (busy || current != session)
+		{
+			return;
+		}
+		if (session.Turns.LastOrDefault() != turn)
+		{
+			Notice("Only the latest reply can be tried again.");
+			return;
+		}
+		string error = turn.Activity.LastOrDefault((string a) => a.StartsWith("Error: ", StringComparison.Ordinal))?.Substring("Error: ".Length) ?? "";
+		string who = session.IsCompanion ? "your" : "the";
+		string note = turn.Status switch
+		{
+			"error" => "[Trying again: " + who + " last try at this reply failed (" + error.Truncate(300) + ")."
+				+ ((error.Contains("tool", StringComparison.OrdinalIgnoreCase) || turn.Activity.Count((string a) => a.StartsWith("Skipped", StringComparison.Ordinal)) > 0)
+					? " It got stuck using tools. This time use one tool at most, or none, and answer in words."
+					: " Keep it simpler this time.") + "]",
+			"limit" => "[Trying again: " + who + " last try ran out of room before it finished. Keep this reply shorter, and don't think for long before answering.]",
+			"cancelled" => "[Trying again: " + who + " last try was stopped partway. Write a fresh reply.]"
+				+ ((turn.Answer.Trim().Length > 0) ? " It began: \"" + turn.Answer.Trim().Truncate(400) + "\"" : ""),
+			_ => "[They asked for this reply again. " + (session.IsCompanion ? "Your" : "The") + " previous try was: \"" + turn.Answer.Trim().Truncate(1200) + "\" Write a different reply that doesn't repeat it: other words, and a different direction if that one missed.]"
+		};
+		if (session.IsCompanion && session.PersonaId.Length > 0)
+		{
+			try
+			{
+				AquilaLocal.Companion.CompanionRuntime runtime = companion.Open(session.PersonaId);
+				runtime.Store.WithdrawExchange(turn.Id, "they asked her to try this reply again", DateTimeOffset.Now);
+			}
+			catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is InvalidOperationException || ex is AquilaLocal.Companion.PersonaConfigException || ex is AquilaLocal.Companion.DriveStateUnavailableException || ex is Microsoft.Data.Sqlite.SqliteException)
+			{
+				Notice("Couldn't set the earlier reply aside in " + session.PersonaName + "'s memory, so nothing was changed: " + ex.Message);
+				return;
+			}
+		}
+		session.Turns.Remove(turn);
+		if (userViews.Remove(turn.Id, out MessageView? mine))
+		{
+			Messages.Children.Remove(mine);
+		}
+		if (replyViews.Remove(turn.Id, out MessageView? theirs))
+		{
+			Messages.Children.Remove(theirs);
+		}
+		store.SaveChat(session);
+		bool quiet = turn.Unprompted && turn.Cue.Contains("\"Picture this moment\"", StringComparison.Ordinal);
+		await SendAsync(turn.Unprompted ? turn.Cue : null, turn.Unprompted ? turn.Attachments.FirstOrDefault() : null, again: turn, retryNote: note, quiet: quiet);
 	}
 
 	/// <summary>Saves one reply as a WAV file in the voice she speaks with, so it can be played or sent elsewhere.</summary>
@@ -1997,6 +2153,10 @@ public partial class MainWindow : AquilaWindow
 		Composer.PreviewKeyDown += Composer_PastePicture;
 		base.CommandBindings.Add(new CommandBinding(DeleteChatCommand, DeleteChat_Executed, DeleteChat_CanExecute));
 		base.CommandBindings.Add(new CommandBinding(RenameChatCommand, RenameChat_Executed, DeleteChat_CanExecute));
+		base.CommandBindings.Add(new CommandBinding(ArchiveChatCommand, ArchiveChat_Executed, DeleteChat_CanExecute));
+		base.CommandBindings.Add(new CommandBinding(CarryOverCommand, CarryOver_Executed, CarryOver_CanExecute));
+		LivingChanged += RefreshJournalButton;
+		MessageView.AnimateRequested += AnimateChatPicture;
 		store = new Storage(dataRoot);
 		this.settings = store.LoadSettings();
 		Settings settings = this.settings;
@@ -2035,6 +2195,7 @@ public partial class MainWindow : AquilaWindow
 		semantic = new SemanticMemory(memories, store.Root);
 		personalities = new PersonalityStore(store.Root);
 		companion = new CompanionHost(store.Root);
+		base.Loaded += delegate { NoticeUnseenGrowth(); };
 		engine = new Engine(store.Root);
 		speech = new SpeechService(store.Root, speechAssets);
 		avatar = new AvatarHost(store.Root);
@@ -2042,8 +2203,21 @@ public partial class MainWindow : AquilaWindow
 		{
 			base.Dispatcher.InvokeAsync(() => StatusText.Text = text);
 		};
+		if (this.settings.UnreadSince == null)
+		{
+			this.settings.UnreadSince = DateTimeOffset.Now;
+			try
+			{
+				store.SaveSettings(this.settings);
+			}
+			catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+			{
+			}
+		}
+		ChatSession.UnreadSince = this.settings.UnreadSince.Value;
 		chats = new ObservableCollection<ChatSession>(store.LoadChats());
 		ChatsList.ItemsSource = chats;
+		ApplyChatFilter();
 		ShowSettings();
 		BuildRail();
 		StatusText.Text = "No model loaded";
@@ -2205,7 +2379,9 @@ public partial class MainWindow : AquilaWindow
 		}
 		Turn? lastTalk = chats.Where((ChatSession c) => c != session && c.PersonaId == session.PersonaId).SelectMany((ChatSession c) => c.Turns).Where((Turn t) => t.Status == "complete").OrderByDescending((Turn t) => t.Created).FirstOrDefault();
 		string since = (lastTalk == null) ? "This is the very first time you two are talking." : ("You last talked on " + AquilaLocal.Companion.ContextInjector.When(lastTalk.Created, DateTimeOffset.Now) + ".");
-		string cue = "[No message from them yet. They've just opened a new chat with you. " + since
+		string cue = session.CarryOver.Trim().Length > 0
+			? "[No message from them yet. They've just opened a new chat to carry on from your last one. " + since + " Pick up right where you left off (your notes say how things stood), in your own voice, as if no time had passed unless it has. Keep it short.]"
+			: "[No message from them yet. They've just opened a new chat with you. " + since
 			+ " Start the conversation yourself, in your own voice: something that fits who you are, how you feel right now, the time of day, and what you remember about them and where things stand (a plan, something they mentioned, something on your mind). Don't open with a generic greeting or by asking how you can help. Keep it short.]";
 		await SendAsync(cue);
 	}
@@ -2222,6 +2398,8 @@ public partial class MainWindow : AquilaWindow
 			speech.Stop();
 			current = chatSession;
 			RenderChat();
+			MarkRead();
+			ApplyChatFilter();
 		}
 	}
 
@@ -2330,6 +2508,10 @@ public partial class MainWindow : AquilaWindow
 			{
 				pendingCompanion = SummarizeCompanionAsync(session, turn, runtime);
 			}
+			else if (done.NotesDue)
+			{
+				pendingCompanion = SummarizeCompanionAsync(session, turn, runtime, notesOnly: true);
+			}
 		}
 		catch (Exception ex)
 		{
@@ -2340,12 +2522,21 @@ public partial class MainWindow : AquilaWindow
 		}
 	}
 
-	private async Task SummarizeCompanionAsync(ChatSession session, Turn turn, AquilaLocal.Companion.CompanionRuntime runtime)
+	/// <param name="notesOnly">The quick pass every few messages: she notes what's new, nothing is folded.</param>
+	private async Task SummarizeCompanionAsync(ChatSession session, Turn turn, AquilaLocal.Companion.CompanionRuntime runtime, bool notesOnly = false)
 	{
 		try
 		{
-			AquilaLocal.Companion.SummaryResult result = await CompanionHost.SummarizerFor(runtime, engine, Math.Min(settings.Context, engine.SlotContext ?? settings.Context)).RunAsync(DateTimeOffset.Now, monitorCancellation.Token);
-			if (result != null)
+			AquilaLocal.Companion.Summarizer summarizer = CompanionHost.SummarizerFor(runtime, engine, Math.Min(settings.Context, engine.SlotContext ?? settings.Context));
+			AquilaLocal.Companion.SummaryResult result = notesOnly ? await summarizer.NoteAsync(DateTimeOffset.Now, monitorCancellation.Token) : await summarizer.RunAsync(DateTimeOffset.Now, monitorCancellation.Token);
+			if (result != null && notesOnly)
+			{
+				int n = result.Added + result.Corrected;
+				turn.Activity.Add(session.PersonaName + ": " + (n == 0 ? "looked over the last few messages; nothing new to remember." : n == 1 ? "noted 1 thing to remember from the last few messages." : $"noted {n} things to remember from the last few messages."));
+				turn.CompanionMemoryIds = result.NewEntryIds.ToList();
+				RefreshNotices(session, turn);
+			}
+			else if (result != null)
 			{
 				turn.Activity.Add($"{session.PersonaName}: folded {result.FoldedExchanges} older exchange(s) into her long-term memory (about {result.Tokens:N0} tokens).");
 				turn.CompanionMemoryIds = result.NewEntryIds.ToList();
@@ -2523,7 +2714,9 @@ public partial class MainWindow : AquilaWindow
 
 	/// <summary>Sends what's in the message box; with a cue, she speaks first instead (no message from you),
 	/// told only why (a new chat opening, a picture you had her draw).</summary>
-	private async Task SendAsync(string? cue = null, Attachment? cuePicture = null)
+	/// <param name="again">The reply being tried again: its message is sent once more, with <paramref name="retryNote"/>.</param>
+	/// <param name="quiet">Her reaction to a picture: no new pictures, videos or web lookups in it.</param>
+	private async Task SendAsync(string? cue = null, Attachment? cuePicture = null, Turn? again = null, string retryNote = "", bool quiet = false)
 	{
 		bool cued = cue != null;
 		if (pendingSpeechResume is { IsCompleted: false })
@@ -2544,7 +2737,7 @@ public partial class MainWindow : AquilaWindow
 			pendingCompanion = null;
 			await summarizing;
 		}
-		if (busy || attaching || (!cued && string.IsNullOrWhiteSpace(Composer.Text) && pendingAttachments.Count == 0) || current == null || (cued && !current.IsCompanion) || !ReadSettings())
+		if (busy || attaching || (!cued && again == null && string.IsNullOrWhiteSpace(Composer.Text) && pendingAttachments.Count == 0) || current == null || (cued && !current.IsCompanion) || !ReadSettings())
 		{
 			return;
 		}
@@ -2558,7 +2751,7 @@ public partial class MainWindow : AquilaWindow
 			Notice("This message is too long. Please use a smaller excerpt.");
 			return;
 		}
-		if (!cued && current.IsCompanion && AquilaLocal.Companion.PersonaTuning.IsCommand(Composer.Text))
+		if (!cued && again == null && current.IsCompanion && AquilaLocal.Companion.PersonaTuning.IsCommand(Composer.Text))
 		{
 			// /tune is handled here and never sent to the model.
 			try
@@ -2583,7 +2776,7 @@ public partial class MainWindow : AquilaWindow
 		ChatSession session = current;
 		// What she's told about her last message: your reaction to it and, with read receipts, when you read it.
 		Turn? previous = session.Turns.LastOrDefault((Turn t) => t.Status == "complete");
-		string aboutLast = (!cued && session.IsCompanion && previous != null)
+		string aboutLast = (again != null) ? again.Cue : (!cued && session.IsCompanion && previous != null)
 			? AquilaLocal.Companion.ReadReceipts.NextMessageNote(previous.UserReaction, previous.AnsweredAt, previous.ReadAt, DateTimeOffset.Now, settings.ReadReceipts)
 			: "";
 		Turn turn = cued ? new Turn
@@ -2593,6 +2786,14 @@ public partial class MainWindow : AquilaWindow
 			Unprompted = true,
 			Attachments = (cuePicture != null) ? new List<Attachment> { cuePicture } : new List<Attachment>(),
 			Status = "generating"
+		} : (again != null) ? new Turn
+		{
+			User = again.User,
+			Cue = aboutLast,
+			Attachments = again.Attachments.ToList(),
+			Status = "generating",
+			Spoken = again.Spoken,
+			FollowUp = again.FollowUp
 		} : new Turn
 		{
 			User = (string.IsNullOrWhiteSpace(Composer.Text) ? "Please review the attached files." : AquilaLocal.Companion.EmojiShortcodes.ReplaceAll(Composer.Text.Trim())),
@@ -2601,9 +2802,15 @@ public partial class MainWindow : AquilaWindow
 			Status = "generating",
 			Spoken = pendingSpoken
 		};
-		if (!cued)
+		if (!cued && again == null)
 		{
 			pendingSpoken = false;
+		}
+		// Only the newest reply can be tried again.
+		Turn? before = session.Turns.LastOrDefault();
+		if (before != null && replyViews.TryGetValue(before.Id, out MessageView? beforeView))
+		{
+			beforeView.RemoveAction(TryAgainTip);
 		}
 		if (!cued && !session.Renamed && session.Turns.All((Turn t) => t.Unprompted))
 		{
@@ -2634,7 +2841,7 @@ public partial class MainWindow : AquilaWindow
 		UiSounds.Play(UiSound.Send);
 		sendStarted = DateTime.UtcNow;
 		activeTurn = turn;
-		if (!cued)
+		if (!cued && again == null)
 		{
 			Composer.Clear();
 			pendingAttachments.Clear();
@@ -2645,16 +2852,30 @@ public partial class MainWindow : AquilaWindow
 		operation = new CancellationTokenSource();
 		Agent agent = new Agent(engine, memories, semantic, personalities);
 		agent.Companion = companion;
+		agent.RetryNote = retryNote;
+		agent.AllowWeb = !quiet;
 		string? toldAbout = null;
 		if (session.IsCompanion && session.PersonaId.Length > 0)
 		{
-			(agent.ExtraInnerState, toldAbout) = MoodInnerState(session.PersonaId);
+			try
+			{
+				if (engine.Ready && Today.Load(session.PersonaId, DateTimeOffset.Now) == null)
+				{
+					using CancellationTokenSource dayCts = new CancellationTokenSource(TimeSpan.FromSeconds(40));
+					StatusText.Text = session.PersonaName + " is starting " + AquilaLocal.Companion.Genders.Possessive(GenderOf(session.PersonaId)) + " day…";
+					await EnsureTodayAsync(session.PersonaId, dayCts.Token);
+				}
+			}
+			catch (OperationCanceledException)
+			{
+			}
+			(agent.ExtraInnerState, toldAbout) = MoodInnerState(session.PersonaId, session, turn);
 		}
-		if (settings.Pictures.Enabled)
+		if (settings.Pictures.Enabled && !quiet)
 		{
 			agent.MakePicture = (string arguments, Turn pictureTurn, CancellationToken pictureCt) => MakePictureForTurnAsync(session, pictureTurn, arguments, pictureCt);
 		}
-		if (settings.Video.Enabled)
+		if (settings.Video.Enabled && !quiet)
 		{
 			agent.MakeVideo = (string arguments, Turn videoTurn, CancellationToken videoCt) => MakeVideoForTurnAsync(session, videoTurn, arguments, videoCt);
 		}
@@ -2708,6 +2929,7 @@ public partial class MainWindow : AquilaWindow
 			await agent.RunAsync(settings, session, turn, operation.Token);
 			turn.AnsweredAt = DateTimeOffset.Now;
 			MarkRead();
+			RefreshChatRows();
 			gestures?.Flush();
 			SetAvatarState("idle");
 			store.SaveChat(session);
@@ -2768,6 +2990,10 @@ public partial class MainWindow : AquilaWindow
 			live?.SetGenerating(false);
 			RenderLive(final: true);
 			store.SaveChat(session);
+			if (replyViews.TryGetValue(turn.Id, out MessageView? endedView))
+			{
+				AddReplyActions(endedView, session, turn);
+			}
 			if (session == current)
 			{
 				ShowOutfit();

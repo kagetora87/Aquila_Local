@@ -358,6 +358,85 @@ public sealed class RuntimeFlowTests
     }
 
     [Fact]
+    public void Every_fourth_message_she_takes_quick_notes_without_folding_anything()
+    {
+        using var dir = new TempDir();
+        PersonaConfig c = TestPersona.Config();
+        PersonaStore store = PersonaStore.Create(dir.File("v.db"), c, TestPersona.T0);
+        CompanionRuntime rt = CompanionRuntime.ForTests(c, store, new FakeEmbedder());
+        var gen = new FakeGenerator("""{"add":[{"layer":"facts","text":"He folds sheets on Sundays."}],"supersede":[]}""");
+        var due = new List<bool>();
+        for (int i = 0; i < 8; i++)
+        {
+            PreparedTurn p = rt.Prepare("message " + i, new HashSet<string>(), i > 0, TestPersona.T0.AddMinutes(i));
+            CompletedTurn done = rt.Complete(p, "chat", "t" + i, "message " + i, "reply " + i, TestPersona.T0.AddMinutes(i));
+            due.Add(done.NotesDue);
+            if (done.NotesDue)
+            {
+                SummaryResult? r = rt.Summarizer(gen).NoteAsync(TestPersona.T0.AddMinutes(i), CancellationToken.None).GetAwaiter().GetResult();
+                Assert.NotNull(r);
+                Assert.Equal(0, r!.FoldedExchanges);
+                Assert.Contains("message " + i, gen.LastUser);
+                Assert.DoesNotContain("message " + (i - 4), gen.LastUser);     // only what's new since the last notes
+            }
+        }
+        Assert.Equal(new[] { false, false, false, true, false, false, false, true }, due);
+        Assert.Contains("He folds sheets on Sundays.", store.ReadSummary().Facts);
+        Assert.Single(store.ReadSummary().Facts, f => f == "He folds sheets on Sundays.");   // not added twice
+        Assert.Equal(8, store.UnfoldedExchanges().Count);                                    // all still word for word
+        Assert.Equal(8, store.TurnsSinceSummary);                                            // the summary pass still comes at 20
+    }
+
+    [Fact]
+    public void Notes_can_be_switched_off()
+    {
+        using var dir = new TempDir();
+        PersonaConfig c = TestPersona.Config();
+        c.Memory.NoteEveryTurns = 0;
+        PersonaStore store = PersonaStore.Create(dir.File("v.db"), c, TestPersona.T0);
+        CompanionRuntime rt = CompanionRuntime.ForTests(c, store, new FakeEmbedder());
+        for (int i = 0; i < 6; i++)
+        {
+            PreparedTurn p = rt.Prepare("m" + i, new HashSet<string>(), i > 0, TestPersona.T0.AddMinutes(i));
+            Assert.False(rt.Complete(p, "chat", "t" + i, "m" + i, "r" + i, TestPersona.T0.AddMinutes(i)).NotesDue);
+        }
+    }
+
+    [Fact]
+    public void A_reply_tried_again_is_set_aside_but_kept_with_its_reason()
+    {
+        using var dir = new TempDir();
+        PersonaConfig c = TestPersona.Config();
+        PersonaStore store = PersonaStore.Create(dir.File("v.db"), c, TestPersona.T0);
+        CompanionRuntime rt = CompanionRuntime.ForTests(c, store, new FakeEmbedder());
+        for (int i = 0; i < 3; i++)
+        {
+            PreparedTurn p = rt.Prepare("m" + i, new HashSet<string>(), i > 0, TestPersona.T0.AddMinutes(i));
+            rt.Complete(p, "chat", "t" + i, "m" + i, "r" + i, TestPersona.T0.AddMinutes(i));
+        }
+
+        Assert.True(store.WithdrawExchange("t2", "they asked her to try again", TestPersona.T0.AddMinutes(5)));
+        Assert.False(store.WithdrawExchange("t2", "again", TestPersona.T0.AddMinutes(6)));   // already set aside
+        Assert.False(store.WithdrawExchange("nope", "never stored", TestPersona.T0));
+        Assert.Throws<ArgumentException>(() => store.WithdrawExchange("t1", " ", TestPersona.T0));
+
+        Assert.Equal(new[] { "r0", "r1" }, store.RecentExchanges(10).Select(e => e.Reply));
+        Assert.Equal(2, store.UnfoldedExchanges().Count);
+        Assert.Equal(2, store.Vectors().Count);
+        Assert.Equal(3, store.ExchangeCount());                                    // still in the file
+
+        // The flag can't be cleared, and the log can't be changed.
+        using var raw = new Microsoft.Data.Sqlite.SqliteConnection("Data Source=" + dir.File("v.db"));
+        raw.Open();
+        using var undo = raw.CreateCommand();
+        undo.CommandText = "UPDATE exchanges SET withdrawn=0 WHERE turn_id='t2'";
+        Assert.Throws<Microsoft.Data.Sqlite.SqliteException>(() => undo.ExecuteNonQuery());
+        using var erase = raw.CreateCommand();
+        erase.CommandText = "DELETE FROM exchange_withdrawals";
+        Assert.Throws<Microsoft.Data.Sqlite.SqliteException>(() => erase.ExecuteNonQuery());
+    }
+
+    [Fact]
     public void A_bad_summary_keeps_the_previous_block_and_folds_nothing()
     {
         using var dir = new TempDir();

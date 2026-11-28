@@ -264,6 +264,14 @@ public sealed class MessageView : Border
 	}
 
 	/// <summary>Adds an extra button next to Copy (once per name), such as "Save as audio".</summary>
+	public void RemoveAction(string tooltip)
+	{
+		foreach (Button b in actions.Children.OfType<Button>().Where((Button b) => b.Tag as string == tooltip).ToList())
+		{
+			actions.Children.Remove(b);
+		}
+	}
+
 	public void AddAction(string glyph, string tooltip, Action click)
 	{
 		if (actions.Children.OfType<Button>().Any((Button b) => b.Tag as string == tooltip))
@@ -296,6 +304,9 @@ public sealed class MessageView : Border
 
 	/// <summary>Shows the attached pictures as thumbnails; clicking one opens it larger.</summary>
 	private string shownPictureFiles = "";
+
+	/// <summary>Raised by a picture's right-click "Make it a video" (the picture's file).</summary>
+	public static event Action<string>? AnimateRequested;
 
 	/// <summary>Pictures drawn for a reply (files). Click one to open it full size in Windows' picture viewer.</summary>
 	public void ShowPictureFiles(IReadOnlyList<string> files)
@@ -341,6 +352,15 @@ public sealed class MessageView : Border
 				{
 				}
 			};
+			if (!video)
+			{
+				ContextMenu menu = new ContextMenu();
+				MenuItem animate = new MenuItem { Header = "Make it a video…", Icon = Ui.Icon("\uE714", 14) };
+				animate.Click += delegate { AnimateRequested?.Invoke(path); };
+				menu.Items.Add(animate);
+				thumb.ContextMenu = menu;
+				thumb.ToolTip += "\nRight-click to make it a video";
+			}
 			UIElement content = thumb;
 			if (video)
 			{

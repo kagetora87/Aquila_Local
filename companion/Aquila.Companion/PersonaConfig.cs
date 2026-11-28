@@ -124,6 +124,12 @@ public sealed class DriftClause
 public sealed class MemorySettings
 {
     public int SummarizeEveryTurns { get; set; } = 20;
+
+    /// <summary>
+    /// Every this many messages she quickly notes anything new worth keeping from the latest ones (0: only at the
+    /// summary pass). The messages stay word for word in her chat; the summary pass still folds them later.
+    /// </summary>
+    public int NoteEveryTurns { get; set; } = 4;
     public int KeepVerbatimTurns { get; set; } = 10;
     public int SummaryTokenCap { get; set; } = 2000;
     public int RetrieveTopK { get; set; } = 5;
@@ -260,6 +266,14 @@ public sealed class PersonaConfig
     /// <summary>A line or two about them for their card in My Companions. Empty uses the start of the personality sheet.</summary>
     public string Tagline { get; set; } = "";
 
+    /// <summary>
+    /// How she pictures you, in a few sentences (her mental image of you: your looks, how you carry yourself). Used
+    /// when she draws or dreams you, and she knows it in chats. Empty: she goes by your About you profile.
+    /// </summary>
+    public string ImageOfYou { get; set; } = "";
+
+    public const int MaxImageOfYouChars = 800;
+
     public const int MinAge = 18;
     public const int MaxAge = 120;
     public const int MaxTaglineChars = 300;
@@ -330,6 +344,10 @@ public sealed class PersonaConfig
         {
             throw new PersonaConfigException($"{Name}'s gender must be \"{Genders.Female}\" or \"{Genders.Male}\".");
         }
+        if (ImageOfYou.Length > MaxImageOfYouChars)
+        {
+            throw new PersonaConfigException($"How {Name} pictures you is {ImageOfYou.Length} characters; keep it under {MaxImageOfYouChars}.");
+        }
         if (Tagline.Length > MaxTaglineChars)
         {
             throw new PersonaConfigException($"{Name}'s card description is {Tagline.Length} characters; keep it under {MaxTaglineChars}.");
@@ -396,7 +414,7 @@ public sealed class PersonaConfig
             }
         }
         // Her inner-state block must fit its cap whatever her drives' values are (each line uses its longest guidance).
-        int worst = TokenEstimate.Of("[Inner state: your own drives right now, 0-10. Not typed by the user. Let the top one lead; never recite numbers.]\n[End inner state]")
+        int worst = TokenEstimate.Of("[Inner state: your own drives right now, 0-10. Not typed by the user. They colour your tone and choices quietly, the way needs do in a person; the top one leans hardest. Don't name them or talk about them unless the moment calls for it or one is very strong. Never recite numbers.]\n[End inner state]")
             + Drives.Sum(d => TokenEstimate.Of("- " + d.Name + " 10.0 TOP" + (d.IsLevel ? ContextInjector.LevelMark : "") + ": " + new[] { d.Guidance.Low, d.Guidance.Mid, d.Guidance.High }.MaxBy(g => g.Length) + "\n"));
         if (worst > ContextInjector.MaxDriveBlockTokens)
         {
@@ -420,7 +438,7 @@ public sealed class PersonaConfig
             }
         }
         if (Memory.SummarizeEveryTurns < 2 || Memory.KeepVerbatimTurns < 0 || Memory.KeepVerbatimTurns >= Memory.SummarizeEveryTurns * 4
-            || Memory.SummaryTokenCap is < 200 or > 2000 || Memory.RetrieveTopK is < 0 or > 20)
+            || Memory.SummaryTokenCap is < 200 or > 2000 || Memory.RetrieveTopK is < 0 or > 20 || Memory.NoteEveryTurns is < 0 or > 50)
         {
             throw new PersonaConfigException($"{Name}'s memory settings are out of range (summary cap at most 2000 tokens).");
         }

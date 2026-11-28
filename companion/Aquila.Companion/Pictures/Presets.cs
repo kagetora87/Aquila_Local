@@ -105,10 +105,16 @@ public sealed class TileStyle
 /// One preset: what it adds to the picture (Prompt), the shot it suits (actions only), what moves in a video
 /// (actions only), and who it fits ("" anyone, or "female" / "male" for some outfits).
 /// </summary>
-public sealed record GenPreset(string Id, string Kind, string Name, string Prompt, string Framing = "", string Motion = "", string For = "", bool Custom = false)
+public sealed record GenPreset(string Id, string Kind, string Name, string Prompt, string Framing = "", string Motion = "", string For = "", bool Custom = false, string Tile = "")
 {
+    /// <summary>A built-in preset you changed (its words or its picture's prompt).</summary>
+    public bool Edited { get; init; }
+
     public bool Fits(string gender) => For.Length == 0 || For == gender;
 }
+
+/// <summary>A change you made to a built-in preset: removed (Hidden), or new words. Null fields keep the built-in ones.</summary>
+public sealed record BuiltInChange(string Id, bool Hidden = false, string? Name = null, string? Prompt = null, string? Framing = null, string? Motion = null, string? Tile = null);
 
 /// <summary>
 /// The presets: the built-in ones, plus the ones you add with Custom (Data\presets\presets.json). Each has a
@@ -139,6 +145,9 @@ public sealed class PresetLibrary
     public string Root { get; }
 
     public string CustomPath => Path.Combine(Root, "presets.json");
+
+    /// <summary>Your changes to the built-in presets (removed ones, new words).</summary>
+    public string ChangesPath => Path.Combine(Root, "builtin-changes.json");
 
     public string TilesFolder => Path.Combine(Root, "tiles");
 
@@ -172,10 +181,30 @@ public sealed class PresetLibrary
         }
     }
 
-    /// <summary>Saves a new style. Its pictures go in their own folder, so the missing ones are offered again.</summary>
-    public void SaveStyle(TileStyle next)
+    /// <summary>
+    /// Saves a new style. Its pictures go in their own folder, so the missing ones are offered again; with
+    /// keepPictures the current pictures are copied across first, so only new presets get the new style.
+    /// </summary>
+    public void SaveStyle(TileStyle next, bool keepPictures = false)
     {
         next.Validate();
+        if (keepPictures)
+        {
+            string from = Path.Combine(TilesFolder, Style.Folder);
+            string to = Path.Combine(TilesFolder, next.Folder);
+            if (Directory.Exists(from) && !string.Equals(Path.GetFullPath(from), Path.GetFullPath(to), StringComparison.OrdinalIgnoreCase))
+            {
+                Directory.CreateDirectory(to);
+                foreach (string file in Directory.GetFiles(from, "*.png"))
+                {
+                    string target = Path.Combine(to, Path.GetFileName(file));
+                    if (!File.Exists(target))
+                    {
+                        File.Copy(file, target);
+                    }
+                }
+            }
+        }
         Directory.CreateDirectory(Root);
         string temp = StylePath + ".saving";
         File.WriteAllText(temp, JsonSerializer.Serialize(next, Json));
@@ -250,7 +279,8 @@ public sealed class PresetLibrary
     public TileJob TileJobFor(GenPreset p)
     {
         IReadOnlyList<string> refs = TileReferences(p);
-        return new TileJob(p.Id, p.Name, PicturePrompt.WithReferences(TilePrompt(p, Style), refs.Count), refs);
+        string prompt = p.Tile.Trim().Length > 0 ? p.Tile.Trim() : TilePrompt(p, Style);
+        return new TileJob(p.Id, p.Name, PicturePrompt.WithReferences(prompt, refs.Count), refs);
     }
 
     /// <summary>A preset or creator tile, in the current style's folder.</summary>
@@ -310,12 +340,152 @@ public sealed class PresetLibrary
         new("scene-studio", PresetKinds.Scene, "Photo studio", "a photo studio with a plain backdrop and soft lighting"),
     };
 
-    /// <summary>Built-in presets first, then your own; one kind, or all with kind null.</summary>
+    /// <summary>Built-in presets first (as you changed them, without the ones you removed), then your own; one kind, or all with kind null.</summary>
     public List<GenPreset> Load(string? kind = null)
     {
-        List<GenPreset> all = BuiltIn.Concat(LoadCustom()).ToList();
+        Dictionary<string, BuiltInChange> changes = LoadChanges().ToDictionary(c => c.Id);
+        List<GenPreset> all = BuiltIn
+            .Where(p => !(changes.TryGetValue(p.Id, out BuiltInChange? c) && c.Hidden))
+            .Select(p => changes.TryGetValue(p.Id, out BuiltInChange? c) ? Apply(p, c) : p)
+            .Concat(LoadCustom()).ToList();
         return kind == null ? all : all.Where(p => p.Kind == kind).ToList();
     }
+
+    private static GenPreset Apply(GenPreset p, BuiltInChange c) => p with
+    {
+        Name = c.Name ?? p.Name,
+        Prompt = c.Prompt ?? p.Prompt,
+        Framing = c.Framing ?? p.Framing,
+        Motion = c.Motion ?? p.Motion,
+        Tile = c.Tile ?? p.Tile,
+        Edited = c.Name != null || c.Prompt != null || c.Framing != null || c.Motion != null || c.Tile != null
+    };
+
+    public List<BuiltInChange> LoadChanges()
+    {
+        if (!File.Exists(ChangesPath))
+        {
+            return new List<BuiltInChange>();
+        }
+        try
+        {
+            return (JsonSerializer.Deserialize<List<BuiltInChange>>(File.ReadAllText(ChangesPath), Json) ?? new List<BuiltInChange>())
+                .Where(c => BuiltIn.Any(p => p.Id == c.Id)).GroupBy(c => c.Id).Select(g => g.Last()).ToList();
+        }
+        catch (JsonException ex)
+        {
+            throw new PersonaConfigException($"Your changes to the built-in presets aren't valid JSON ({ChangesPath}, line {ex.LineNumber + 1}): {ex.Message}", ex);
+        }
+    }
+
+    private void SaveChanges(List<BuiltInChange> changes)
+    {
+        Directory.CreateDirectory(Root);
+        string temp = ChangesPath + ".saving";
+        File.WriteAllText(temp, JsonSerializer.Serialize(changes, Json));
+        File.Move(temp, ChangesPath, overwrite: true);
+    }
+
+    /// <summary>The built-in presets you removed, so they can be brought back.</summary>
+    public List<GenPreset> Removed(string? kind = null)
+    {
+        HashSet<string> hidden = LoadChanges().Where(c => c.Hidden).Select(c => c.Id).ToHashSet();
+        return BuiltIn.Where(p => hidden.Contains(p.Id) && (kind == null || p.Kind == kind)).ToList();
+    }
+
+    /// <summary>Brings back built-in presets you removed (keeping any words you changed).</summary>
+    public void Restore(IEnumerable<string> ids)
+    {
+        HashSet<string> back = ids.ToHashSet();
+        List<BuiltInChange> changes = LoadChanges().Select(c => back.Contains(c.Id) ? c with { Hidden = false } : c).ToList();
+        SaveChanges(changes.Where(c => c.Hidden || c.Name != null || c.Prompt != null || c.Framing != null || c.Motion != null || c.Tile != null).ToList());
+    }
+
+    /// <summary>
+    /// Changes a preset's words and its picture's prompt (tile: "" means written from the description). A built-in
+    /// one keeps only what differs from the original, so "back to how it came" is just its original words.
+    /// Returns the preset as it is now.
+    /// </summary>
+    public GenPreset Update(string id, string name, string prompt, string framing = "", string motion = "", string tile = "")
+    {
+        GenPreset existing = Find(id) ?? throw new PersonaConfigException("That preset wasn't found.");
+        (name, prompt, tile) = Check(existing.Kind, name, prompt, tile);
+        if (framing.Length > 0 && !PictureRequest.Framings.Contains(framing))
+        {
+            framing = "";
+        }
+        if (existing.Kind != PresetKinds.Action)
+        {
+            framing = "";
+            motion = "";
+        }
+        motion = Regex.Replace(motion ?? "", @"\s+", " ").Trim();
+        if (motion.Length > VideoRequest.MaxMotionChars)
+        {
+            motion = motion[..VideoRequest.MaxMotionChars];
+        }
+        string n = name;
+        if (Load(existing.Kind).Any(p => p.Id != id && p.Name.Equals(n, StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new PersonaConfigException($"There's already a {PresetKinds.Label(existing.Kind).ToLowerInvariant()} called \"{name}\".");
+        }
+        GenPreset? original = BuiltIn.FirstOrDefault(p => p.Id == id);
+        if (original == null)
+        {
+            List<GenPreset> custom = LoadCustom();
+            int at = custom.FindIndex(p => p.Id == id);
+            if (at < 0)
+            {
+                throw new PersonaConfigException("That preset wasn't found.");
+            }
+            custom[at] = custom[at] with { Name = name, Prompt = prompt, Framing = framing, Motion = motion, Tile = tile };
+            Save(custom);
+            return custom[at];
+        }
+        BuiltInChange change = new(id, false,
+            name == original.Name ? null : name,
+            prompt == original.Prompt ? null : prompt,
+            framing == original.Framing ? null : framing,
+            motion == original.Motion ? null : motion,
+            tile == original.Tile ? null : tile);
+        List<BuiltInChange> changes = LoadChanges().Where(c => c.Id != id).ToList();
+        if (change.Name != null || change.Prompt != null || change.Framing != null || change.Motion != null || change.Tile != null)
+        {
+            changes.Add(change);
+        }
+        SaveChanges(changes);
+        return Find(id)!;
+    }
+
+    private static (string Name, string Prompt, string Tile) Check(string kind, string? name, string? prompt, string? tile)
+    {
+        name = Regex.Replace(name ?? "", @"\s+", " ").Trim();
+        prompt = Regex.Replace(prompt ?? "", @"\s+", " ").Trim();
+        tile = Regex.Replace(tile ?? "", @"\s+", " ").Trim();
+        if (name.Length == 0)
+        {
+            throw new PersonaConfigException("Give the preset a short name.");
+        }
+        if (name.Length > MaxNameChars)
+        {
+            throw new PersonaConfigException($"Keep the name under {MaxNameChars} characters.");
+        }
+        if (prompt.Length == 0)
+        {
+            throw new PersonaConfigException("Describe what the preset should show.");
+        }
+        if (prompt.Length > MaxPromptChars)
+        {
+            throw new PersonaConfigException($"Keep the description under {MaxPromptChars} characters.");
+        }
+        if (tile.Length > MaxTilePromptChars)
+        {
+            throw new PersonaConfigException($"Keep the picture's prompt under {MaxTilePromptChars} characters.");
+        }
+        return (name, prompt, tile);
+    }
+
+    public const int MaxTilePromptChars = 1200;
 
     public GenPreset? Find(string id) => id.Length == 0 ? null : Load().FirstOrDefault(p => p.Id == id);
 
@@ -338,30 +508,13 @@ public sealed class PresetLibrary
     }
 
     /// <summary>Adds one of your own presets ("Custom"). Returns it; its tile is drawn separately.</summary>
-    public GenPreset AddCustom(string kind, string name, string prompt, string framing = "", string motion = "")
+    public GenPreset AddCustom(string kind, string name, string prompt, string framing = "", string motion = "", string tile = "")
     {
         if (!PresetKinds.IsKnown(kind))
         {
             throw new PersonaConfigException($"\"{kind}\" isn't a kind of preset.");
         }
-        name = Regex.Replace(name ?? "", @"\s+", " ").Trim();
-        prompt = Regex.Replace(prompt ?? "", @"\s+", " ").Trim();
-        if (name.Length == 0)
-        {
-            throw new PersonaConfigException("Give the preset a short name.");
-        }
-        if (name.Length > MaxNameChars)
-        {
-            throw new PersonaConfigException($"Keep the name under {MaxNameChars} characters.");
-        }
-        if (prompt.Length == 0)
-        {
-            throw new PersonaConfigException("Describe what the preset should show.");
-        }
-        if (prompt.Length > MaxPromptChars)
-        {
-            throw new PersonaConfigException($"Keep the description under {MaxPromptChars} characters.");
-        }
+        (name, prompt, tile) = Check(kind, name, prompt, tile);
         if (framing.Length > 0 && !PictureRequest.Framings.Contains(framing))
         {
             framing = "";
@@ -389,18 +542,23 @@ public sealed class PresetLibrary
         {
             id = $"custom-{kind}-{slug}-{n}";
         }
-        GenPreset added = new(id, kind, name, prompt, kind == PresetKinds.Action ? framing : "", kind == PresetKinds.Action ? motion.Trim() : "", "", true);
+        GenPreset added = new(id, kind, name, prompt, kind == PresetKinds.Action ? framing : "", kind == PresetKinds.Action ? motion.Trim() : "", "", true, tile);
         custom.Add(added);
         Save(custom);
         return added;
     }
 
-    /// <summary>Removes one of your own presets and its tile. Built-in presets can't be removed.</summary>
+    /// <summary>Removes one of your own presets and its tile; a built-in one is put away (it can be brought back).</summary>
     public void Remove(string id)
     {
         if (BuiltIn.Any(p => p.Id == id))
         {
-            throw new PersonaConfigException("Built-in presets can't be removed.");
+            List<BuiltInChange> changes = LoadChanges();
+            BuiltInChange current = changes.FirstOrDefault(c => c.Id == id) ?? new BuiltInChange(id);
+            changes.RemoveAll(c => c.Id == id);
+            changes.Add(current with { Hidden = true });
+            SaveChanges(changes);
+            return;
         }
         List<GenPreset> custom = LoadCustom();
         if (custom.RemoveAll(p => p.Id == id) == 0)
@@ -419,7 +577,7 @@ public sealed class PresetLibrary
     {
         Directory.CreateDirectory(Root);
         string temp = CustomPath + ".saving";
-        File.WriteAllText(temp, JsonSerializer.Serialize(custom.Select(p => p with { Custom = false }).ToList(), Json));
+        File.WriteAllText(temp, JsonSerializer.Serialize(custom.Select(p => p with { Custom = false, Edited = false }).ToList(), Json));
         File.Move(temp, CustomPath, overwrite: true);
     }
 

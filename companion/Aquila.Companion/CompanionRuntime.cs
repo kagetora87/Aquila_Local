@@ -15,7 +15,8 @@ public sealed record PreparedTurn(
     AppearanceCard Appearance);
 
 /// <param name="SelfChanges">Wardrobe changes she made herself during this turn (also handed to the satisfaction loop).</param>
-public sealed record CompletedTurn(LoopResult Loop, long ExchangeId, bool SummaryDue, IReadOnlyList<WardrobeEntry> SelfChanges);
+/// <param name="NotesDue">Not time for the summary pass yet, but enough new messages for a quick note-taking pass.</param>
+public sealed record CompletedTurn(LoopResult Loop, long ExchangeId, bool SummaryDue, IReadOnlyList<WardrobeEntry> SelfChanges, bool NotesDue = false);
 
 /// <summary>
 /// The persona-agnostic pipeline for one persona: tick drives, apply message events, build her context,
@@ -63,7 +64,7 @@ public sealed class CompanionRuntime
         PersonaStore store = registry.OpenStore(personaId);
         store.ReadDrives(config.Drives.Select(d => d.Name));
         store.ReadAppearance();
-        return new CompanionRuntime(config, store, embedder, scorer ?? new HeuristicScorer());
+        return new CompanionRuntime(config, store, embedder, scorer ?? new HeuristicScorer()) { Chance = Random.Shared };
     }
 
     public static CompanionRuntime ForTests(PersonaConfig config, PersonaStore store, IEmbedder embedder) =>
@@ -112,8 +113,21 @@ public sealed class CompanionRuntime
         (InjectedContext context, string top, card) = Assemble();
         // Only moments that are really about the same thing come to mind (0.2 let nearly anything in).
         List<Recalled> recalled = Memory.Search(q, Config.Memory.RetrieveTopK, verbatimTurnIds, RecallAbove);
+        string recalledText = ContextInjector.RecalledBlock(recalled, now);
+        // Now and then a looser association drifts up, the way one thing reminds a person of another.
+        if (Chance != null && Chance.NextDouble() < AssociationChance)
+        {
+            Recalled? loose = Memory.Search(q, 8, verbatimTurnIds, AssociateAbove)
+                .Where(r => r.Similarity < RecallAbove && now - r.Exchange.At > TimeSpan.FromDays(1) && recalled.All(x => x.Exchange.Id != r.Exchange.Id))
+                .OrderBy(_ => Chance.Next()).FirstOrDefault();
+            if (loose != null)
+            {
+                string assoc = ContextInjector.AssociationBlock(loose, now);
+                recalledText = recalledText.Length > 0 ? recalledText + "\n" + assoc : assoc;
+            }
+        }
         return new PreparedTurn(Config.Id, context.SystemPrompt, context.InnerState,
-            ContextInjector.RecalledBlock(recalled, now), top, events, changes, recalled, context, card);
+            recalledText, top, events, changes, recalled, context, card);
     }
 
     /// <summary>
@@ -171,6 +185,14 @@ public sealed class CompanionRuntime
     /// <summary>How close (cosine, MiniLM) a past moment must be to the new message to be recalled.</summary>
     public const double RecallAbove = 0.38;
 
+    /// <summary>How often a loose association is offered ("that reminds me…"), and how loose it may be.</summary>
+    public const double AssociationChance = 0.25;
+
+    public const double AssociateAbove = 0.25;
+
+    /// <summary>Chance for associations: null (tests) offers none; the app's Open passes Random.Shared.</summary>
+    public Random? Chance { get; init; }
+
     public CompletedTurn Complete(PreparedTurn prepared, string chatId, string turnId, string userText, string reply, DateTimeOffset now, bool spoken = false)
     {
         if (prepared.PersonaId != Config.Id)
@@ -188,8 +210,19 @@ public sealed class CompanionRuntime
         LoopResult result = loop.Run(new TurnObservation(userText, reply, prepared.TopDrive, similarity, mine), now);
         // She remembers what you said and did, never what you only thought.
         long id = Memory.Add(chatId, turnId, now, ThoughtMarkup.StripThoughts(userText), Sounds.SoundCues.Strip(reply), spoken);
-        return new CompletedTurn(result, id, Store.TurnsSinceSummary >= Config.Memory.SummarizeEveryTurns, mine);
+        bool summaryDue = Store.TurnsSinceSummary >= Config.Memory.SummarizeEveryTurns;
+        bool notesDue = !summaryDue && new Summarizer(Config, Store, NoGenerator.Instance).NotesDue;
+        return new CompletedTurn(result, id, summaryDue, mine, notesDue);
     }
 
     public Summarizer Summarizer(ITextGenerator generator) => new(Config, Store, generator);
+}
+
+/// <summary>Stands in where only a summarizer's bookkeeping is needed, never its model.</summary>
+internal sealed class NoGenerator : ITextGenerator
+{
+    public static readonly NoGenerator Instance = new();
+
+    public Task<string> GenerateJsonAsync(string system, string user, int maxTokens, CancellationToken ct) =>
+        throw new InvalidOperationException("No model is connected here.");
 }

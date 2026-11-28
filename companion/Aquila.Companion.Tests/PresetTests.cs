@@ -59,13 +59,48 @@ public sealed class PresetTests : IDisposable
         Assert.Throws<PersonaConfigException>(() => lib.AddCustom(PresetKinds.Action, "Jumping", ""));
         Assert.Throws<PersonaConfigException>(() => lib.AddCustom("pose", "Jumping", "jumping"));
         Assert.Throws<PersonaConfigException>(() => lib.AddCustom(PresetKinds.Action, "smiling", "again"));
-        Assert.Throws<PersonaConfigException>(() => lib.Remove("action-smile"));
         GenPreset a = lib.AddCustom(PresetKinds.Action, "Jumping", "jumping in the air", "full body", "jumps up and lands");
         Assert.Equal("full body", a.Framing);
         Assert.Equal("jumps up and lands", a.Motion);
         GenPreset o = lib.AddCustom(PresetKinds.Outfit, "Cape", "a red cape", "full body", "flutters");
         Assert.Equal("", o.Framing);
         Assert.Equal("", o.Motion);
+    }
+
+    [Fact]
+    public void BuiltInPresetsCanBeEditedRemovedAndBroughtBack()
+    {
+        PresetLibrary lib = new(root);
+        GenPreset edited = lib.Update("scene-cafe", "Corner cafe", "a tiny corner cafe in the rain", tile: "Anime. A tiny cafe, rain on the glass");
+        Assert.Equal("Corner cafe", edited.Name);
+        Assert.True(edited.Edited);
+        Assert.Contains("rain on the glass", lib.TileJobFor(edited).Prompt);
+        lib.Remove("scene-cafe");
+        Assert.DoesNotContain(new PresetLibrary(root).Load(), p => p.Id == "scene-cafe");
+        Assert.Contains(lib.Removed(PresetKinds.Scene), p => p.Id == "scene-cafe");
+        lib.Restore(new[] { "scene-cafe" });
+        GenPreset back = new PresetLibrary(root).Find("scene-cafe")!;
+        Assert.Equal("Corner cafe", back.Name);
+        // Back to its original words: nothing is kept for it.
+        GenPreset original = PresetLibrary.BuiltIn.First(p => p.Id == "scene-cafe");
+        GenPreset reset = lib.Update("scene-cafe", original.Name, original.Prompt);
+        Assert.False(reset.Edited);
+        Assert.Empty(lib.LoadChanges());
+        Assert.Throws<PersonaConfigException>(() => lib.Update("scene-cafe", "Library", "x"));
+    }
+
+    [Fact]
+    public void ChangingTheStyleCanKeepTheCurrentPictures()
+    {
+        PresetLibrary lib = new(root);
+        string old = lib.StyledTilePath("action-smile");
+        Directory.CreateDirectory(Path.GetDirectoryName(old)!);
+        File.WriteAllText(old, "x");
+        lib.SaveStyle(new TileStyle { Art = "watercolor" }, keepPictures: true);
+        Assert.True(File.Exists(lib.StyledTilePath("action-smile")));
+        Assert.NotEqual(old, lib.StyledTilePath("action-smile"));
+        lib.SaveStyle(new TileStyle { Art = "oil painting" });
+        Assert.False(File.Exists(lib.StyledTilePath("action-smile")));
     }
 
     [Fact]
