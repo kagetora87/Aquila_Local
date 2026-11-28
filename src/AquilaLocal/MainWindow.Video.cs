@@ -5,6 +5,8 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Media.Imaging;
 using AquilaLocal.Companion;
 using AquilaLocal.Companion.Pictures;
@@ -135,6 +137,127 @@ public partial class MainWindow
 				PictureStatus("Loading the chat model again…");
 				await engine.ResumeAsync(settings, restore, CancellationToken.None);
 			}
+		}
+	}
+
+	/// <summary>
+	/// Turns a picture you already have into a short video that starts from it: asks what should move, then
+	/// animates it (the chat model is paused meanwhile). Returns the clip's path, or "" when nothing was made.
+	/// </summary>
+	private async Task<string> PictureToVideoAsync(string still, Action<string> status)
+	{
+		if (!File.Exists(still) || MessageView.IsVideo(still))
+		{
+			return "";
+		}
+		string existing = Path.ChangeExtension(still, ".webm");
+		if (File.Exists(existing))
+		{
+			status("This picture is a video already.");
+			return existing;
+		}
+		(bool ready, string problem) = PictureDrawer.Video.Check();
+		if (!ready)
+		{
+			AquilaDialog.Alert(this, "Video isn't ready", "Videos can't be made yet: " + problem + "\n\nSet video up under Pictures, then try again.");
+			return "";
+		}
+		if (generating || makingTiles || busy)
+		{
+			status("Wait for the picture, video or reply in progress to finish first.");
+			return "";
+		}
+		string stillPrompt = "";
+		try
+		{
+			string sidecar = Path.ChangeExtension(still, ".txt");
+			if (File.Exists(sidecar))
+			{
+				stillPrompt = File.ReadAllText(sidecar).Split(new[] { Environment.NewLine + Environment.NewLine, "\n\n" }, 2, StringSplitOptions.None)[0].Trim();
+			}
+		}
+		catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+		{
+		}
+		string? motion = AskMotion();
+		if (motion == null)
+		{
+			return "";
+		}
+		generating = true;
+		genCts = new CancellationTokenSource();
+		CancellationToken ct = genCts.Token;
+		SetBusy(value: true);
+		try
+		{
+			status("Making the video (a few minutes; the chat model is paused meanwhile)…");
+			string clip = await AnimateAsync(still, VideoRequest.ClipPrompt(motion.Length > 0 ? motion : "breathes and blinks naturally, a slight smile, gentle natural movement", stillPrompt), ct);
+			status("Your video is ready.");
+			return clip;
+		}
+		catch (OperationCanceledException)
+		{
+			status("Stopped.");
+			return "";
+		}
+		catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is InvalidOperationException || ex is HttpRequestException || ex is PersonaConfigException || ex is NotSupportedException)
+		{
+			status("The video didn't work: " + ex.Message);
+			return "";
+		}
+		finally
+		{
+			generating = false;
+			genCts = null;
+			SetBusy(value: false);
+			PictureStatus(null);
+		}
+	}
+
+	/// <summary>"What should move?" for a picture becoming a video: the words, "" for gentle natural motion, or null when cancelled.</summary>
+	private string? AskMotion()
+	{
+		AquilaWindow ask = new AquilaWindow { Title = "Aquila · Make it a video", Width = 520, SizeToContent = SizeToContent.Height, ResizeMode = ResizeMode.NoResize, WindowStartupLocation = WindowStartupLocation.CenterOwner, Owner = this };
+		TextBox words = new TextBox { MaxLength = VideoRequest.MaxMotionChars, TextWrapping = TextWrapping.Wrap, Height = 64, VerticalContentAlignment = VerticalAlignment.Top };
+		Ui.SetPlaceholder(words, "For example: she turns toward the camera and laughs, hair moving in the wind");
+		StackPanel body = new StackPanel();
+		body.Children.Add(Ui.Field("What should move? (optional)", words, "The video starts from this exact picture. Leave it empty for gentle, natural movement.", 0));
+		bool go = false;
+		Button make = Ui.Button(Ui.IconLabel("\uE714", "Make the video"), "Btn.Primary", delegate { go = true; ask.Close(); });
+		make.IsDefault = true;
+		Button cancel = Ui.Button("Cancel", "Btn.Secondary", delegate { ask.Close(); });
+		ask.Content = Ui.DialogScaffold("Make it a video", "About a few minutes on your graphics card. The chat model pauses while it runs.", body, null, cancel, make);
+		ask.Loaded += delegate { words.Focus(); };
+		ask.ShowDialog();
+		return go ? words.Text.Trim() : null;
+	}
+
+	/// <summary>A picture in a chat becoming a video: the clip goes right after it in the same reply.</summary>
+	private async void AnimateChatPicture(string still)
+	{
+		ChatSession? session = current;
+		string clip = await PictureToVideoAsync(still, text => StatusText.Text = text);
+		if (clip.Length == 0 || session == null)
+		{
+			return;
+		}
+		Turn? turn = session.Turns.FirstOrDefault(t => t.Pictures.Contains(still));
+		if (turn == null || turn.Pictures.Contains(clip))
+		{
+			return;
+		}
+		turn.Pictures.Insert(turn.Pictures.IndexOf(still) + 1, clip);
+		try
+		{
+			store.SaveChat(session);
+		}
+		catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+		{
+			Notice("The chat couldn't be saved: " + ex.Message);
+		}
+		if (session == current && replyViews.TryGetValue(turn.Id, out MessageView? view))
+		{
+			view.ShowPictureFiles(turn.Pictures);
 		}
 	}
 

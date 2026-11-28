@@ -58,6 +58,8 @@ public sealed class TileStyleWindow : AquilaWindow
 	/// <summary>True once a new style was saved (the small pictures will be offered again).</summary>
 	public bool Saved { get; private set; }
 
+	private CheckBox keepPictures = null!;
+
 	/// <param name="draw">Draws a prompt (with reference pictures) to a file with the given picture model (throws if it can't).</param>
 	public TileStyleWindow(PresetLibrary library, Func<string, string, IReadOnlyList<string>, string, CancellationToken, Task> draw)
 	{
@@ -157,6 +159,8 @@ public sealed class TileStyleWindow : AquilaWindow
 			Child = new TextBlock { Text = "Press Test to draw this one with the words on the left (about 15 seconds). Nothing is saved until you press Save.", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(18), VerticalAlignment = VerticalAlignment.Center, TextAlignment = TextAlignment.Center, Foreground = Ui.Brush("Text.Secondary") }
 		};
 		side.Children.Add(previewBox);
+		keepPictures = new CheckBox { Content = "Keep the pictures I have now", Margin = new Thickness(0, 14, 0, 0), ToolTip = "When you save a new style, the pictures you already have stay. Only presets without a picture (and ones you draw again) get the new style." };
+		side.Children.Add(keepPictures);
 		side.Children.Add(status);
 		Grid.SetColumn(side, 1);
 		layout.Children.Add(side);
@@ -361,11 +365,15 @@ public sealed class TileStyleWindow : AquilaWindow
 				Close();
 				return;
 			}
-			if (!AquilaDialog.Confirm(this, "Use this style?", "All the small choice pictures will be made again in the new style. The Generate screen and Create Companion each offer a button for it.", "Use it"))
+			bool keep = keepPictures.IsChecked == true;
+			string question = keep
+				? "The pictures you have now are kept. New presets, and any you draw again, use the new style."
+				: "All the small choice pictures will be made again in the new style. The Generate screen and Create Companion each offer a button for it. (Tick \"Keep the pictures I have now\" to keep them instead.)";
+			if (!AquilaDialog.Confirm(this, "Use this style?", question, "Use it"))
 			{
 				return;
 			}
-			library.SaveStyle(s);
+			library.SaveStyle(s, keep);
 			Saved = true;
 			DialogResult = true;
 		}

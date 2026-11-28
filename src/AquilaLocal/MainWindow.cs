@@ -2155,6 +2155,7 @@ public partial class MainWindow : AquilaWindow
 		base.CommandBindings.Add(new CommandBinding(RenameChatCommand, RenameChat_Executed, DeleteChat_CanExecute));
 		base.CommandBindings.Add(new CommandBinding(ArchiveChatCommand, ArchiveChat_Executed, DeleteChat_CanExecute));
 		LivingChanged += RefreshJournalButton;
+		MessageView.AnimateRequested += AnimateChatPicture;
 		store = new Storage(dataRoot);
 		this.settings = store.LoadSettings();
 		Settings settings = this.settings;
