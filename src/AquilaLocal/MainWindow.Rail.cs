@@ -31,6 +31,7 @@ public partial class MainWindow
 		public const string Create = "create";
 		public const string Generate = "generate";
 		public const string Companions = "companions";
+		public const string Media = "media";
 	}
 
 	/// <summary>Which page is showing: the conversation (chats) or one that covers it.</summary>
@@ -243,6 +244,7 @@ public partial class MainWindow
 		{
 			Screens.Companions => CompanionsPage(),
 			Screens.Generate => GeneratePage(),
+			Screens.Media => MediaPage(),
 			_ => CreatePage()
 		};
 		PageHost.Visibility = Visibility.Visible;
@@ -812,6 +814,66 @@ public partial class MainWindow
 			}
 		};
 		return cardBorder;
+	}
+
+	/// <summary>A companion card's "…" menu: her dream journal, her pictures and videos, and whether she lives.</summary>
+	private void CompanionMenu(Button anchor, string personaId, string name, bool setUp)
+	{
+		ContextMenu menu = new ContextMenu { PlacementTarget = anchor, Placement = PlacementMode.Bottom };
+		menu.Items.Add(MenuEntry("\uE736", "Dream journal", "What " + name + " has dreamed and thought while you were away", true, delegate { OpenJournal(personaId, name); }));
+		menu.Items.Add(MenuEntry("\uE8B9", "Pictures and videos", "My Media, showing only " + name, true, delegate { ShowMediaFor(personaId); }));
+		menu.Items.Add(new Separator());
+		bool lives = settings.Living.PersonaIds.Count == 0 || settings.Living.PersonaIds.Contains(personaId);
+		MenuItem living = MenuEntry("\uE945", "Lives while you're away", lives ? name + " thinks and dreams on " + Genders.Possessive(GenderOf(personaId)) + " own (click to stop)" : "Let " + name + " think and dream on " + Genders.Possessive(GenderOf(personaId)) + " own", setUp, delegate { SetLives(personaId, !lives); });
+		living.IsCheckable = true;
+		living.IsChecked = lives;
+		menu.Items.Add(living);
+		if (!settings.Living.Enabled)
+		{
+			menu.Items.Add(new MenuItem { Header = "Living mode is off for everyone (turn it on in Living)", IsEnabled = false });
+		}
+		menu.IsOpen = true;
+	}
+
+	/// <summary>Adds or takes one companion out of living mode (an empty list means everyone lives).</summary>
+	private void SetLives(string personaId, bool lives)
+	{
+		List<string> everyone;
+		try
+		{
+			everyone = companion.Registry.Load().Personas.Where((PersonaEntry p) => companion.IsSetUp(p.Id)).Select((PersonaEntry p) => p.Id).ToList();
+		}
+		catch (PersonaConfigException ex)
+		{
+			Notice(ex.Message);
+			return;
+		}
+		List<string> chosen = settings.Living.PersonaIds.Count == 0 ? new List<string>(everyone) : new List<string>(settings.Living.PersonaIds);
+		chosen.Remove(personaId);
+		if (lives)
+		{
+			chosen.Add(personaId);
+		}
+		if (chosen.Count == 0)
+		{
+			// Nobody left: turn living off rather than an empty list (which means everyone).
+			settings.Living.Enabled = false;
+			settings.Living.PersonaIds = new List<string>();
+		}
+		else
+		{
+			settings.Living.PersonaIds = everyone.All(chosen.Contains) ? new List<string>() : chosen;
+		}
+		try
+		{
+			store.SaveSettings(settings);
+		}
+		catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+		{
+			Notice("Settings couldn't be saved: " + ex.Message);
+		}
+		ShowLivingButton();
+		LivingChanged?.Invoke();
 	}
 
 	private static Button CardAction(string glyph, string tip, RoutedEventHandler click)

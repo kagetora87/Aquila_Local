@@ -185,9 +185,14 @@ public partial class MainWindow
 		{
 			return;
 		}
-		string personaId = current.PersonaId;
+		OpenJournal(current.PersonaId, current.PersonaName);
+	}
+
+	/// <summary>A companion's dream journal (from the button by her name, or her card on My Companions).</summary>
+	private void OpenJournal(string personaId, string personaName)
+	{
 		DateTimeOffset seenBefore = JournalSeenAt(personaId);
-		DreamJournalWindow window = new DreamJournalWindow(personaId, current.PersonaName, Journal, companion.LivingRoot, Path.Combine(store.Root, "pictures"), GenderOf(personaId), seenBefore)
+		DreamJournalWindow window = new DreamJournalWindow(personaId, personaName, Journal, companion.LivingRoot, Path.Combine(store.Root, "pictures"), GenderOf(personaId), seenBefore)
 		{
 			Owner = this
 		};
