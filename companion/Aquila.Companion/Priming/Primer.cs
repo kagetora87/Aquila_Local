@@ -70,6 +70,13 @@ public sealed class PrimeProposal
     public string Personality { get; set; } = "";
     public List<DriveSuggestion> Drives { get; set; } = new();
     public List<MemorySuggestion> Memories { get; set; } = new();
+
+    /// <summary>How the companion writes (length, formatting, emoji, punctuation, rhythm), second person, for the sheet.</summary>
+    public string WritingStyle { get; set; } = "";
+
+    /// <summary>Real lines the companion wrote in the source (checked to be there), to show the style.</summary>
+    public List<string> Samples { get; set; } = new();
+
     public int PartsRead { get; set; }
 }
 
@@ -85,6 +92,9 @@ public sealed class Primer(ITextGenerator generator)
     public const int DefaultMaxPartChars = 36_000;
 
     public const int MaxMemories = 40;
+    public const int MaxSamples = 8;
+    public const int MaxSampleChars = 400;
+    public const int MaxStyleChars = 1200;
     public const int MaxNewDrives = 3;
     public const int MaxRemovedDrives = 3;
     public const int MaxSheetChars = 6000;
@@ -191,10 +201,12 @@ public sealed class Primer(ITextGenerator generator)
     private async Task<string> NotesAsync(PrimeRequest r, string source, string text, int part, int of, CancellationToken ct)
     {
         string system = "You study saved conversations and documents to learn who a companion character is. " + Who(r) + Data + " "
-            + "Return JSON {\"name\":\"\",\"age\":0,\"occupation\":\"\",\"relationship\":\"\",\"traits\":[\"...\"],\"speech\":[\"...\"],\"history\":[\"...\"],\"about_user\":[\"...\"],\"memories\":[{\"layer\":\"facts|feelings|hooks\",\"text\":\"...\",\"importance\":1}]}. "
+            + "Return JSON {\"name\":\"\",\"age\":0,\"occupation\":\"\",\"relationship\":\"\",\"traits\":[\"...\"],\"speech\":[\"...\"],\"history\":[\"...\"],\"about_user\":[\"...\"],\"writing\":[\"...\"],\"samples\":[\"...\"],\"memories\":[{\"layer\":\"facts|feelings|hooks\",\"text\":\"...\",\"importance\":1}]}. "
             + "name, age, occupation: only if this part says them (age 0 if unknown). relationship: how the companion and the user relate, if this part shows it. "
             + "traits: the companion's personality, values, moods, likes and dislikes, each a short note with a telling detail. speech: how the companion talks (tone, pet names, habits, typical phrases, quoted briefly). "
             + "history: the companion's own background and life events. about_user: durable facts about the user. "
+            + "writing: how the companion's messages are written, as opposed to what they say: typical length, paragraphs, actions or narration (in *asterisks*, italics or plain), emoji, punctuation and capitals, sentence rhythm, how much description versus dialogue, first or third person. "
+            + "samples: up to 4 of the companion's own messages or lines from this part, copied exactly, character for character, that best show that style (each under 400 characters; trim a long message to a whole sentence or two). "
             + "memories: what the companion should remember for a long time: names, shared moments, inside jokes, promises, plans, turning points, things the user shared. "
             + "layer facts = durable facts and shared history; feelings = how the companion feels about the user or something, and why; hooks = open threads, promises and plans to come back to. "
             + "importance 1 (minor) to 5 (central to the relationship). Write memories as one short sentence each, using names, never \"the speaker\". "
@@ -240,10 +252,12 @@ public sealed class Primer(ITextGenerator generator)
             + "\"drives\":[{\"name\":\"\",\"level\":5,\"weight\":1,\"why\":\"\"}],"
             + "\"new_drives\":[{\"name\":\"\",\"kind\":\"need|level\",\"description\":\"\",\"cues\":[\"\"],\"level\":5,\"weight\":1,\"low\":\"\",\"mid\":\"\",\"high\":\"\",\"why\":\"\"}],"
             + "\"remove_drives\":[{\"name\":\"\",\"why\":\"\"}],"
-            + "\"memories\":[{\"layer\":\"facts|feelings|hooks\",\"text\":\"\",\"why\":\"\"}]}.\n"
+            + "\"memories\":[{\"layer\":\"facts|feelings|hooks\",\"text\":\"\",\"why\":\"\"}],\"writing_style\":\"\",\"samples\":[\"\"]}.\n"
             + $"personality: {name}'s personality sheet in the second person (\"You are…\"), 250 to 450 words of plain prose in three to five short paragraphs, no headings or lists. "
             + "Cover personality, how they talk (with their typical phrases and pet names), what they love and dislike, their history, quirks, and what the relationship with the user is like. Stay true to the notes; where the notes are silent, stay consistent rather than inventing big new facts. "
             + "If existing notes or an existing sheet are given, keep everything in them that the source doesn't contradict.\n"
+            + $"writing_style: how {name} writes, in the second person (\"You write…\"), 50 to 150 words of plain prose: message length, how actions or narration are set out, emoji, punctuation and capitals, rhythm, and the balance of description and dialogue. Only from the notes' writing observations; empty if there are none.\n"
+            + $"samples: up to {MaxSamples} of the samples from the notes that best show the style, copied exactly as they are in the notes (don't edit or invent them), varied (different moods and lengths).\n"
             + "name, age (18 or older, or 0 if unknown), occupation, relationship (a few words, e.g. \"your girlfriend of two years\"): only from the notes, else empty. tagline: one or two lines for their profile card.\n"
             + "drives: for EACH of the companion's current drives listed below, where it should start (0-10) and how much it should matter (weight 0.5-2.5, 1 is normal), judged from how the companion behaves in the source, with a short reason. Keep a drive near its current values if the source says little about it.\n"
             + $"new_drives: at most {MaxNewDrives}, only for a strong, recurring motive in the source that no current drive covers (for example jealousy or ambition). Up to {MaxNewDrives} is fine when the source clearly shows several. Name is one lowercase word. cues: 5 to 12 words or short phrases that show up in a reply that acts on it. low/mid/high: one short line each (under 100 characters), telling the companion how to act when it's low (<3.5), middle, or high (>=7). Leave it empty when nothing is missing.\n"
@@ -316,6 +330,9 @@ public sealed class Primer(ITextGenerator generator)
         [JsonPropertyName("remove_drives")]
         public List<DraftDrive>? RemoveDrives { get; set; }
         public List<DraftMemory>? Memories { get; set; }
+        [JsonPropertyName("writing_style")]
+        public string? WritingStyle { get; set; }
+        public List<string>? Samples { get; set; }
     }
 
     private sealed class DraftDrive
@@ -355,6 +372,25 @@ public sealed class Primer(ITextGenerator generator)
         if (p.Personality.Length > MaxSheetChars)
         {
             p.Personality = p.Personality[..MaxSheetChars];
+        }
+        p.WritingStyle = Regex.Replace((d.WritingStyle ?? "").Trim(), @"\s*\n\s*", " ");
+        if (p.WritingStyle.Length > MaxStyleChars)
+        {
+            p.WritingStyle = p.WritingStyle[..MaxStyleChars];
+        }
+        // Only lines that really are in the source: a sample the model reworded or made up would teach the wrong voice.
+        string sources = Squash(string.Join("\n", r.Sources.Select(s => s.Text)));
+        foreach (string raw in d.Samples ?? new())
+        {
+            string sample = (raw ?? "").Trim().Trim('"', '“', '”').Trim();
+            if (sample.Length < 4 || sample.Length > MaxSampleChars || p.Samples.Count >= MaxSamples || p.Samples.Contains(sample, StringComparer.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+            if (sources.Contains(Squash(sample), StringComparison.OrdinalIgnoreCase))
+            {
+                p.Samples.Add(sample);
+            }
         }
         var removed = new HashSet<string>();
         foreach (DraftDrive dd in d.RemoveDrives ?? new())
@@ -440,6 +476,9 @@ public sealed class Primer(ITextGenerator generator)
         Clean(JsonSerializer.Deserialize<Draft>(Json(json), Options) ?? new Draft(), r);
 
     private static string Key(string s) => Regex.Replace(s.ToLowerInvariant(), @"[^\p{L}\p{N}]+", " ").Trim();
+
+    /// <summary>Text with whitespace runs made single spaces and curly quotes made straight, for "is this line in the source" checks.</summary>
+    private static string Squash(string text) => Regex.Replace(text.Replace('’', '\'').Replace('‘', '\'').Replace('“', '"').Replace('”', '"'), @"\s+", " ");
 
     private static string OneLine(string? s, int max)
     {

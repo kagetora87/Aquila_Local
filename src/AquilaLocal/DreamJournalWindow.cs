@@ -129,8 +129,12 @@ public sealed class DreamJournalWindow : AquilaWindow
 
 	private string W(string text) => Genders.Words(text, gender);
 
-	public DreamJournalWindow(string personaId, string name, InnerLifeJournal journal, string livingRoot, string picturesRoot, string gender = Genders.Female)
+	/// <summary>Entries written after this (when you last opened the journal) are tagged New.</summary>
+	private readonly DateTimeOffset seenBefore;
+
+	public DreamJournalWindow(string personaId, string name, InnerLifeJournal journal, string livingRoot, string picturesRoot, string gender = Genders.Female, DateTimeOffset? seenBefore = null)
 	{
+		this.seenBefore = seenBefore ?? DateTimeOffset.MaxValue;
 		this.gender = gender;
 		this.personaId = personaId;
 		this.name = name;
@@ -308,6 +312,19 @@ public sealed class DreamJournalWindow : AquilaWindow
 		header.Children.Add(new TextBlock { Text = at.ToString("ddd, MMM d, yyyy"), FontWeight = FontWeights.SemiBold, Foreground = Ui.Brush("Text.Primary"), VerticalAlignment = VerticalAlignment.Center });
 		header.Children.Add(new TextBlock { Text = "  ·  " + at.ToString("h:mm tt"), Foreground = Ui.Brush("Text.Secondary"), VerticalAlignment = VerticalAlignment.Center });
 		header.Children.Add(new TextBlock { Text = "  ·  " + ThoughtKinds.Icon(e.Kind) + " " + char.ToUpperInvariant(e.Kind[0]) + e.Kind.Substring(1), Foreground = Ui.Brush("Accent"), VerticalAlignment = VerticalAlignment.Center });
+		if (e.At > seenBefore)
+		{
+			header.Children.Add(new Border
+			{
+				Background = Ui.Brush("Accent"),
+				CornerRadius = new CornerRadius(8),
+				Padding = new Thickness(7, 1, 7, 1),
+				Margin = new Thickness(10, 0, 0, 0),
+				VerticalAlignment = VerticalAlignment.Center,
+				ToolTip = "Written since you last opened the journal",
+				Child = new TextBlock { Text = "New", FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = Ui.Brush("Bg.Sidebar") }
+			});
+		}
 		Expander x = new Expander { Header = header, Style = Ui.Style("Expander.Card"), Margin = new Thickness(0, 0, 0, 8), IsExpanded = open.Contains(e.Id) };
 		void Build()
 		{

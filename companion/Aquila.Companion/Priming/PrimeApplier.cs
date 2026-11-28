@@ -18,6 +18,48 @@ public sealed class PrimeChoice
     public List<DriveSuggestion> Drives { get; set; } = new();
     public List<MemorySuggestion> Memories { get; set; } = new();
 
+    /// <summary>How the companion writes (empty: leave the sheet's style alone).</summary>
+    public string WritingStyle { get; set; } = "";
+
+    /// <summary>Real lines chosen to show the style.</summary>
+    public List<string> Samples { get; set; } = new();
+
+    /// <summary>Where the writing-style part of a sheet starts (it's replaced, not stacked, when primed again).</summary>
+    public const string StyleHeading = "How you write:";
+
+    /// <summary>
+    /// The sheet with the writing style and sample lines at its end (replacing an earlier style part). Unchanged when
+    /// there's no style or sample to add.
+    /// </summary>
+    public string SheetWithStyle(string sheet)
+    {
+        string style = WritingStyle.Trim();
+        List<string> samples = Samples.Select(x => x.Trim()).Where(x => x.Length > 0).ToList();
+        if (style.Length == 0 && samples.Count == 0)
+        {
+            return sheet;
+        }
+        string body = sheet.TrimEnd();
+        int at = body.IndexOf(StyleHeading, StringComparison.Ordinal);
+        if (at >= 0)
+        {
+            body = body[..at].TrimEnd();
+        }
+        var sb = new System.Text.StringBuilder(body);
+        sb.Append("\n\n").Append(StyleHeading).Append(' ').Append(style.Length > 0 ? style : "as in these examples.");
+        if (samples.Count > 0)
+        {
+            sb.Append("\nExamples of how you write (match the style, never copy the words):");
+            foreach (string x in samples)
+            {
+                sb.Append("\n- ").Append(x.Replace("\n", " "));
+            }
+        }
+        string result = sb.ToString();
+        result = result.TrimStart();
+        return result.Length > CompanionDraft.MaxPersonalityChars ? result[..CompanionDraft.MaxPersonalityChars] : result;
+    }
+
     /// <summary>The conversation to remember word for word (empty: don't).</summary>
     public List<(string User, string Reply)> Recall { get; set; } = new();
 
@@ -59,6 +101,7 @@ public static class PrimeApplier
         {
             draft.Personality = c.Personality.Trim().Length > CompanionDraft.MaxPersonalityChars ? c.Personality.Trim()[..CompanionDraft.MaxPersonalityChars] : c.Personality.Trim();
         }
+        draft.Personality = c.SheetWithStyle(draft.Personality ?? "");
         var drives = draft.Drives.ToList();
         Shape(drives, c.Drives, setInitial: true);
         draft.Drives = drives;
@@ -82,6 +125,12 @@ public static class PrimeApplier
         {
             config.PersonalitySheet = c.Personality.Trim();
             done.Add("new personality sheet");
+        }
+        string styled = c.SheetWithStyle(config.PersonalitySheet);
+        if (styled != config.PersonalitySheet)
+        {
+            config.PersonalitySheet = styled;
+            done.Add("how " + Genders.Subject(config.Gender) + " writes, added to " + Genders.Possessive(config.Gender) + " sheet");
         }
         List<string> before = config.Drives.Select(d => d.Name).ToList();
         Shape(config.Drives, c.Drives, setInitial: false);

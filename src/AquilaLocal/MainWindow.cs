@@ -213,6 +213,8 @@ public partial class MainWindow : AquilaWindow
 
 	public static RoutedUICommand RenameChatCommand { get; } = new RoutedUICommand("Rename chat", "RenameChatCommand", typeof(MainWindow));
 
+	public static RoutedUICommand ArchiveChatCommand { get; } = new RoutedUICommand("Archive chat", "ArchiveChatCommand", typeof(MainWindow));
+
 	public static RoutedUICommand DeleteChatCommand { get; } = new RoutedUICommand("Delete chat", "DeleteChatCommand", typeof(MainWindow));
 
 	private InferenceProfile SelectedProfile => InferenceProfile.Resolve(settings.Inference, settings.Hardware);
@@ -620,6 +622,42 @@ public partial class MainWindow : AquilaWindow
 		IL_0038:
 		e.CanExecute = (byte)canExecute != 0;
 		e.Handled = true;
+	}
+
+	/// <summary>Puts a chat away (or brings it back). Archived chats leave the list unless the archive button shows them.</summary>
+	private void ArchiveChat_Executed(object sender, ExecutedRoutedEventArgs e)
+	{
+		e.Handled = true;
+		ChatSession? chat = DeleteTarget(e.Parameter);
+		if (busy || attaching || featuresClosing || chat == null || !chats.Contains(chat))
+		{
+			return;
+		}
+		chat.Archived = !chat.Archived;
+		try
+		{
+			store.SaveChat(chat);
+		}
+		catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+		{
+			chat.Archived = !chat.Archived;
+			Notice("The chat couldn't be saved: " + ex.Message);
+			return;
+		}
+		if (chat.Archived && chat == current && !showArchived)
+		{
+			ChatSession? next = chats.FirstOrDefault(c => c != chat && !c.Archived);
+			if (next != null)
+			{
+				ChatsList.SelectedItem = next;
+			}
+			else
+			{
+				NewChat();
+			}
+		}
+		ApplyChatFilter();
+		RefreshChatRows();
 	}
 
 	private void DeleteChat_Executed(object sender, ExecutedRoutedEventArgs e)
@@ -2115,6 +2153,8 @@ public partial class MainWindow : AquilaWindow
 		Composer.PreviewKeyDown += Composer_PastePicture;
 		base.CommandBindings.Add(new CommandBinding(DeleteChatCommand, DeleteChat_Executed, DeleteChat_CanExecute));
 		base.CommandBindings.Add(new CommandBinding(RenameChatCommand, RenameChat_Executed, DeleteChat_CanExecute));
+		base.CommandBindings.Add(new CommandBinding(ArchiveChatCommand, ArchiveChat_Executed, DeleteChat_CanExecute));
+		LivingChanged += RefreshJournalButton;
 		store = new Storage(dataRoot);
 		this.settings = store.LoadSettings();
 		Settings settings = this.settings;
@@ -2160,8 +2200,21 @@ public partial class MainWindow : AquilaWindow
 		{
 			base.Dispatcher.InvokeAsync(() => StatusText.Text = text);
 		};
+		if (this.settings.UnreadSince == null)
+		{
+			this.settings.UnreadSince = DateTimeOffset.Now;
+			try
+			{
+				store.SaveSettings(this.settings);
+			}
+			catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+			{
+			}
+		}
+		ChatSession.UnreadSince = this.settings.UnreadSince.Value;
 		chats = new ObservableCollection<ChatSession>(store.LoadChats());
 		ChatsList.ItemsSource = chats;
+		ApplyChatFilter();
 		ShowSettings();
 		BuildRail();
 		StatusText.Text = "No model loaded";
@@ -2340,6 +2393,8 @@ public partial class MainWindow : AquilaWindow
 			speech.Stop();
 			current = chatSession;
 			RenderChat();
+			MarkRead();
+			ApplyChatFilter();
 		}
 	}
 
@@ -2857,6 +2912,7 @@ public partial class MainWindow : AquilaWindow
 			await agent.RunAsync(settings, session, turn, operation.Token);
 			turn.AnsweredAt = DateTimeOffset.Now;
 			MarkRead();
+			RefreshChatRows();
 			gestures?.Flush();
 			SetAvatarState("idle");
 			store.SaveChat(session);

@@ -74,6 +74,7 @@ public partial class MainWindow
 			{
 				Notice("The chat couldn't be saved: " + ex.Message);
 			}
+			RefreshChatRows();
 		}
 	}
 

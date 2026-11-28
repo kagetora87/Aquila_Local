@@ -499,6 +499,33 @@ public sealed class PrimeWindow : AquilaWindow
 		body.Children.Add(useSheet);
 		body.Children.Add(sheet);
 
+		// How they write: the style, and real lines to show it.
+		TextBox styleBox = new TextBox { Text = p.WritingStyle, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Height = 90, VerticalContentAlignment = VerticalAlignment.Top, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxLength = Primer.MaxStyleChars };
+		CheckBox useStyle = new CheckBox { Content = W("Add how {s} writes to {p} personality sheet"), IsChecked = p.WritingStyle.Trim().Length > 0 || p.Samples.Count > 0, Margin = new Thickness(0, 0, 0, 8) };
+		List<CheckBox> sampleBoxes = new List<CheckBox>();
+		if (p.WritingStyle.Trim().Length > 0 || p.Samples.Count > 0)
+		{
+			body.Children.Add(Ui.Section(W("How {s} writes")));
+			TextBlock styleNote = Ui.Text(W("The style of {p} messages (length, actions, emoji, punctuation), plus real lines from the chat for {o} to imitate. Tick the lines that sound most like {o}; 3 to 5 is best."), "Type.Small");
+			styleNote.TextWrapping = TextWrapping.Wrap;
+			styleNote.Margin = new Thickness(0, 0, 0, 6);
+			body.Children.Add(styleNote);
+			body.Children.Add(useStyle);
+			body.Children.Add(styleBox);
+			for (int i = 0; i < p.Samples.Count; i++)
+			{
+				CheckBox sample = new CheckBox
+				{
+					Content = new TextBlock { Text = "\u201C" + p.Samples[i] + "\u201D", TextWrapping = TextWrapping.Wrap },
+					Tag = p.Samples[i],
+					IsChecked = i < 5,
+					Margin = new Thickness(0, 6, 0, 0)
+				};
+				sampleBoxes.Add(sample);
+				body.Children.Add(sample);
+			}
+		}
+
 		// Drives.
 		driveRows.Clear();
 		if (p.Drives.Count > 0)
@@ -614,7 +641,9 @@ public sealed class PrimeWindow : AquilaWindow
 				Personality = useSheet.IsChecked == true ? sheet.Text.Trim() : "",
 				Drives = driveRows.Where(((DriveSuggestion Drive, CheckBox Use) d) => d.Use.IsChecked == true).Select(((DriveSuggestion Drive, CheckBox Use) d) => d.Drive).ToList(),
 				Memories = memoryRows.Where((MemoryRow m) => m.Keep == true && m.Box.Text.Trim().Length > 0).Select((MemoryRow m) => new MemorySuggestion { Layer = m.Memory.Layer, Text = m.Box.Text.Trim(), Why = m.Memory.Why }).ToList(),
-				Recall = recall.IsChecked == true ? pairs : new List<(string, string)>()
+				Recall = recall.IsChecked == true ? pairs : new List<(string, string)>(),
+				WritingStyle = useStyle.IsChecked == true ? styleBox.Text.Trim() : "",
+				Samples = useStyle.IsChecked == true ? sampleBoxes.Where((CheckBox b) => b.IsChecked == true).Select((CheckBox b) => (string)b.Tag).ToList() : new List<string>()
 			};
 			if (!existing)
 			{
@@ -629,7 +658,7 @@ public sealed class PrimeWindow : AquilaWindow
 				c.Relationship = relBox!.Text.Trim();
 				c.Tagline = tagBox!.Text.Trim();
 			}
-			if (existing && c.Personality.Length == 0 && c.Drives.Count == 0 && c.Memories.Count == 0 && c.Recall.Count == 0)
+			if (existing && c.Personality.Length == 0 && c.Drives.Count == 0 && c.Memories.Count == 0 && c.Recall.Count == 0 && c.WritingStyle.Length == 0 && c.Samples.Count == 0)
 			{
 				Say("Nothing is chosen to save yet.", bad: true);
 				return;
@@ -652,6 +681,10 @@ public sealed class PrimeWindow : AquilaWindow
 		if (c.Personality.Length > 0)
 		{
 			parts.Add(W("replaces {p} personality sheet"));
+		}
+		if (c.WritingStyle.Length > 0 || c.Samples.Count > 0)
+		{
+			parts.Add(W("adds how {s} writes to {p} sheet"));
 		}
 		if (c.Drives.Count > 0)
 		{

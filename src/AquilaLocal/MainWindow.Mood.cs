@@ -138,6 +138,45 @@ public partial class MainWindow
 		JournalPicture.Visibility = picture != null ? Visibility.Visible : Visibility.Collapsed;
 		JournalGlyph.Visibility = picture != null ? Visibility.Collapsed : Visibility.Visible;
 		JournalButton.ToolTip = current!.PersonaName + "'s dream journal";
+		int fresh = 0;
+		try
+		{
+			DateTimeOffset seen = JournalSeenAt(current.PersonaId);
+			fresh = Journal.Read(current.PersonaId).Count((JournalEntry e) => e.At > seen);
+		}
+		catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is PersonaConfigException || ex is System.Text.Json.JsonException)
+		{
+		}
+		JournalBadge.Visibility = fresh > 0 ? Visibility.Visible : Visibility.Collapsed;
+		JournalBadgeText.Text = fresh > 9 ? "9+" : fresh.ToString(System.Globalization.CultureInfo.InvariantCulture);
+		if (fresh > 0)
+		{
+			JournalButton.ToolTip += " · " + fresh + " new";
+		}
+	}
+
+	/// <summary>When you last opened her journal. The first time it's asked, that's now (nothing old counts as new).</summary>
+	private DateTimeOffset JournalSeenAt(string personaId)
+	{
+		if (!settings.Living.JournalSeen.TryGetValue(personaId, out DateTimeOffset seen))
+		{
+			seen = DateTimeOffset.Now;
+			settings.Living.JournalSeen[personaId] = seen;
+			SaveJournalSeen();
+		}
+		return seen;
+	}
+
+	private void SaveJournalSeen()
+	{
+		try
+		{
+			store.SaveSettings(settings);
+		}
+		catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+		{
+			Notice("Settings couldn't be saved: " + ex.Message);
+		}
 	}
 
 	private void Journal_Click(object sender, RoutedEventArgs e)
@@ -147,10 +186,14 @@ public partial class MainWindow
 			return;
 		}
 		string personaId = current.PersonaId;
-		DreamJournalWindow window = new DreamJournalWindow(personaId, current.PersonaName, Journal, companion.LivingRoot, Path.Combine(store.Root, "pictures"), GenderOf(personaId))
+		DateTimeOffset seenBefore = JournalSeenAt(personaId);
+		DreamJournalWindow window = new DreamJournalWindow(personaId, current.PersonaName, Journal, companion.LivingRoot, Path.Combine(store.Root, "pictures"), GenderOf(personaId), seenBefore)
 		{
 			Owner = this
 		};
+		settings.Living.JournalSeen[personaId] = DateTimeOffset.Now;
+		SaveJournalSeen();
+		RefreshJournalButton();
 		window.IconChanged += RefreshJournalButton;
 		void Changed() => window.Refresh();
 		LivingChanged += Changed;
@@ -161,6 +204,9 @@ public partial class MainWindow
 		finally
 		{
 			LivingChanged -= Changed;
+			settings.Living.JournalSeen[personaId] = DateTimeOffset.Now;
+			SaveJournalSeen();
+			RefreshJournalButton();
 		}
 	}
 

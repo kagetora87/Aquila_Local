@@ -28,7 +28,14 @@ public sealed class AnimationsWindow : AquilaWindow
 
 	private readonly SpriteAvatarOptions options;
 
-	private readonly string root;
+	private string root;
+
+	/// <summary>The avatar shown beside the chat: only edits to it reach the chat's avatar.</summary>
+	private readonly string homeRoot;
+
+	private bool EditingHome => string.Equals(Path.GetFullPath(root).TrimEnd('\\'), Path.GetFullPath(homeRoot).TrimEnd('\\'), StringComparison.OrdinalIgnoreCase);
+
+	private readonly TextBlock editing = new TextBlock { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0.0, 4.0, 0.0, 0.0) };
 
 	private readonly GestureMatcher matcher;
 
@@ -50,6 +57,7 @@ public sealed class AnimationsWindow : AquilaWindow
 		ProfilesRoot = profilesRoot;
 		this.options = options;
 		this.root = root;
+		homeRoot = root;
 		this.matcher = matcher;
 		this.changed = changed;
 		base.Title = "Aquila · Avatar animations";
@@ -95,6 +103,7 @@ public sealed class AnimationsWindow : AquilaWindow
 			Text = "Avatar animations",
 			Style = Ui.Style("Type.Title")
 		});
+		stackPanel.Children.Add(editing);
 		stackPanel.Children.Add(Note("Each animation is a set of pictures played in order. Name it in plain words. \"idle\", \"talking\", \"thinking\" and \"listening\" play automatically; any other name is a gesture that plays when the reply fits it.", 8.0));
 		Border border = new Border
 		{
@@ -130,6 +139,12 @@ public sealed class AnimationsWindow : AquilaWindow
 			Button save = Button("Save as profile…", SaveProfile);
 			save.ToolTip = "Save a copy of all these animations as a named avatar profile that any persona can use (Companions, Settings, Her avatar).";
 			wrapPanel.Children.Add(save);
+			Button load = Button("Load profile…", LoadProfile);
+			load.ToolTip = "Edit another saved avatar profile, or go back to the avatar beside the chat.";
+			wrapPanel.Children.Add(load);
+			Button fresh = Button("New profile…", NewProfile);
+			fresh.ToolTip = "Start a new avatar profile with starter pictures, and edit it here.";
+			wrapPanel.Children.Add(fresh);
 		}
 		stackPanel.Children.Add(wrapPanel);
 		stackPanel.Children.Add(Label("HOW EXPRESSIVE"));
@@ -205,8 +220,13 @@ public sealed class AnimationsWindow : AquilaWindow
 	private void Reload()
 	{
 		preview.Load(root);
-		matcher.SetAnimations(preview.Animations);
-		changed();
+		if (EditingHome)
+		{
+			matcher.SetAnimations(preview.Animations);
+			changed();
+		}
+		editing.Text = EditingHome ? "Editing: the avatar beside the chat (" + Path.GetFileName(root.TrimEnd('\\')) + ")" : "Editing the profile \u201C" + Path.GetFileName(root.TrimEnd('\\')) + "\u201D";
+		editing.Foreground = Ui.Brush(EditingHome ? "Text.Secondary" : "Accent");
 		list.Children.Clear();
 		if (preview.Animations.Count == 0)
 		{
@@ -580,10 +600,13 @@ public sealed class AnimationsWindow : AquilaWindow
 			SpriteLibrary.WriteMeta(animation.Folder, animation.Meta);
 			if (reload)
 			{
-				matcher.SetAnimations(SpriteLibrary.Load(root));
-				changed();
+				if (EditingHome)
+				{
+					matcher.SetAnimations(SpriteLibrary.Load(root));
+					changed();
+				}
 			}
-			else
+			else if (EditingHome)
 			{
 				changed();
 			}
@@ -662,11 +685,107 @@ public sealed class AnimationsWindow : AquilaWindow
 				}
 				Directory.Move(incoming, target);
 			}
-			status.Text = "Saved the profile \"" + safe + "\" (" + files + " files). Pick it for a persona in Companions, Settings, \"Her avatar\".";
+			status.Text = "Saved the profile \"" + safe + "\" (" + files + " files). Pick it for a persona in Companions, Settings, \"Her avatar\". To work on another one, use \u201CLoad profile…\u201D or \u201CNew profile…\u201D.";
 		}
 		catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is ArgumentException)
 		{
 			status.Text = "The profile wasn't saved: " + ex.Message;
+		}
+	}
+
+	/// <summary>Switches this window to editing another folder (a profile, or back to the chat's avatar).</summary>
+	private void EditFolder(string folder, string message)
+	{
+		root = folder;
+		Reload();
+		status.Text = message;
+	}
+
+	/// <summary>Pick a saved profile to edit (or the avatar beside the chat).</summary>
+	private void LoadProfile()
+	{
+		if (ProfilesRoot == null)
+		{
+			return;
+		}
+		List<(string Folder, string Label)> choices = new List<(string Folder, string Label)> { (homeRoot, "The avatar beside the chat (" + Path.GetFileName(homeRoot.TrimEnd('\\')) + ")") };
+		try
+		{
+			if (Directory.Exists(ProfilesRoot))
+			{
+				foreach (string dir in Directory.EnumerateDirectories(ProfilesRoot).Where((string d) => !d.EndsWith(".saving", StringComparison.OrdinalIgnoreCase) && !d.EndsWith(".old", StringComparison.OrdinalIgnoreCase)).OrderBy((string d) => d, StringComparer.OrdinalIgnoreCase))
+				{
+					if (!string.Equals(Path.GetFullPath(dir).TrimEnd('\\'), Path.GetFullPath(homeRoot).TrimEnd('\\'), StringComparison.OrdinalIgnoreCase))
+					{
+						choices.Add((dir, Path.GetFileName(dir)));
+					}
+				}
+			}
+		}
+		catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+		{
+			status.Text = "Couldn't list the profiles: " + ex.Message;
+			return;
+		}
+		Window window = new AquilaWindow
+		{
+			Title = "Load avatar profile",
+			Width = 420.0,
+			SizeToContent = SizeToContent.Height,
+			Owner = this,
+			WindowStartupLocation = WindowStartupLocation.CenterOwner,
+			Background = base.Background,
+			ResizeMode = ResizeMode.NoResize
+		};
+		StackPanel panel = new StackPanel { Margin = new Thickness(18.0) };
+		panel.Children.Add(Note(choices.Count == 1 ? "No saved profiles yet. Use \u201CSave as profile…\u201D or \u201CNew profile…\u201D first." : "Which avatar do you want to edit?", 0.0));
+		ListBox listBox = new ListBox { ItemsSource = choices.Select(((string Folder, string Label) c) => c.Label).ToList(), SelectedIndex = 0, MaxHeight = 320, Margin = new Thickness(0.0, 10.0, 0.0, 0.0) };
+		panel.Children.Add(listBox);
+		Button open = Button("Load", delegate { window.DialogResult = true; });
+		open.IsDefault = true;
+		open.HorizontalAlignment = HorizontalAlignment.Right;
+		open.Margin = new Thickness(0.0, 12.0, 0.0, 0.0);
+		listBox.MouseDoubleClick += delegate { window.DialogResult = true; };
+		panel.Children.Add(open);
+		window.Content = panel;
+		if (window.ShowDialog() != true || listBox.SelectedIndex < 0)
+		{
+			return;
+		}
+		(string folder, string label) = choices[listBox.SelectedIndex];
+		EditFolder(folder, string.Equals(folder, homeRoot, StringComparison.OrdinalIgnoreCase)
+			? "Back to the avatar beside the chat."
+			: "Loaded \u201C" + label + "\u201D. Changes are saved to that profile as you make them. To show it beside a companion's chat, pick it in Companions, Settings, \u201CHer avatar\u201D.");
+	}
+
+	/// <summary>A new, named profile with the starter pictures, opened here for editing.</summary>
+	private void NewProfile()
+	{
+		if (ProfilesRoot == null)
+		{
+			return;
+		}
+		string? name = Ask("Name the new avatar profile, for example \u201CMae evening\u201D. It starts with placeholder pictures that you can replace one animation at a time.", "New avatar profile", "Create profile");
+		if (string.IsNullOrWhiteSpace(name))
+		{
+			return;
+		}
+		try
+		{
+			string safe = SpriteLibrary.SafeName(name);
+			string target = Path.Combine(ProfilesRoot, safe);
+			if (Directory.Exists(target) && Directory.EnumerateFileSystemEntries(target).Any())
+			{
+				status.Text = "There's already a profile called \u201C" + safe + "\u201D. Use \u201CLoad profile…\u201D to edit it, or pick another name.";
+				return;
+			}
+			Directory.CreateDirectory(target);
+			AvatarPlaceholders.EnsureIn(target);
+			EditFolder(target, "Started the profile \u201C" + safe + "\u201D with placeholder pictures. Replace them with \u201CNew animation…\u201D or the buttons on each card.");
+		}
+		catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is ArgumentException)
+		{
+			status.Text = "The profile wasn't created: " + ex.Message;
 		}
 	}
 

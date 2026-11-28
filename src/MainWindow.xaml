@@ -29,7 +29,8 @@
           </StackPanel>
         </Grid>
         <Grid DockPanel.Dock="Top" Margin="0,0,0,10">
-          <TextBox Name="ChatSearch" local:Ui.Placeholder="Search chats" Padding="30,0,8,0" Height="34" VerticalContentAlignment="Center" TextChanged="ChatSearch_TextChanged" AutomationProperties.Name="Search chats" />
+          <TextBox Name="ChatSearch" local:Ui.Placeholder="Search chats" Padding="30,0,40,0" Height="34" VerticalContentAlignment="Center" TextChanged="ChatSearch_TextChanged" AutomationProperties.Name="Search chats" />
+          <Button Name="ArchivedToggle" Style="{StaticResource Btn.Icon}" Width="30" Height="30" Margin="0,0,2,0" HorizontalAlignment="Right" VerticalAlignment="Center" FontSize="13" Content="&#xE7B8;" ToolTip="Show archived chats" Click="ArchivedToggle_Click" />
           <TextBlock Text="&#xE721;" FontFamily="{StaticResource Font.Icon}" FontSize="13" Foreground="{StaticResource Text.Tertiary}" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="10,0,0,0" IsHitTestVisible="False" />
         </Grid>
 
@@ -54,6 +55,11 @@
                     <MenuItem Header="Rename…" Command="{x:Static local:MainWindow.RenameChatCommand}" CommandParameter="{Binding}" CommandTarget="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType={x:Type ContextMenu}}}">
                       <MenuItem.Icon>
                         <TextBlock Text="&#xE8AC;" FontFamily="{StaticResource Font.Icon}" FontSize="14" />
+                      </MenuItem.Icon>
+                    </MenuItem>
+                    <MenuItem Header="{Binding ArchiveLabel}" ToolTip="Put the chat away (or bring it back). Nothing is deleted." Command="{x:Static local:MainWindow.ArchiveChatCommand}" CommandParameter="{Binding}" CommandTarget="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType={x:Type ContextMenu}}}">
+                      <MenuItem.Icon>
+                        <TextBlock Text="&#xE7B8;" FontFamily="{StaticResource Font.Icon}" FontSize="14" />
                       </MenuItem.Icon>
                     </MenuItem>
                     <MenuItem Header="Delete chat…" Foreground="{StaticResource Danger}" Command="{x:Static local:MainWindow.DeleteChatCommand}" CommandParameter="{Binding}" CommandTarget="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType={x:Type ContextMenu}}}">
@@ -90,13 +96,29 @@
                   <TextBlock Style="{StaticResource Type.Caption}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" Text="{Binding Title}" />
                 </StackPanel>
                 <Grid Grid.Column="2" VerticalAlignment="Center" Margin="6,0,0,0">
-                  <TextBlock x:Name="RowWhen" Style="{StaticResource Type.Caption}" Text="{Binding When}" VerticalAlignment="Top" HorizontalAlignment="Right" ToolTip="{Binding Subtitle}" />
+                  <StackPanel x:Name="RowWhen" VerticalAlignment="Center" HorizontalAlignment="Right">
+                    <TextBlock Style="{StaticResource Type.Caption}" Text="{Binding When}" HorizontalAlignment="Right" ToolTip="{Binding Subtitle}" />
+                    <Border x:Name="RowUnread" Background="{StaticResource Accent}" CornerRadius="9" MinWidth="18" Height="18" Padding="5,0" Margin="0,3,0,0" HorizontalAlignment="Right" ToolTip="New messages you haven't read">
+                      <TextBlock Text="{Binding UnreadText}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource Bg.Sidebar}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <TextBlock x:Name="RowArchived" Style="{StaticResource Type.Caption}" Text="Archived" FontStyle="Italic" HorizontalAlignment="Right" Margin="0,2,0,0" Visibility="Collapsed" />
+                  </StackPanel>
                   <Button x:Name="RowDelete" Style="{StaticResource Btn.IconDanger}" Width="28" Height="28" FontSize="13" Content="&#xE74D;" ToolTip="Delete chat" Visibility="Hidden" Command="{x:Static local:MainWindow.DeleteChatCommand}" CommandParameter="{Binding}" />
                 </Grid>
               </Grid>
               <DataTemplate.Triggers>
                 <DataTrigger Binding="{Binding Picture}" Value="{x:Null}">
                   <Setter TargetName="RowPicture" Property="Visibility" Value="Collapsed" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding HasUnread}" Value="False">
+                  <Setter TargetName="RowUnread" Property="Visibility" Value="Collapsed" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding HasUnread}" Value="True">
+                  <Setter TargetName="RowTitle" Property="Foreground" Value="{StaticResource Text.Primary}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Archived}" Value="True">
+                  <Setter TargetName="RowArchived" Property="Visibility" Value="Visible" />
+                  <Setter TargetName="Row" Property="Opacity" Value="0.7" />
                 </DataTrigger>
                 <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType={x:Type ListBoxItem}}}" Value="True">
                   <Setter TargetName="RowDelete" Property="Visibility" Value="Visible" />
@@ -321,6 +343,9 @@
               <Grid Width="30" Height="30">
                 <TextBlock Name="JournalGlyph" Text="&#xE708;" FontFamily="{StaticResource Font.Icon}" FontSize="13" Foreground="{StaticResource Accent}" HorizontalAlignment="Center" VerticalAlignment="Center" />
                 <Ellipse Name="JournalPicture" Width="28" Height="28" Visibility="Collapsed" />
+                <Border Name="JournalBadge" Background="{StaticResource Accent}" CornerRadius="7" MinWidth="14" Height="14" Padding="3,0" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-4,-6,0" Visibility="Collapsed" BorderBrush="{StaticResource Bg.Sidebar}" BorderThickness="1">
+                  <TextBlock Name="JournalBadgeText" FontSize="9" FontWeight="SemiBold" Foreground="{StaticResource Bg.Sidebar}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
               </Grid>
             </Button>
             <!-- Living mode: on/off at a glance; click to open it -->

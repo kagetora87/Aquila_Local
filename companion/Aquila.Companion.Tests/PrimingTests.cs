@@ -101,6 +101,28 @@ public sealed class PrimingTests
         """;
 
     [Fact]
+    public void Writing_style_keeps_only_lines_really_in_the_source_and_goes_at_the_end_of_the_sheet()
+    {
+        PrimeRequest r = new()
+        {
+            CompanionName = "Mae",
+            Drives = TestPersona.Config().Drives,
+            Sources = new() { new PrimeSource("chat.txt", "Ru: hi\nMae: *leans on the rail*   Took you long enough, soldier.\nRu: sorry") }
+        };
+        PrimeProposal p = Primer.CleanJson("""{"writing_style":"You write short lines with actions in asterisks.","samples":["*leans on the rail* Took you long enough, soldier.","A line I made up.","*leans on the rail* Took you long enough, soldier."]}""", r);
+        Assert.Equal("You write short lines with actions in asterisks.", p.WritingStyle);
+        Assert.Equal(new[] { "*leans on the rail* Took you long enough, soldier." }, p.Samples);
+
+        PrimeChoice c = new() { WritingStyle = p.WritingStyle, Samples = p.Samples };
+        string once = c.SheetWithStyle("You are Mae.");
+        Assert.StartsWith("You are Mae.\n\nHow you write: You write short lines", once);
+        Assert.Contains("- *leans on the rail* Took you long enough, soldier.", once);
+        string twice = new PrimeChoice { WritingStyle = "You write long paragraphs." }.SheetWithStyle(once);
+        Assert.Equal("You are Mae.\n\nHow you write: You write long paragraphs.", twice);   // replaced, not stacked
+        Assert.Equal("You are Mae.", new PrimeChoice().SheetWithStyle("You are Mae."));
+    }
+
+    [Fact]
     public void DraftsAreCheckedBeforeAnyoneSeesThem()
     {
         PrimeRequest r = new() { CompanionName = "Vicki", Drives = TestPersona.Config().Drives, KnownMemories = new() { "Takeru lives in Japan." } };

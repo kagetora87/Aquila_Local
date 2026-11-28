@@ -282,14 +282,39 @@ public partial class MainWindow
 
 	private void ChatSearch_TextChanged(object sender, TextChangedEventArgs e)
 	{
+		ApplyChatFilter();
+	}
+
+	/// <summary>Whether archived chats are in the list now (the box icon beside the search).</summary>
+	private bool showArchived;
+
+	private void ArchivedToggle_Click(object sender, RoutedEventArgs e)
+	{
+		showArchived = !showArchived;
+		ArchivedToggle.Foreground = showArchived ? Ui.Brush("Accent") : Ui.Brush("Text.Secondary");
+		ArchivedToggle.ToolTip = showArchived ? "Hide archived chats" : "Show archived chats";
+		ApplyChatFilter();
+	}
+
+	/// <summary>The chat list shows what matches the search, and archived chats only when they're asked for.</summary>
+	private void ApplyChatFilter()
+	{
 		string q = ChatSearch.Text.Trim();
 		ICollectionView view = CollectionViewSource.GetDefaultView(ChatsList.ItemsSource);
 		if (view == null)
 		{
 			return;
 		}
-		view.Filter = q.Length == 0 ? null : (object o) => o is ChatSession c && Matches(c, q);
-		ChatSearchEmpty.Visibility = q.Length > 0 && view.IsEmpty ? Visibility.Visible : Visibility.Collapsed;
+		bool archived = showArchived;
+		view.Filter = (object o) => o is ChatSession c && (archived || !c.Archived || c == current) && (q.Length == 0 || Matches(c, q));
+		ChatSearchEmpty.Text = q.Length > 0 ? "No chats match." : "No archived chats.";
+		ChatSearchEmpty.Visibility = (q.Length > 0 || archived) && view.IsEmpty ? Visibility.Visible : Visibility.Collapsed;
+	}
+
+	/// <summary>Redraws the chat rows (unread badges, archived labels) without losing the selection.</summary>
+	private void RefreshChatRows()
+	{
+		ChatsList.Items.Refresh();
 	}
 
 	/// <summary>A chat matches by its name, who it's with, or anything said in it.</summary>

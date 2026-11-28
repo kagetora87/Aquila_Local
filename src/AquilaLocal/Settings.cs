@@ -7,6 +7,9 @@ namespace AquilaLocal;
 
 public class Settings
 {
+	/// <summary>Replies answered before this (when unread markers arrived) never count as unread.</summary>
+	public DateTimeOffset? UnreadSince { get; set; }
+
 	public string ModelPath { get; set; } = "";
 
 	public string ProjectorPath { get; set; } = "";
@@ -273,6 +276,9 @@ public sealed class LivingOptions
 
 	/// <summary>No messages from her between 11 PM and 8 AM.</summary>
 	public bool QuietHours { get; set; } = true;
+
+	/// <summary>When you last opened each companion's journal: entries after it are marked new.</summary>
+	public Dictionary<string, DateTimeOffset> JournalSeen { get; set; } = new Dictionary<string, DateTimeOffset>();
 
 	/// <summary>Personas who live (empty means every persona that's set up).</summary>
 	public List<string> PersonaIds { get; set; } = new List<string>();
