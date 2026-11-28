@@ -45,8 +45,9 @@ public sealed class AnimationsWindow : AquilaWindow
 		Margin = new Thickness(0.0, 8.0, 0.0, 0.0)
 	};
 
-	public AnimationsWindow(SpriteAvatarOptions options, string root, GestureMatcher matcher, Action changed)
+	public AnimationsWindow(SpriteAvatarOptions options, string root, GestureMatcher matcher, Action changed, string? profilesRoot = null)
 	{
+		ProfilesRoot = profilesRoot;
 		this.options = options;
 		this.root = root;
 		this.matcher = matcher;
@@ -124,6 +125,12 @@ public sealed class AnimationsWindow : AquilaWindow
 		{
 			Run(() => (AvatarPlaceholders.EnsureIn(root) == 0) ? "All placeholder sets are already there." : "Missing placeholder sets were added.");
 		}));
+		if (ProfilesRoot != null)
+		{
+			Button save = Button("Save as profile…", SaveProfile);
+			save.ToolTip = "Save a copy of all these animations as a named avatar profile that any persona can use (Companions, Settings, Her avatar).";
+			wrapPanel.Children.Add(save);
+		}
 		stackPanel.Children.Add(wrapPanel);
 		stackPanel.Children.Add(Label("HOW EXPRESSIVE"));
 		Slider slider = new Slider
@@ -203,7 +210,7 @@ public sealed class AnimationsWindow : AquilaWindow
 		list.Children.Clear();
 		if (preview.Animations.Count == 0)
 		{
-			list.Children.Add(Note("No animations yet. Use \"Add placeholders\" for a starter set, or \"New animation…\" to add your own pictures.", 0.0));
+			list.Children.Add(Note("No animations yet. Use \"Add placeholders\" for a starter set, or \"New animation…\" to add your own pictures or a video clip.", 0.0));
 			return;
 		}
 		foreach (SpriteAnimation animation in preview.Animations)
@@ -235,22 +242,18 @@ public sealed class AnimationsWindow : AquilaWindow
 		{
 			preview.Preview(animation.Name);
 		}));
-		stackPanel2.Children.Add(Button("Replace pictures…", delegate
+		stackPanel2.Children.Add(Button(animation.IsVideo ? "Replace video…" : "Replace pictures…", delegate
 		{
 			string[] array = PickPictures();
 			if (array != null)
 			{
-				Run(delegate
-				{
-					SpriteLibrary.SaveFrames(root, animation.Name, array);
-					return $"\"{animation.Name}\" now has {array.Length} pictures.";
-				});
+				Run(() => SaveMedia(animation.Name, array, isNew: false));
 			}
 		}));
 		Button deleteButton;
 		stackPanel2.Children.Add(deleteButton = Button("Delete", delegate
 		{
-			if (AquilaDialog.Confirm(this, "Delete this animation?", "\"" + animation.Name + "\" and its pictures will be removed from the avatar folder.", "Delete", "Cancel", DialogKind.Danger))
+			if (AquilaDialog.Confirm(this, "Delete this animation?", "\"" + animation.Name + "\" and its " + (animation.IsVideo ? "video" : "pictures") + " will be removed from the avatar folder.", "Delete", "Cancel", DialogKind.Danger))
 			{
 				Run(delegate
 				{
@@ -285,6 +288,16 @@ public sealed class AnimationsWindow : AquilaWindow
 			Margin = new Thickness(0.0, 10.0, 0.0, 0.0)
 		};
 		stackPanel.Children.Add(wrapPanel);
+		if (animation.IsVideo)
+		{
+			wrapPanel.Children.Add(new TextBlock
+			{
+				Text = "\u25B6  " + Path.GetFileName(animation.Video),
+				Foreground = Muted,
+				FontSize = 12.0,
+				ToolTip = "Press Play to watch it in the preview. It plays muted."
+			});
+		}
 		for (int i = 0; i < animation.Frames.Count; i++)
 		{
 			wrapPanel.Children.Add(Thumb(animation, i));
@@ -333,11 +346,11 @@ public sealed class AnimationsWindow : AquilaWindow
 		};
 		CheckBox loop = new CheckBox
 		{
-			Content = "Repeat while active",
+			Content = (animation.Kind == SpriteKind.Gesture) ? "Keep repeating (don't go back to idle)" : "Repeat while active",
 			IsChecked = animation.Loops,
 			Margin = new Thickness(16.0, 0.0, 0.0, 0.0),
 			VerticalAlignment = VerticalAlignment.Center,
-			ToolTip = "Base states usually repeat; gestures usually play once."
+			ToolTip = (animation.Kind == SpriteKind.Gesture) ? "Ticked: once it starts, it loops until she does something else (thinks, talks, listens) or another gesture plays. Unticked: it plays once, then she goes back to idle." : "Base states usually repeat."
 		};
 		Grid.SetColumn(loop, 2);
 		grid.Children.Add(loop);
@@ -380,11 +393,7 @@ public sealed class AnimationsWindow : AquilaWindow
 			string[] files = DroppedPictures(e);
 			if (files.Length != 0)
 			{
-				Run(delegate
-				{
-					SpriteLibrary.SaveFrames(root, animation.Name, files.OrderBy((string f) => Path.GetFileName(f), Comparer<string>.Create(SpriteLibrary.NaturalCompare)).ToList());
-					return $"\"{animation.Name}\" now has {files.Length} pictures.";
-				});
+				Run(() => SaveMedia(animation.Name, files, isNew: false));
 			}
 		};
 		return border;
@@ -495,11 +504,7 @@ public sealed class AnimationsWindow : AquilaWindow
 		string[] files = PickPictures();
 		if (files != null)
 		{
-			Run(delegate
-			{
-				SpriteLibrary.SaveFrames(root, text, files.OrderBy((string f) => Path.GetFileName(f), Comparer<string>.Create(SpriteLibrary.NaturalCompare)).ToList());
-				return $"Added \"{SpriteLibrary.SafeName(text)}\" with {files.Length} pictures.";
-			});
+			Run(() => SaveMedia(text, files, isNew: true));
 		}
 	}
 
@@ -507,7 +512,7 @@ public sealed class AnimationsWindow : AquilaWindow
 	{
 		OpenFolderDialog openFolderDialog = new OpenFolderDialog
 		{
-			Title = "Choose a folder of avatar pictures"
+			Title = "Choose a folder of avatar pictures or videos"
 		};
 		if (openFolderDialog.ShowDialog(this) == true)
 		{
@@ -515,17 +520,41 @@ public sealed class AnimationsWindow : AquilaWindow
 			Run(delegate
 			{
 				List<string> list = SpriteLibrary.Import(folder, root);
-				return (list.Count == 0) ? "No pictures were found in that folder." : ("Imported: " + string.Join(", ", list) + ".");
+				return (list.Count == 0) ? "No pictures or videos were found in that folder." : ("Imported: " + string.Join(", ", list) + ".");
 			});
 		}
+	}
+
+	/// <summary>Saves picked or dropped files into an animation: several pictures (played in file name
+	/// order), or one video clip. A mix of both is refused with a plain reason.</summary>
+	private string SaveMedia(string name, IReadOnlyList<string> files, bool isNew)
+	{
+		List<string> videos = files.Where(SpriteLibrary.IsVideo).ToList();
+		string label = SpriteLibrary.SafeName(name);
+		if (videos.Count > 0)
+		{
+			if (files.Count > 1)
+			{
+				throw new ArgumentException("An animation is either pictures or one video, not both. Choose a single video file, or only pictures.");
+			}
+			SpriteLibrary.SaveVideo(root, name, videos[0]);
+			return isNew ? $"Added \"{label}\" as a video." : $"\"{label}\" now plays the video {Path.GetFileName(videos[0])}.";
+		}
+		SpriteLibrary.SaveFrames(root, name, files.OrderBy((string f) => Path.GetFileName(f), Comparer<string>.Create(SpriteLibrary.NaturalCompare)).ToList());
+		return isNew ? $"Added \"{label}\" with {files.Count} pictures." : $"\"{label}\" now has {files.Count} pictures.";
+	}
+
+	private static string MediaPattern()
+	{
+		return string.Join(";", SpriteLibrary.ImageExtensions.Concat(SpriteLibrary.VideoExtensions).Select((string x) => "*" + x));
 	}
 
 	private string[]? PickPictures()
 	{
 		OpenFileDialog openFileDialog = new OpenFileDialog
 		{
-			Title = "Choose the pictures, in any order (they play in file name order)",
-			Filter = "Pictures (*.png;*.jpg;*.jpeg;*.bmp;*.gif)|*.png;*.jpg;*.jpeg;*.bmp;*.gif",
+			Title = "Choose the pictures (they play in file name order), or one video clip",
+			Filter = "Pictures or a video|" + MediaPattern() + "|Pictures|*.png;*.jpg;*.jpeg;*.bmp;*.gif|Videos|" + string.Join(";", SpriteLibrary.VideoExtensions.Select((string x) => "*" + x)),
 			Multiselect = true
 		};
 		if (openFileDialog.ShowDialog(this) != true || openFileDialog.FileNames.Length == 0)
@@ -541,7 +570,7 @@ public sealed class AnimationsWindow : AquilaWindow
 		{
 			return Array.Empty<string>();
 		}
-		return source.Where(SpriteLibrary.IsImage).ToArray();
+		return source.Where((string f) => SpriteLibrary.IsImage(f) || SpriteLibrary.IsVideo(f)).ToArray();
 	}
 
 	private void SaveMeta(SpriteAnimation animation, bool reload)
@@ -578,11 +607,90 @@ public sealed class AnimationsWindow : AquilaWindow
 		Reload();
 	}
 
-	private string? Ask(string prompt)
+	/// <summary>Where saved avatar profiles go (Data\avatars). Each persona can pick one in her settings.</summary>
+	public string? ProfilesRoot { get; }
+
+	/// <summary>Copies every animation here into Data\avatars\name, so it can be chosen as a persona's avatar.</summary>
+	private void SaveProfile()
+	{
+		if (ProfilesRoot == null)
+		{
+			return;
+		}
+		string? name = Ask("Name this avatar profile, for example \"Vicki casual\". Aquila saves a copy of every animation here under that name. Any persona can then use it: Companions, Settings, \"Her avatar\".", "Save avatar profile", "Save profile");
+		if (string.IsNullOrWhiteSpace(name))
+		{
+			return;
+		}
+		try
+		{
+			string safe = SpriteLibrary.SafeName(name);
+			string target = Path.Combine(ProfilesRoot, safe);
+			if (string.Equals(Path.GetFullPath(target).TrimEnd('\\'), Path.GetFullPath(root).TrimEnd('\\'), StringComparison.OrdinalIgnoreCase))
+			{
+				status.Text = "These animations already are the profile \"" + safe + "\". Changes here are saved to it as you make them.";
+				return;
+			}
+			bool replacing = Directory.Exists(target) && Directory.EnumerateFileSystemEntries(target).Any();
+			if (replacing && !AquilaDialog.Confirm(this, "Replace the profile \"" + safe + "\"?", "There's already an avatar profile with that name. Its animations will be replaced by these ones. Personas using it will show the new ones.", "Replace", "Cancel", DialogKind.Danger))
+			{
+				return;
+			}
+			Directory.CreateDirectory(ProfilesRoot);
+			string incoming = target + ".saving";
+			if (Directory.Exists(incoming))
+			{
+				Directory.Delete(incoming, recursive: true);
+			}
+			int files = CopyFolder(root, incoming);
+			if (replacing)
+			{
+				string old = target + ".old";
+				if (Directory.Exists(old))
+				{
+					Directory.Delete(old, recursive: true);
+				}
+				Directory.Move(target, old);
+				Directory.Move(incoming, target);
+				Directory.Delete(old, recursive: true);
+			}
+			else
+			{
+				if (Directory.Exists(target))
+				{
+					Directory.Delete(target);
+				}
+				Directory.Move(incoming, target);
+			}
+			status.Text = "Saved the profile \"" + safe + "\" (" + files + " files). Pick it for a persona in Companions, Settings, \"Her avatar\".";
+		}
+		catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is ArgumentException)
+		{
+			status.Text = "The profile wasn't saved: " + ex.Message;
+		}
+	}
+
+	private static int CopyFolder(string from, string to)
+	{
+		Directory.CreateDirectory(to);
+		int count = 0;
+		foreach (string file in Directory.EnumerateFiles(from))
+		{
+			File.Copy(file, Path.Combine(to, Path.GetFileName(file)));
+			count++;
+		}
+		foreach (string dir in Directory.EnumerateDirectories(from))
+		{
+			count += CopyFolder(dir, Path.Combine(to, Path.GetFileName(dir)));
+		}
+		return count;
+	}
+
+	private string? Ask(string prompt, string title = "New animation", string next = "Next: choose pictures or a video…")
 	{
 		Window window = new AquilaWindow
 		{
-			Title = "New animation",
+			Title = title,
 			Width = 460.0,
 			SizeToContent = SizeToContent.Height,
 			Owner = this,
@@ -600,7 +708,7 @@ public sealed class AnimationsWindow : AquilaWindow
 			Margin = new Thickness(0.0, 10.0, 0.0, 0.0)
 		};
 		stackPanel.Children.Add(box);
-		Button button = Button("Next: choose pictures…", delegate
+		Button button = Button(next, delegate
 		{
 			window.DialogResult = true;
 		});
@@ -626,7 +734,7 @@ public sealed class AnimationsWindow : AquilaWindow
 			SpriteKind.Listening => "Plays while you type.",
 			_ => "Gesture: plays once when a reply fits it, then goes back to idle.",
 		};
-		return $"{text}  ·  {animation.Frames.Count} pictures";
+		return animation.IsVideo ? $"{text}  ·  video clip (plays muted)" : $"{text}  ·  {animation.Frames.Count} pictures";
 	}
 
 	private static TextBlock Note(string text, double top)

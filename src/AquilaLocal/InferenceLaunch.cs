@@ -82,9 +82,12 @@ public sealed record InferenceLaunch(string Device, string Layers, string Cache,
 		}
 		long usable = Math.Min(gpu.FreeBytes > 0 ? gpu.FreeBytes : gpu.DedicatedBytes, gpu.DedicatedBytes);
 		long reserve = Math.Max(3 * GiB / 2, gpu.DedicatedBytes / 16);
-		long workspace = GiB + projectorBytes;
+		// With a projector the engine runs 1024-token micro-batches and the vision encoder, which need a
+		// little more working memory. Calibrated on the laptop with Gemma 4 31B (23.1 GB free): this plans
+		// 64K, which measured 22.3 GB at peak while reading an image; past ~72K it spilled.
+		long workspace = GiB + (projectorBytes > 0 ? GiB / 4 + projectorBytes : 0);
 		long weights = model.FileBytes;
-		long kvBudget = usable - reserve - workspace - weights;
+		long kvBudget = usable - reserve - workspace - weights - (long)(model.FixedKvBytes * (17.0 / 32.0));
 		double kvPerToken = Math.Max(1024.0, model.KvBytesPerToken) * (17.0 / 32.0);
 		if (kvBudget >= (long)(kvPerToken * 8192))
 		{
@@ -121,6 +124,12 @@ public sealed record InferenceLaunch(string Device, string Layers, string Cache,
 		if (UseMmap)
 		{
 			add(new string[4] { "--load-mode", "mmap", "--lazy-mode", "off" });
+		}
+		else if (FullOffload && !CpuOnly)
+		{
+			// The whole model lives on the GPU: read the file once instead of keeping it mapped, which tied
+			// up about 17 GB of RAM for nothing (measured on the laptop; VRAM and speed unchanged). No mlock.
+			add(new string[2] { "--load-mode", "none" });
 		}
 		if (ExpertCpuLayers > 0)
 		{

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 using AquilaAvatarProtocol;
 
@@ -36,6 +37,15 @@ public class Settings
 
 	public bool Thinking { get; set; }
 
+	/// <summary>Sidebar width in pixels, set by dragging its edge.</summary>
+	public double SidebarWidth { get; set; } = 272.0;
+
+	/// <summary>The icon rail on the far left shows its names (and the chats panel steps aside).</summary>
+	public bool RailExpanded { get; set; }
+
+	/// <summary>Width of the avatar pane on the right, set by dragging its edge.</summary>
+	public double AvatarWidth { get; set; } = 360.0;
+
 	public int ThinkingBudget { get; set; } = 1024;
 
 	[JsonIgnore]
@@ -67,12 +77,44 @@ public class Settings
 
 	public VoiceOptions Voice { get; set; } = new VoiceOptions();
 
+	public ListeningOptions Listening { get; set; } = new ListeningOptions();
+
 	public bool AvatarEnabled { get; set; }
 
 	public string WebMode { get; set; } = "Off";
 
 	/// <summary>Show token counts, speed and tool details on every reply.</summary>
 	public bool ShowTechnicalDetails { get; set; }
+
+	/// <summary>Show the personas' private thoughts (blue) in the chat.</summary>
+	public bool ShowPersonaThoughts { get; set; } = true;
+
+	/// <summary>The built-in image generator.</summary>
+	public PictureOptions Pictures { get; set; } = new PictureOptions();
+
+	/// <summary>Built-in video (Wan 2.2 image-to-video).</summary>
+	public VideoOptions Video { get; set; } = new VideoOptions();
+
+	/// <summary>Living mode: personas think on their own while you're away.</summary>
+	public LivingOptions Living { get; set; } = new LivingOptions();
+
+	/// <summary>Let personas play sounds from the soundboard.</summary>
+	public bool SoundboardEnabled { get; set; } = true;
+
+	/// <summary>Companions see when you've read their messages, and may follow up if you leave them on read.</summary>
+	public bool ReadReceipts { get; set; } = true;
+
+	/// <summary>Soundboard volume, 0 to 1.</summary>
+	public double SoundboardVolume { get; set; } = 0.8;
+
+	/// <summary>Colour of thoughts, "#RRGGBB".</summary>
+	public string ThoughtColor { get; set; } = "#6CB4FF";
+
+	/// <summary>Colour of actions, "#RRGGBB".</summary>
+	public string ActionColor { get; set; } = "#FFA14A";
+
+	/// <summary>"first" ("I smile") or "third" ("Vicki smiles") for the personas' thoughts and actions.</summary>
+	public string ThoughtPerson { get; set; } = "first";
 
 	/// <summary>Quiet interface sounds (send, reply finished, model ready, …).</summary>
 	public bool UiSounds { get; set; } = true;
@@ -183,4 +225,77 @@ public class Settings
 			throw new ArgumentException("Invalid avatar folder or model path.");
 		}
 	}
+}
+
+/// <summary>Built-in pictures: whether Vicki and Aquila may draw, and with which model.</summary>
+public sealed class PictureOptions
+{
+	/// <summary>Off until you allow it.</summary>
+	public bool Enabled { get; set; }
+
+	/// <summary>"fast" (FLUX 3 Image Klein, the chat model stays loaded) or "best" (Qwen-Image-2.1, the chat model pauses).</summary>
+	public string Model { get; set; } = AquilaLocal.Companion.Pictures.PictureModels.Fast;
+
+	/// <summary>Use the persona's reference pictures so she looks the same every time.</summary>
+	public bool UseReferences { get; set; } = true;
+
+	/// <summary>The text encoder FLUX 3 Image Klein reads prompts with: "standard", "uncensored-q8" or "uncensored-bf16".</summary>
+	public string KleinEncoder { get; set; } = AquilaLocal.Companion.Pictures.KleinEncoders.Standard;
+
+	/// <summary>The anime engine's avoid list (negative prompt); the adults-only words are always added to it.</summary>
+	public string AnimeAvoid { get; set; } = AquilaLocal.Companion.Pictures.PictureCommand.AnimeAvoidDefault;
+}
+
+/// <summary>Living mode: thoughts of her own while you're away, kept in a journal and in her memory.</summary>
+public sealed class LivingOptions
+{
+	/// <summary>Off until you turn it on.</summary>
+	public bool Enabled { get; set; }
+
+	/// <summary>The wait before each thought is picked at random between these, in minutes (doubled at night).</summary>
+	public int MinMinutes { get; set; } = 15;
+
+	public int MaxMinutes { get; set; } = 60;
+
+	/// <summary>When she dreams at night, draw a picture of the dream (needs the image generator installed).</summary>
+	public bool DrawDreams { get; set; } = true;
+
+	/// <summary>She only thinks after you've left Aquila alone this long.</summary>
+	public int IdleMinutes { get; set; } = 10;
+
+	/// <summary>She may look things up on the internet for her own curiosity (each lookup is listed in her journal).</summary>
+	public bool WebLookups { get; set; } = true;
+
+	/// <summary>She may message you first when a thought is strong enough.</summary>
+	public bool MessageFirst { get; set; } = true;
+
+	public int MaxMessagesPerDay { get; set; } = 3;
+
+	/// <summary>No messages from her between 11 PM and 8 AM.</summary>
+	public bool QuietHours { get; set; } = true;
+
+	/// <summary>Personas who live (empty means every persona that's set up).</summary>
+	public List<string> PersonaIds { get; set; } = new List<string>();
+
+	public AquilaLocal.Companion.Living.LivingPolicy Policy() => new AquilaLocal.Companion.Living.LivingPolicy
+	{
+		MinMinutes = Math.Clamp(MinMinutes, 1, 24 * 60),
+		MaxMinutes = Math.Clamp(MaxMinutes, 1, 24 * 60),
+		IdleMinutes = Math.Clamp(IdleMinutes, 1, 240),
+		MaxMessagesPerDay = Math.Clamp(MaxMessagesPerDay, 1, 20),
+		QuietHours = QuietHours
+	};
+}
+
+/// <summary>Built-in video: Vicki and Aquila may make short clips (a still, then animated with Wan 2.2).</summary>
+public sealed class VideoOptions
+{
+	/// <summary>Off until you allow it.</summary>
+	public bool Enabled { get; set; }
+
+	/// <summary>Use the 4-step Lightning speed-up (a few minutes a clip instead of about 15).</summary>
+	public bool Fast { get; set; } = true;
+
+	/// <summary>Living mode: also animate her dream pictures into short clips.</summary>
+	public bool AnimateDreams { get; set; }
 }

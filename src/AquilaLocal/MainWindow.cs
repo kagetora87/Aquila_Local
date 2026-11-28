@@ -47,6 +47,9 @@ public partial class MainWindow : AquilaWindow
 
 	private string spriteRoot = "";
 
+	/// <summary>The avatar used when the chat's persona has none of her own.</summary>
+	private string sharedSpriteRoot = "";
+
 	private DispatcherTimer? listeningTimer;
 
 	internal Func<ChatSession, bool>? ConfirmDeleteForVerification;
@@ -83,6 +86,8 @@ public partial class MainWindow : AquilaWindow
 
 	private readonly SpeechService speech;
 
+	private readonly SoundboardPlayer sounds = new SoundboardPlayer();
+
 	private VoiceWindow? voiceWindow;
 
 	private readonly Storage store;
@@ -94,6 +99,11 @@ public partial class MainWindow : AquilaWindow
 	private readonly MemoryStore memories;
 
 	private readonly SemanticMemory semantic;
+
+	private readonly CompanionHost companion;
+
+	/// <summary>A persona's background summary pass; the next send waits for it.</summary>
+	private Task? pendingCompanion;
 
 	private readonly PersonalityStore personalities;
 
@@ -110,6 +120,12 @@ public partial class MainWindow : AquilaWindow
 	private readonly DispatcherTimer renderTimer;
 
 	private MessageView? live;
+
+	/// <summary>The reply view of each turn in the open chat, so notices like "New memory created" can be added later.</summary>
+	private readonly Dictionary<string, MessageView> replyViews = new Dictionary<string, MessageView>();
+
+	/// <summary>Your message view of each turn in the open chat, so a companion's emoji reaction can be shown on it.</summary>
+	private readonly Dictionary<string, MessageView> userViews = new Dictionary<string, MessageView>();
 
 	private Turn? activeTurn;
 
@@ -195,6 +211,8 @@ public partial class MainWindow : AquilaWindow
 
 	internal AvatarHost AvatarForVerification => avatar;
 
+	public static RoutedUICommand RenameChatCommand { get; } = new RoutedUICommand("Rename chat", "RenameChatCommand", typeof(MainWindow));
+
 	public static RoutedUICommand DeleteChatCommand { get; } = new RoutedUICommand("Delete chat", "DeleteChatCommand", typeof(MainWindow));
 
 	private InferenceProfile SelectedProfile => InferenceProfile.Resolve(settings.Inference, settings.Hardware);
@@ -210,6 +228,7 @@ public partial class MainWindow : AquilaWindow
 	{
 		SpriteAvatarOptions options = settings.Sprite;
 		spriteRoot = string.IsNullOrWhiteSpace(options.Folder) ? Path.Combine(store.Root, "avatar") : options.Folder;
+		sharedSpriteRoot = spriteRoot;
 		spriteView = new SpriteAvatarView();
 		gestures = new GestureMatcher(Path.Combine(AppContext.BaseDirectory, "embeddings"))
 		{
@@ -272,30 +291,15 @@ public partial class MainWindow : AquilaWindow
 		return "idle";
 	}
 
+	/// <summary>The composer's text when the avatar last reacted, so clicks and formatting (which also raise
+	/// TextChanged) don't count as typing.</summary>
+	private string lastTypedText = "";
+
+	/// <summary>Typing never changes her animation: whatever she's doing stays on screen, unchanged, until her next reply.
+	/// (Switching to "listening" and back on every pause in typing made her flicker.)</summary>
 	private void ComposerTyping()
 	{
-		if (spriteView == null || busy || featuresClosing || avatarState != "idle" || string.IsNullOrEmpty(Composer.Text))
-		{
-			return;
-		}
-		spriteView.SetState("listening");
-		if (listeningTimer == null)
-		{
-			listeningTimer = new DispatcherTimer
-			{
-				Interval = TimeSpan.FromSeconds(2.5)
-			};
-			listeningTimer.Tick += delegate
-			{
-				listeningTimer.Stop();
-				if (avatarState == "idle")
-				{
-					spriteView?.SetState("idle");
-				}
-			};
-		}
-		listeningTimer.Stop();
-		listeningTimer.Start();
+		lastTypedText = Composer.Text ?? "";
 	}
 
 	private void AvatarPop_Click(object sender, RoutedEventArgs e)
@@ -456,7 +460,7 @@ public partial class MainWindow : AquilaWindow
 		{
 			ReloadSpriteAvatar();
 			SaveAvatarSettings();
-		})
+		}, companion.AvatarsRoot)
 		{
 			Owner = this
 		};
@@ -474,7 +478,13 @@ public partial class MainWindow : AquilaWindow
 		avatarState = state;
 		avatarUtterance = utterance;
 		listeningTimer?.Stop();
+		if (state == "thinking" || state == "talking" || state == "speaking")
+		{
+			// She's talking to you now: her daydream picture gives the avatar back.
+			ClearDaydream();
+		}
 		spriteView?.SetState(SpriteStateFor(state));
+		ShowAvatarStatus();
 		avatar.SetStateAsync(state, preview: false, "none", utterance);
 	}
 
@@ -507,6 +517,85 @@ public partial class MainWindow : AquilaWindow
 			listBoxItem.IsSelected = true;
 			listBoxItem.Focus();
 		}
+	}
+
+	// ---------------- Renaming a chat (click its title, or right-click it in the list) ----------------
+
+	private void RenameChat_Executed(object sender, ExecutedRoutedEventArgs e)
+	{
+		e.Handled = true;
+		if (DeleteTarget(e.Parameter) is ChatSession chat && chat != current && !busy && !attaching)
+		{
+			ChatsList.SelectedItem = chat;
+		}
+		Dispatcher.BeginInvoke(new Action(StartRenaming), System.Windows.Threading.DispatcherPriority.Input);
+	}
+
+	private void ChatTitle_Click(object sender, MouseButtonEventArgs e)
+	{
+		StartRenaming();
+	}
+
+	private void StartRenaming()
+	{
+		if (current == null)
+		{
+			return;
+		}
+		ChatTitleBox.Text = current.Title;
+		ChatTitle.Visibility = Visibility.Hidden;
+		ChatTitleBox.Visibility = Visibility.Visible;
+		ChatTitleBox.Focus();
+		Keyboard.Focus(ChatTitleBox);
+		ChatTitleBox.SelectAll();
+	}
+
+	private void ChatTitleBox_KeyDown(object sender, KeyEventArgs e)
+	{
+		if (e.Key == Key.Return)
+		{
+			e.Handled = true;
+			FinishRenaming(keep: true);
+		}
+		else if (e.Key == Key.Escape)
+		{
+			e.Handled = true;
+			FinishRenaming(keep: false);
+		}
+	}
+
+	private void ChatTitleBox_LostFocus(object sender, KeyboardFocusChangedEventArgs e)
+	{
+		FinishRenaming(keep: true);
+	}
+
+	private void FinishRenaming(bool keep)
+	{
+		if (ChatTitleBox.Visibility != Visibility.Visible)
+		{
+			return;
+		}
+		ChatTitleBox.Visibility = Visibility.Collapsed;
+		ChatTitle.Visibility = Visibility.Visible;
+		string name = ChatTitleBox.Text.Replace('\n', ' ').Replace('\r', ' ').Trim();
+		if (!keep || current == null || name.Length == 0 || name == current.Title)
+		{
+			Composer.Focus();
+			return;
+		}
+		current.Title = name.Truncate(80);
+		current.Renamed = true;
+		ChatTitle.Text = current.Title;
+		ChatsList.Items.Refresh();
+		try
+		{
+			store.SaveChat(current);
+		}
+		catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+		{
+			Notice("Could not save the new name: " + ex.Message);
+		}
+		Composer.Focus();
 	}
 
 	private ChatSession? DeleteTarget(object? parameter)
@@ -573,7 +662,7 @@ public partial class MainWindow : AquilaWindow
 	{
 		if (CompactButton != null && SummaryButton != null)
 		{
-			CompactButton.IsEnabled = !busy && !attaching && !featuresClosing && current != null && ConversationContext.CanCompact(current);
+			CompactButton.IsEnabled = !busy && !attaching && !featuresClosing && current != null && !current.IsCompanion && ConversationContext.CanCompact(current);
 			SummaryButton.IsEnabled = !busy && !attaching;
 			SummaryButton.Visibility = ((current?.CompactedContext == null) ? Visibility.Collapsed : Visibility.Visible);
 		}
@@ -581,7 +670,7 @@ public partial class MainWindow : AquilaWindow
 
 	private async void Compact_Click(object sender, RoutedEventArgs e)
 	{
-		if (busy || attaching || current == null || !ConversationContext.CanCompact(current) || !ReadSettings() || !AquilaDialog.Confirm(this, "Shorten this conversation?", "Aquila will summarise the earlier part of this chat so it can keep going. The four most recent exchanges and everything you can see stay as they are.\n\nSummaries can leave out or misstate details, including picture content. You can review or undo it with View summary. This uses the loaded model for a moment.", "Summarise"))
+		if (busy || attaching || current == null || current.IsCompanion || !ConversationContext.CanCompact(current) || !ReadSettings() || !AquilaDialog.Confirm(this, "Shorten this conversation?", "Aquila will summarise the earlier part of this chat so it can keep going. The four most recent exchanges and everything you can see stay as they are.\n\nSummaries can leave out or misstate details, including picture content. You can review or undo it with View summary. This uses the loaded model for a moment.", "Summarise"))
 		{
 			return;
 		}
@@ -807,7 +896,17 @@ public partial class MainWindow : AquilaWindow
 				select p).ToList() : new List<InstalledModel>());
 			if (settings.ModelPath.Length > 0 && !list.Any((InstalledModel m) => m.Path.Equals(settings.ModelPath, StringComparison.OrdinalIgnoreCase)))
 			{
-				list.Add(new InstalledModel(Path.GetFileNameWithoutExtension(settings.ModelPath), settings.ModelPath));
+				// The models folder can be a link to another folder (on the laptop it points at the old
+				// install's models), so the chosen model may be the same file under another path: show it once.
+				int same = list.FindIndex((InstalledModel m) => SameFile(m.Path, settings.ModelPath));
+				if (same >= 0)
+				{
+					list[same] = new InstalledModel(list[same].Name, settings.ModelPath);
+				}
+				else
+				{
+					list.Add(new InstalledModel(Path.GetFileNameWithoutExtension(settings.ModelPath), settings.ModelPath));
+				}
 			}
 			InstalledModelsCombo.ItemsSource = list;
 			InstalledModelsCombo.SelectedItem = list.FirstOrDefault((InstalledModel m) => m.Path.Equals(settings.ModelPath, StringComparison.OrdinalIgnoreCase));
@@ -815,6 +914,19 @@ public partial class MainWindow : AquilaWindow
 		finally
 		{
 			refreshingModels = false;
+		}
+	}
+
+	/// <summary>Same name and size: the same model file reached through two folders.</summary>
+	private static bool SameFile(string a, string b)
+	{
+		try
+		{
+			return Path.GetFileName(a).Equals(Path.GetFileName(b), StringComparison.OrdinalIgnoreCase) && File.Exists(a) && File.Exists(b) && new FileInfo(a).Length == new FileInfo(b).Length;
+		}
+		catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is ArgumentException || ex is NotSupportedException)
+		{
+			return false;
 		}
 	}
 
@@ -1180,6 +1292,50 @@ public partial class MainWindow : AquilaWindow
 		}
 	}
 
+	/// <summary>Ctrl+V with a picture (or copied files) on the clipboard attaches it, like dragging it in.</summary>
+	private async void Composer_PastePicture(object sender, KeyEventArgs e)
+	{
+		if (e.Key != Key.V || (Keyboard.Modifiers & ModifierKeys.Control) == 0 || busy || attaching)
+		{
+			return;
+		}
+		try
+		{
+			if (Clipboard.ContainsFileDropList())
+			{
+				List<string> files = Clipboard.GetFileDropList().Cast<string>().Where(File.Exists).ToList();
+				if (files.Count > 0)
+				{
+					e.Handled = true;
+					await StageFilesAsync(files);
+				}
+			}
+			else if (Clipboard.ContainsImage() && !Clipboard.ContainsText())
+			{
+				System.Windows.Media.Imaging.BitmapSource image = Clipboard.GetImage();
+				if (image == null)
+				{
+					return;
+				}
+				e.Handled = true;
+				string folder = Path.Combine(store.Root, "pasted");
+				Directory.CreateDirectory(folder);
+				string file = Path.Combine(folder, "pasted picture " + DateTime.Now.ToString("yyyy-MM-dd HHmmss") + ".png");
+				System.Windows.Media.Imaging.PngBitmapEncoder encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+				encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(image));
+				using (FileStream stream = File.Create(file))
+				{
+					encoder.Save(stream);
+				}
+				await StageFilesAsync(new string[1] { file });
+			}
+		}
+		catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is System.Runtime.InteropServices.COMException || ex is NotSupportedException)
+		{
+			Notice("Couldn't paste that picture: " + ex.Message + " You can drag the file in or use the paperclip instead.");
+		}
+	}
+
 	private async Task StageFilesAsync(IEnumerable<string> paths)
 	{
 		if (busy || attaching)
@@ -1484,6 +1640,7 @@ public partial class MainWindow : AquilaWindow
 			{
 				if (!featuresClosing)
 				{
+					HerVoicePlaying(frame.Playing && speech.CurrentUtterance == frame.Utterance);
 					if (frame.Playing && speech.CurrentUtterance == frame.Utterance)
 					{
 						avatarState = "speaking";
@@ -1551,16 +1708,174 @@ public partial class MainWindow : AquilaWindow
 		}
 	}
 
-	private async Task SpeakCompletedReply(ChatSession session, Turn turn)
+	/// <summary>Aquila's voice settings, with a companion's own voice when her persona has one.</summary>
+	private VoiceOptions VoiceFor(ChatSession session) => VoiceForPersona(session.IsCompanion ? session.PersonaId : "");
+
+	/// <summary>Aquila's voice settings, with a persona's own voice when she has one (empty id: Aquila's voice).</summary>
+	private VoiceOptions VoiceForPersona(string personaId)
 	{
-		if (!settings.Voice.Enabled || turn.Status != "complete")
+		VoiceOptions options = JsonSerializer.Deserialize<VoiceOptions>(JsonSerializer.Serialize(settings.Voice))!;
+		if (personaId.Length > 0)
+		{
+			try
+			{
+				string own = companion.Registry.LoadConfig(personaId).Voice;
+				if (!string.IsNullOrWhiteSpace(own))
+				{
+					options.Speaker = own;
+				}
+			}
+			catch (AquilaLocal.Companion.PersonaConfigException ex)
+			{
+				VoiceStatusText.Text = "Voice: couldn't read her voice setting (" + ex.Message.Truncate(200) + "), using Aquila's voice.";
+			}
+		}
+		return options;
+	}
+
+	/// <summary>While her voice is being made on the graphics card, the chat model is paused; this finishes when it's back.</summary>
+	private Task? pendingSpeechResume;
+
+	/// <summary>
+	/// Speaks a reply. Kitten and cloned voices run on the graphics card when that's switched on: the chat model's place in
+	/// the conversation is saved, the model is unloaded, her voice is made (faster than real time), the speech model is
+	/// unloaded, and the chat model loads again while the last part is still playing. Calls and scenes don't pause.
+	/// </summary>
+	private async Task SpeakTurnAsync(ChatSession? session, Turn turn, VoiceOptions options)
+	{
+		bool pause = options.SpeakOnGraphicsCard && options.UsesKitten && options.Device != "cpu" && engine.Ready && session?.IsCall != true && !featuresClosing;
+		if (pause)
+		{
+			// Let the reply's own follow-up work that uses the model (her memory summary, learning) finish first.
+			while (busy && !featuresClosing)
+			{
+				await Task.Delay(100);
+			}
+			foreach (Task? job in new[] { pendingCompanion, pendingLearning, pendingSpeechResume })
+			{
+				if (job != null)
+				{
+					try
+					{
+						await job;
+					}
+					catch
+					{
+					}
+				}
+			}
+			pause = engine.Ready && !busy && !featuresClosing;
+		}
+		if (!pause)
+		{
+			await speech.SpeakAsync(turn, options);
+			return;
+		}
+		TaskCompletionSource resumed = new TaskCompletionSource();
+		pendingSpeechResume = resumed.Task;
+		bool restore = false;
+		try
+		{
+			StatusText.Text = "Pausing the chat model so her voice can use the graphics card…";
+			restore = await engine.ParkAsync(CancellationToken.None);
+		}
+		catch (Exception ex) when (ex is IOException || ex is System.Net.Http.HttpRequestException || ex is UnauthorizedAccessException)
+		{
+			Notice("Voice: couldn't pause the chat model (" + ex.Message.Truncate(200) + "), so she speaks on the processor this time.");
+			resumed.TrySetResult();
+			await speech.SpeakAsync(turn, options);
+			return;
+		}
+		int resumeStarted = 0;
+		Task Resume()
+		{
+			if (Interlocked.Exchange(ref resumeStarted, 1) == 1)
+			{
+				return resumed.Task;
+			}
+			return base.Dispatcher.InvokeAsync(async delegate
+			{
+				try
+				{
+					if (!featuresClosing)
+					{
+						StatusText.Text = "Loading the chat model again…";
+						await engine.ResumeAsync(settings, restore, CancellationToken.None);
+						StatusText.Text = engine.Ready ? "Ready" : "No model loaded";
+					}
+				}
+				catch (Exception ex) when (ex is IOException || ex is System.Net.Http.HttpRequestException || ex is InvalidOperationException || ex is UnauthorizedAccessException || ex is System.ComponentModel.Win32Exception)
+				{
+					Notice("The chat model didn't load again after she spoke: " + ex.Message.Truncate(300) + " Load it from the Model panel.");
+				}
+				finally
+				{
+					resumed.TrySetResult();
+				}
+			}).Task.Unwrap();
+		}
+		options.Device = "prefer-gpu";
+		try
+		{
+			await speech.SpeakAsync(turn, options, default(CancellationToken), null, Resume);
+		}
+		finally
+		{
+			// Normally done the moment her voice is made; this covers a stop before anything was made.
+			await Resume();
+		}
+	}
+
+	/// <summary>Her voice first (if it's on), then any soundboard sounds she cued.</summary>
+	private async Task SpeakThenPlaySoundsAsync(ChatSession session, Turn turn)
+	{
+		await SpeakCompletedReply(session, turn);
+		await PlayCuedSoundsAsync(session.IsCompanion, turn.Answer);
+	}
+
+	/// <summary>Plays the soundboard sounds a persona's reply cues, when the soundboard is on.</summary>
+	private async Task PlayCuedSoundsAsync(bool persona, string reply, CancellationToken ct = default(CancellationToken))
+	{
+		if (!persona || !settings.SoundboardEnabled || featuresClosing || !AquilaLocal.Companion.Sounds.SoundCues.HasCue(reply))
 		{
 			return;
 		}
-		VoiceOptions options = JsonSerializer.Deserialize<VoiceOptions>(JsonSerializer.Serialize(settings.Voice));
 		try
 		{
-			await speech.SpeakAsync(turn, options);
+			List<string> files = await Task.Run(() => companion.SoundsFor(reply), ct);
+			if (!featuresClosing)
+			{
+				await sounds.PlayAsync(files, settings.SoundboardVolume, ct);
+			}
+		}
+		catch (OperationCanceledException)
+		{
+		}
+		catch (Exception ex) when (ex is AquilaLocal.Companion.PersonaConfigException || ex is IOException || ex is UnauthorizedAccessException || ex is UriFormatException)
+		{
+			Notice("Soundboard: " + ex.Message);
+		}
+	}
+
+	private void Soundboard_Click(object sender, RoutedEventArgs e)
+	{
+		SoundboardWindow window = new SoundboardWindow(companion.Soundboard, settings, delegate
+		{
+			store.SaveSettings(settings);
+		}) { Owner = this };
+		window.ShowDialog();
+	}
+
+	private async Task SpeakCompletedReply(ChatSession session, Turn turn)
+	{
+		if ((!settings.Voice.Enabled && !session.IsCall) || turn.Status != "complete")
+		{
+			return;
+		}
+		VoiceOptions options = VoiceFor(session);
+		try
+		{
+			await SpeakTurnAsync(session, turn, options);
 			if (!featuresClosing && chats.Contains(session))
 			{
 				store.SaveChat(session);
@@ -1579,6 +1894,66 @@ public partial class MainWindow : AquilaWindow
 		}
 	}
 
+	private void AddReplyActions(MessageView view, ChatSession session, Turn turn)
+	{
+		if (session.IsCompanion && turn.Status == "complete" && !string.IsNullOrWhiteSpace(turn.Answer))
+		{
+			view.AddAction("\uE76E", "React with an emoji", delegate
+			{
+				ShowReactionPicker(view, session, turn);
+			});
+		}
+		if (turn.Status == "complete" && !string.IsNullOrWhiteSpace(turn.Answer))
+		{
+			view.AddAction(Ui.Glyph.Audio, "Save as audio (a sound file you can play or send)", delegate
+			{
+				_ = SaveReplyAudioAsync(session, turn);
+			});
+		}
+	}
+
+	/// <summary>Saves one reply as a WAV file in the voice she speaks with, so it can be played or sent elsewhere.</summary>
+	private async Task SaveReplyAudioAsync(ChatSession session, Turn turn)
+	{
+		string who = session.IsCompanion ? session.Speaker : "Aquila";
+		SaveFileDialog dialog = new SaveFileDialog
+		{
+			Filter = "Sound file (*.wav)|*.wav",
+			FileName = who + " " + DateTime.Now.ToString("yyyy-MM-dd HHmm") + ".wav"
+		};
+		if (dialog.ShowDialog(this) != true)
+		{
+			return;
+		}
+		VoiceOptions options = VoiceFor(session);
+		VoiceStatusText.Text = "Voice: saving audio…";
+		try
+		{
+			TimeSpan length = await speech.SaveAudioAsync(turn, options, dialog.FileName, monitorCancellation.Token);
+			if (!featuresClosing)
+			{
+				VoiceStatusText.Text = "Voice: saved " + System.IO.Path.GetFileName(dialog.FileName) + $" ({length.TotalSeconds:0} s)";
+				Notice("Saved " + who + "'s reply as audio: " + dialog.FileName);
+			}
+		}
+		catch (OperationCanceledException)
+		{
+			if (!featuresClosing)
+			{
+				VoiceStatusText.Text = "Voice: saving audio stopped.";
+			}
+		}
+		catch (Exception ex)
+		{
+			if (!featuresClosing)
+			{
+				VoiceStatusText.Text = "Voice: " + ex.Message.Truncate(400);
+				Notice("Couldn't save the audio: " + ex.Message.Truncate(400));
+				UiSounds.Play(UiSound.Notice);
+			}
+		}
+	}
+
 	private async void ReplayVoice_Click(object sender, RoutedEventArgs e)
 	{
 		if (busy || current == null)
@@ -1592,10 +1967,10 @@ public partial class MainWindow : AquilaWindow
 			Notice("Complete a reply before replaying speech.");
 			return;
 		}
-		VoiceOptions options = JsonSerializer.Deserialize<VoiceOptions>(JsonSerializer.Serialize(settings.Voice));
+		VoiceOptions options = VoiceFor(session);
 		try
 		{
-			await speech.SpeakAsync(turn, options);
+			await SpeakTurnAsync(session, turn, options);
 			if (!featuresClosing && chats.Contains(session))
 			{
 				store.SaveChat(session);
@@ -1613,15 +1988,40 @@ public partial class MainWindow : AquilaWindow
 	private void StopVoice_Click(object sender, RoutedEventArgs e)
 	{
 		speech.Stop();
+		sounds.Stop();
 	}
 
 	public MainWindow(string? dataRoot = null, string? speechAssets = null)
 	{
 		InitializeComponent();
+		Composer.PreviewKeyDown += Composer_PastePicture;
 		base.CommandBindings.Add(new CommandBinding(DeleteChatCommand, DeleteChat_Executed, DeleteChat_CanExecute));
+		base.CommandBindings.Add(new CommandBinding(RenameChatCommand, RenameChat_Executed, DeleteChat_CanExecute));
 		store = new Storage(dataRoot);
 		this.settings = store.LoadSettings();
 		Settings settings = this.settings;
+		MessageView.ShowPersonaThoughts = settings.ShowPersonaThoughts;
+		AquilaLocal.Companion.ThoughtMarkup.Person = settings.ThoughtPerson == "third" ? AquilaLocal.Companion.MarkupPerson.Third : AquilaLocal.Companion.MarkupPerson.First;
+		{
+			Color thoughtColor = MarkupColors.Parse(settings.ThoughtColor, MarkupColors.DefaultThought);
+			Color actionColor = MarkupColors.Parse(settings.ActionColor, MarkupColors.DefaultAction);
+			if (thoughtColor != actionColor)
+			{
+				MarkupColors.Set(thoughtColor, actionColor);
+			}
+		}
+		MarkupBar.Attach(Composer);
+		StartLiving();
+		SidebarColumn.Width = new GridLength(Math.Clamp(settings.SidebarWidth, SidebarColumn.MinWidth, SidebarColumn.MaxWidth));
+		AvatarColumn.Width = new GridLength(Math.Clamp(settings.AvatarWidth, AvatarColumn.MinWidth, AvatarColumn.MaxWidth));
+		FitSidebar();
+		MarkupBar.ShowThoughts = settings.ShowPersonaThoughts;
+		MarkupBar.ShowThoughtsChanged += delegate(bool show)
+		{
+			MessageView.ShowPersonaThoughts = show;
+			SaveMarkupLook();
+		};
+		MarkupBar.LookChanged += SaveMarkupLook;
 		if (settings.Inference == null)
 		{
 			InferencePreferences obj = new InferencePreferences
@@ -1634,6 +2034,7 @@ public partial class MainWindow : AquilaWindow
 		memories = new MemoryStore(store.Root);
 		semantic = new SemanticMemory(memories, store.Root);
 		personalities = new PersonalityStore(store.Root);
+		companion = new CompanionHost(store.Root);
 		engine = new Engine(store.Root);
 		speech = new SpeechService(store.Root, speechAssets);
 		avatar = new AvatarHost(store.Root);
@@ -1644,6 +2045,7 @@ public partial class MainWindow : AquilaWindow
 		chats = new ObservableCollection<ChatSession>(store.LoadChats());
 		ChatsList.ItemsSource = chats;
 		ShowSettings();
+		BuildRail();
 		StatusText.Text = "No model loaded";
 		if (chats.Count > 0)
 		{
@@ -1653,6 +2055,10 @@ public partial class MainWindow : AquilaWindow
 		{
 			NewChat();
 		}
+		base.Loaded += delegate
+		{
+			_ = StartWakeIfEnabledAsync();
+		};
 		renderTimer = new DispatcherTimer
 		{
 			Interval = TimeSpan.FromMilliseconds(100.0)
@@ -1712,42 +2118,42 @@ public partial class MainWindow : AquilaWindow
 	{
 		try
 		{
-			Settings settings = new Settings
-			{
-				ModelPath = this.settings.ModelPath,
-				ProjectorPath = this.settings.ProjectorPath,
-				VisionDisabled = this.settings.VisionDisabled,
-				Workspace = this.settings.Workspace,
-				Memory = MemoryBox.Text,
-				Instructions = InstructionsBox.Text,
-				Context = contextTokens,
-				ReplyEmoji = (ReplyEmojiCheck.IsChecked == true),
-				MaxTokens = int.Parse(MaxTokensBox.Text, CultureInfo.InvariantCulture),
-				Temperature = double.Parse(TempBox.Text, CultureInfo.InvariantCulture),
-				GpuLayers = int.Parse(GpuBox.Text, CultureInfo.InvariantCulture),
-				CpuThreads = int.Parse(CpuBox.Text, CultureInfo.InvariantCulture),
-				Inference = ReadInferenceSettings(),
-				Hardware = this.settings.Hardware,
-				ThinkingBudget = int.Parse(ThinkingBudgetBox.Text, CultureInfo.InvariantCulture),
-				RequireLookup = (LookupCheck.IsChecked == true),
-				LearnMemories = (LearnMemoryCheck.IsChecked == true),
-				UseMemories = (UseMemoryCheck.IsChecked == true),
-				SemanticMemories = (SemanticMemoryCheck.IsChecked == true),
-				PersonalityId = ((PersonalityCombo.SelectedItem as PersonalityProfile)?.Id ?? "default"),
-				Voice = this.settings.Voice,
-				AvatarEnabled = this.settings.AvatarEnabled,
-				Avatar = this.settings.Avatar,
-				AvatarFolder = this.settings.AvatarFolder,
-				AvatarModelPath = this.settings.AvatarModelPath,
-				Sprite = this.settings.Sprite,
-				WebMode = this.settings.WebMode,
-				WebKeyProtected = this.settings.WebKeyProtected,
-				Thinking = (ThinkingCheck.IsChecked == true),
-				WorkspaceTools = (ToolsCheck.IsChecked == true),
-				UiSounds = (UiSoundsCheck.IsChecked == true),
-				UiSoundVolume = UiSoundVolumeSlider.Value,
-				ShowTechnicalDetails = (ShowDetailsCheck.IsChecked == true)
-			};
+			// Start from a copy of everything (voice commands, listening, soundboard, pictures, thought colours…),
+			// then take what the settings panel shows. Building a fresh object here used to drop newer options.
+			Settings settings = System.Text.Json.JsonSerializer.Deserialize<Settings>(System.Text.Json.JsonSerializer.Serialize(this.settings)) ?? new Settings();
+			settings.ModelPath = this.settings.ModelPath;
+			settings.ProjectorPath = this.settings.ProjectorPath;
+			settings.VisionDisabled = this.settings.VisionDisabled;
+			settings.Workspace = this.settings.Workspace;
+			settings.Memory = MemoryBox.Text;
+			settings.Instructions = InstructionsBox.Text;
+			settings.Context = contextTokens;
+			settings.ReplyEmoji = (ReplyEmojiCheck.IsChecked == true);
+			settings.MaxTokens = int.Parse(MaxTokensBox.Text, CultureInfo.InvariantCulture);
+			settings.Temperature = double.Parse(TempBox.Text, CultureInfo.InvariantCulture);
+			settings.GpuLayers = int.Parse(GpuBox.Text, CultureInfo.InvariantCulture);
+			settings.CpuThreads = int.Parse(CpuBox.Text, CultureInfo.InvariantCulture);
+			settings.Inference = ReadInferenceSettings();
+			settings.Hardware = this.settings.Hardware;
+			settings.ThinkingBudget = int.Parse(ThinkingBudgetBox.Text, CultureInfo.InvariantCulture);
+			settings.RequireLookup = (LookupCheck.IsChecked == true);
+			settings.LearnMemories = (LearnMemoryCheck.IsChecked == true);
+			settings.UseMemories = (UseMemoryCheck.IsChecked == true);
+			settings.SemanticMemories = (SemanticMemoryCheck.IsChecked == true);
+			settings.PersonalityId = ((PersonalityCombo.SelectedItem as PersonalityProfile)?.Id ?? "default");
+			settings.Voice = this.settings.Voice;
+			settings.AvatarEnabled = this.settings.AvatarEnabled;
+			settings.Avatar = this.settings.Avatar;
+			settings.AvatarFolder = this.settings.AvatarFolder;
+			settings.AvatarModelPath = this.settings.AvatarModelPath;
+			settings.Sprite = this.settings.Sprite;
+			settings.WebMode = this.settings.WebMode;
+			settings.WebKeyProtected = this.settings.WebKeyProtected;
+			settings.Thinking = (ThinkingCheck.IsChecked == true);
+			settings.WorkspaceTools = (ToolsCheck.IsChecked == true);
+			settings.UiSounds = (UiSoundsCheck.IsChecked == true);
+			settings.UiSoundVolume = UiSoundVolumeSlider.Value;
+			settings.ShowTechnicalDetails = (ShowDetailsCheck.IsChecked == true);
 			settings.Validate();
 			store.SaveSettings(settings);
 			this.settings = settings;
@@ -1761,18 +2167,47 @@ public partial class MainWindow : AquilaWindow
 		}
 	}
 
-	private void NewChat()
+	private void NewChat(string personaId = "", string personaName = "")
 	{
 		if (!busy)
 		{
-			ChatSession chatSession = chats.FirstOrDefault((ChatSession c) => c.Turns.Count == 0);
+			ChatSession chatSession = chats.FirstOrDefault((ChatSession c) => c.Turns.Count == 0 && c.PersonaId == personaId);
 			if (chatSession == null)
 			{
-				chatSession = new ChatSession();
+				chatSession = new ChatSession
+				{
+					PersonaId = personaId,
+					PersonaName = personaName,
+					Title = (personaId.Length > 0) ? ("Chat with " + personaName) : "New conversation",
+					Location = LastLocation(personaId)
+				};
 				chats.Insert(0, chatSession);
 			}
 			ChatsList.SelectedItem = chatSession;
+			if (personaId.Length > 0 && chatSession.Turns.Count == 0)
+			{
+				ChatSession opening = chatSession;
+				base.Dispatcher.BeginInvoke(new Action(delegate
+				{
+					_ = OpenChatAsync(opening);
+				}), DispatcherPriority.Background);
+			}
 		}
+	}
+
+	/// <summary>A new chat with her: she opens it herself, in her own words, from who she is, what she remembers and how
+	/// long it's been. Only when the model is already loaded (a new chat never starts loading it by itself).</summary>
+	private async Task OpenChatAsync(ChatSession session)
+	{
+		if (current != session || session.Turns.Count > 0 || busy || attaching || !engine.Ready)
+		{
+			return;
+		}
+		Turn? lastTalk = chats.Where((ChatSession c) => c != session && c.PersonaId == session.PersonaId).SelectMany((ChatSession c) => c.Turns).Where((Turn t) => t.Status == "complete").OrderByDescending((Turn t) => t.Created).FirstOrDefault();
+		string since = (lastTalk == null) ? "This is the very first time you two are talking." : ("You last talked on " + AquilaLocal.Companion.ContextInjector.When(lastTalk.Created, DateTimeOffset.Now) + ".");
+		string cue = "[No message from them yet. They've just opened a new chat with you. " + since
+			+ " Start the conversation yourself, in your own voice: something that fits who you are, how you feel right now, the time of day, and what you remember about them and where things stand (a plan, something they mentioned, something on your mind). Don't open with a generic greeting or by asking how you can help. Keep it short.]";
+		await SendAsync(cue);
 	}
 
 	private void New_Click(object sender, RoutedEventArgs e)
@@ -1800,21 +2235,40 @@ public partial class MainWindow : AquilaWindow
 			return;
 		}
 		ChatTitle.Text = current.Title;
+		ShowLocation();
+		RefreshContextMeter();
+		ImageSource? avatar = RefreshChatAvatar(current);
+		RefreshAvatarIdentity();
+		replyViews.Clear();
+		userViews.Clear();
 		Welcome.Visibility = ((current.Turns.Count != 0) ? Visibility.Collapsed : Visibility.Visible);
 		foreach (Turn turn in current.Turns)
 		{
 			MessageView messageView = new MessageView("You");
+			messageView.ShowPictures(turn.Attachments);
 			messageView.Update(Attachments.VisibleText(turn), "", null, "", renderMarkdown: false);
+			messageView.SetReaction(turn.Reaction, current.Speaker);
+			if (turn.Unprompted)
+			{
+				// Living mode: she messaged first, so there's no message from you to show.
+				messageView.Visibility = Visibility.Collapsed;
+			}
 			Messages.Children.Add(messageView);
-			MessageView messageView2 = new MessageView("Aquila");
+			userViews[turn.Id] = messageView;
+			MessageView messageView2 = new MessageView(current.Speaker, animate: false, avatar);
 			ShowReply(messageView2, turn, generating: false);
+			messageView2.SetReaction(turn.UserReaction, "You");
 			Messages.Children.Add(messageView2);
+			replyViews[turn.Id] = messageView2;
+			RefreshNotices(current, turn);
+			AddReplyActions(messageView2, current, turn);
 		}
 		RefreshUsage();
 		followBottom = true;
 		ChatScroll.ScrollToEnd();
 		RefreshContextControls();
 		RefreshShell();
+		MarkRead();
 	}
 
 
@@ -1832,6 +2286,7 @@ public partial class MainWindow : AquilaWindow
 			if ((object)(await new MemoryLearner(engine, memories, personalities).LearnAsync(settings, session, turn, monitorCancellation.Token)) != null)
 			{
 				turn.Activity.Add("Memory: " + turn.MemoryLearningStatus + $" · {turn.MemoryPromptTokens + turn.MemoryCompletionTokens:N0} tokens included in session usage.");
+				RefreshNotices(session, turn);
 			}
 		}
 		catch (OperationCanceledException)
@@ -1852,8 +2307,230 @@ public partial class MainWindow : AquilaWindow
 		}
 	}
 
-	private async Task SendAsync()
+	/// <summary>
+	/// After a persona's reply: satisfaction loop, remember the exchange, and start the summary pass when due.
+	/// A failure here is shown loudly; the reply itself is already saved.
+	/// </summary>
+	private async Task CompleteCompanionTurnAsync(ChatSession session, Turn turn, AquilaLocal.Companion.CompanionRuntime runtime, AquilaLocal.Companion.PreparedTurn prepared)
 	{
+		try
+		{
+			string chatId = session.Id;
+			string turnId = turn.Id;
+			string user = Attachments.VisibleText(turn);
+			string reply = turn.Answer;
+			bool spoken = turn.Spoken;
+			AquilaLocal.Companion.CompletedTurn done = await Task.Run(() => runtime.Complete(prepared, chatId, turnId, user, reply, DateTimeOffset.Now, spoken));
+			AquilaLocal.Companion.LoopResult loop = done.Loop;
+			turn.DriveReport = loop.Drive + (loop.Satisfied ? " satisfied" : " not satisfied") + " (" + loop.Reason + ")"
+				+ string.Concat(loop.Changes.Select((AquilaLocal.Companion.DriveChange c) => $" · {c.Drive} {c.Old:0.0}→{c.New:0.0}"))
+				+ (loop.Milestones.Count > 0 ? " · milestone: " + string.Join(", ", loop.Milestones.Select((AquilaLocal.Companion.Milestone m) => m.Kind)) : "");
+			turn.Activity.Add(session.PersonaName + ": " + turn.DriveReport);
+			if (done.SummaryDue)
+			{
+				pendingCompanion = SummarizeCompanionAsync(session, turn, runtime);
+			}
+		}
+		catch (Exception ex)
+		{
+			turn.Activity.Add(session.PersonaName + "'s drives were NOT updated: " + ex.Message);
+			Notice(session.PersonaName + "'s reply is saved, but her drives and memory were NOT updated: " + ex.Message);
+			UiSounds.Play(UiSound.Notice);
+			companion.Forget(session.PersonaId);
+		}
+	}
+
+	private async Task SummarizeCompanionAsync(ChatSession session, Turn turn, AquilaLocal.Companion.CompanionRuntime runtime)
+	{
+		try
+		{
+			AquilaLocal.Companion.SummaryResult result = await CompanionHost.SummarizerFor(runtime, engine, Math.Min(settings.Context, engine.SlotContext ?? settings.Context)).RunAsync(DateTimeOffset.Now, monitorCancellation.Token);
+			if (result != null)
+			{
+				turn.Activity.Add($"{session.PersonaName}: folded {result.FoldedExchanges} older exchange(s) into her long-term memory (about {result.Tokens:N0} tokens).");
+				turn.CompanionMemoryIds = result.NewEntryIds.ToList();
+				RefreshNotices(session, turn);
+			}
+		}
+		catch (OperationCanceledException)
+		{
+		}
+		catch (Exception ex)
+		{
+			turn.Activity.Add($"{session.PersonaName}'s memory summary failed and will be retried next turn: {ex.Message}");
+			// Fail loud: without this, her long-term memory quietly stops growing.
+			Notice($"{session.PersonaName}'s long-term memory couldn't be updated (it will retry next message): {ex.Message}");
+		}
+		try
+		{
+			store.SaveChat(session);
+		}
+		catch (Exception ex2) when (ex2 is IOException || ex2 is UnauthorizedAccessException)
+		{
+		}
+	}
+
+	/// <summary>Saves how thoughts and actions look (shown or hidden, colours, first or third person) and redraws the chat.</summary>
+	private void SaveMarkupLook()
+	{
+		settings.ShowPersonaThoughts = MessageView.ShowPersonaThoughts;
+		settings.ThoughtColor = MarkupColors.Hex(MarkupColors.ThoughtColor);
+		settings.ActionColor = MarkupColors.Hex(MarkupColors.ActionColor);
+		settings.ThoughtPerson = AquilaLocal.Companion.ThoughtMarkup.Person == AquilaLocal.Companion.MarkupPerson.Third ? "third" : "first";
+		MarkupBar.ShowThoughts = MessageView.ShowPersonaThoughts;
+		try
+		{
+			store.SaveSettings(settings);
+		}
+		catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+		{
+			Notice("Couldn't save how thoughts and actions look: " + ex.Message);
+		}
+		if (!busy)
+		{
+			RenderChat();
+		}
+	}
+
+	private void Scenes_Click(object sender, RoutedEventArgs e)
+	{
+		if (busy)
+		{
+			return;
+		}
+		SceneDirector director = new SceneDirector(engine, companion);
+		Func<string, string, CancellationToken, Task>? speakLine = null;
+		if (settings.Voice.Enabled)
+		{
+			speakLine = async delegate(string personaId, string text, CancellationToken ct)
+			{
+				Turn line = new Turn { Answer = text, Status = "complete" };
+				await speech.SpeakAsync(line, VoiceForPersona(personaId), ct);
+			};
+		}
+		SceneWindow window = new SceneWindow(companion, director, () => settings, speakLine, SaveMarkupLook, (string text, CancellationToken ct) => PlayCuedSoundsAsync(persona: true, text, ct));
+		window.Owner = this;
+		window.CastChanged += ShowRoom;
+		try
+		{
+			window.ShowDialog();
+		}
+		finally
+		{
+			ShowRoom(Array.Empty<(string Id, string Name)>());
+		}
+	}
+
+	private void Companion_Click(object sender, RoutedEventArgs e)
+	{
+		if (busy)
+		{
+			return;
+		}
+		OpenCompanions(null, null);
+	}
+
+	private void OpenCompanions(string? personaId, IEnumerable<long>? highlight, IEnumerable<long>? highlightWardrobe = null)
+	{
+		bool started = false;
+		CompanionWindow window = new CompanionWindow(companion, delegate(string id, string name)
+		{
+			started = true;
+			NewChat(id, name);
+		}, personaId, highlight, highlightWardrobe, speech.VoiceChoices);
+		window.PrimeKit = PrimeKitNow;
+		window.Owner = this;
+		window.ShowDialog();
+		if (!started && current != null && current.IsCompanion && !busy)
+		{
+			// Her profile picture may have changed.
+			RenderChat();
+		}
+	}
+
+	/// <summary>Shows her profile picture beside the chat title in a companion chat, and returns it for her messages.</summary>
+	private ImageSource? RefreshChatAvatar(ChatSession session)
+	{
+		ImageSource? avatar = (session.IsCompanion && session.PersonaId.Length > 0) ? companion.ProfilePicture(session.PersonaId) : null;
+		ChatAvatar.Fill = (avatar != null) ? new ImageBrush(avatar) { Stretch = Stretch.UniformToFill } : null;
+		ChatAvatar.Visibility = (avatar != null) ? Visibility.Visible : Visibility.Collapsed;
+		if (session == current)
+		{
+			RefreshAvatarIdentity();
+		}
+		return avatar;
+	}
+
+	/// <summary>Puts a clickable "New memory created" notice under a reply once memories came out of it.</summary>
+	private void RefreshNotices(ChatSession session, Turn turn)
+	{
+		if (session != current || !replyViews.TryGetValue(turn.Id, out MessageView? view))
+		{
+			return;
+		}
+		List<(string Text, Action Open)> items = new List<(string Text, Action Open)>();
+		if (session.IsCompanion)
+		{
+			List<long> ids = turn.CompanionMemoryIds.ToList();
+			if (ids.Count > 0)
+			{
+				string personaId = session.PersonaId;
+				items.Add((ids.Count == 1 ? "New memory created" : $"{ids.Count} new memories created", delegate
+				{
+					if (busy)
+					{
+						Notice("Wait for the reply to finish, then open the memory.");
+						return;
+					}
+					OpenCompanions(personaId, ids);
+				}));
+			}
+			if (turn.MovedTo.Length > 0)
+			{
+				items.Add(("Moved to: " + turn.MovedTo.Truncate(60), delegate
+				{
+					Location_Click(this, new RoutedEventArgs());
+				}));
+			}
+			List<long> outfits = turn.CompanionWardrobeIds.ToList();
+			if (outfits.Count > 0)
+			{
+				string personaId = session.PersonaId;
+				items.Add(("Changed outfit", delegate
+				{
+					if (busy)
+					{
+						Notice("Wait for the reply to finish, then open her wardrobe diary.");
+						return;
+					}
+					OpenCompanions(personaId, null, outfits);
+				}));
+			}
+		}
+		else
+		{
+			List<string> ids = turn.LearnedMemoryIds.ToList();
+			if (ids.Count > 0)
+			{
+				items.Add((ids.Count == 1 ? "New memory created" : $"{ids.Count} new memories created", delegate
+				{
+					OpenMemories(ids[0]);
+				}));
+			}
+		}
+		view.SetNotices(items);
+	}
+
+	/// <summary>Sends what's in the message box; with a cue, she speaks first instead (no message from you),
+	/// told only why (a new chat opening, a picture you had her draw).</summary>
+	private async Task SendAsync(string? cue = null, Attachment? cuePicture = null)
+	{
+		bool cued = cue != null;
+		if (pendingSpeechResume is { IsCompleted: false })
+		{
+			StatusText.Text = "Loading the chat model again…";
+			await pendingSpeechResume;
+		}
 		await inferenceStartup;
 		if (pendingLearning != null)
 		{
@@ -1861,7 +2538,13 @@ public partial class MainWindow : AquilaWindow
 			pendingLearning = null;
 			await learning;
 		}
-		if (busy || attaching || (string.IsNullOrWhiteSpace(Composer.Text) && pendingAttachments.Count == 0) || current == null || !ReadSettings())
+		if (pendingCompanion != null)
+		{
+			Task summarizing = pendingCompanion;
+			pendingCompanion = null;
+			await summarizing;
+		}
+		if (busy || attaching || (!cued && string.IsNullOrWhiteSpace(Composer.Text) && pendingAttachments.Count == 0) || current == null || (cued && !current.IsCompanion) || !ReadSettings())
 		{
 			return;
 		}
@@ -1875,21 +2558,56 @@ public partial class MainWindow : AquilaWindow
 			Notice("This message is too long. Please use a smaller excerpt.");
 			return;
 		}
+		if (!cued && current.IsCompanion && AquilaLocal.Companion.PersonaTuning.IsCommand(Composer.Text))
+		{
+			// /tune is handled here and never sent to the model.
+			try
+			{
+				AquilaLocal.Companion.TuningResult tuned = companion.Tune(current.PersonaId, Composer.Text);
+				Notice(tuned.Message);
+				Composer.Clear();
+			}
+			catch (Exception ex) when (ex is ArgumentException || ex is AquilaLocal.Companion.PersonaConfigException || ex is AquilaLocal.Companion.DriveStateUnavailableException || ex is IOException)
+			{
+				Notice("Tuning: " + ex.Message);
+			}
+			return;
+		}
 		if (speech.Active || !settings.Voice.KeepLoaded)
 		{
 			speech.Stop();
 		}
 		NoticeBox.Visibility = Visibility.Collapsed;
+		InterruptLiving();
+		followUpCts?.Cancel();
 		ChatSession session = current;
-		Turn turn = new Turn
+		// What she's told about her last message: your reaction to it and, with read receipts, when you read it.
+		Turn? previous = session.Turns.LastOrDefault((Turn t) => t.Status == "complete");
+		string aboutLast = (!cued && session.IsCompanion && previous != null)
+			? AquilaLocal.Companion.ReadReceipts.NextMessageNote(previous.UserReaction, previous.AnsweredAt, previous.ReadAt, DateTimeOffset.Now, settings.ReadReceipts)
+			: "";
+		Turn turn = cued ? new Turn
 		{
-			User = (string.IsNullOrWhiteSpace(Composer.Text) ? "Please review the attached files." : Composer.Text.Trim()),
-			Attachments = pendingAttachments.ToList(),
+			User = "",
+			Cue = cue!,
+			Unprompted = true,
+			Attachments = (cuePicture != null) ? new List<Attachment> { cuePicture } : new List<Attachment>(),
 			Status = "generating"
-		};
-		if (session.Turns.Count == 0)
+		} : new Turn
 		{
-			session.Title = turn.User.Replace('\n', ' ').Replace('\r', ' ').Truncate(42);
+			User = (string.IsNullOrWhiteSpace(Composer.Text) ? "Please review the attached files." : AquilaLocal.Companion.EmojiShortcodes.ReplaceAll(Composer.Text.Trim())),
+			Cue = aboutLast,
+			Attachments = pendingAttachments.ToList(),
+			Status = "generating",
+			Spoken = pendingSpoken
+		};
+		if (!cued)
+		{
+			pendingSpoken = false;
+		}
+		if (!cued && !session.Renamed && session.Turns.All((Turn t) => t.Unprompted))
+		{
+			session.Title = AquilaLocal.Companion.ThoughtMarkup.Plain(turn.User).Replace('\n', ' ').Replace('\r', ' ').Truncate(42);
 		}
 		session.Turns.Add(turn);
 		store.SaveChat(session);
@@ -1899,29 +2617,72 @@ public partial class MainWindow : AquilaWindow
 		}
 		ChatsList.Items.Refresh();
 		ChatTitle.Text = session.Title;
+		ImageSource? replyAvatar = RefreshChatAvatar(session);
 		Welcome.Visibility = Visibility.Collapsed;
-		MessageView messageView = new MessageView("You", animate: true);
-		messageView.Update(Attachments.VisibleText(turn), "", null, "", renderMarkdown: false);
-		Messages.Children.Add(messageView);
-		live = new MessageView("Aquila", animate: true);
+		if (!cued)
+		{
+			MessageView messageView = new MessageView("You", animate: true);
+			messageView.ShowPictures(turn.Attachments);
+			messageView.Update(Attachments.VisibleText(turn), "", null, "", renderMarkdown: false);
+			Messages.Children.Add(messageView);
+			userViews[turn.Id] = messageView;
+		}
+		live = new MessageView(session.Speaker, animate: true, replyAvatar);
 		ShowReply(live, turn, generating: true);
 		Messages.Children.Add(live);
+		replyViews[turn.Id] = live;
 		UiSounds.Play(UiSound.Send);
 		sendStarted = DateTime.UtcNow;
 		activeTurn = turn;
-		Composer.Clear();
-		pendingAttachments.Clear();
-		RenderAttachmentChips();
+		if (!cued)
+		{
+			Composer.Clear();
+			pendingAttachments.Clear();
+			RenderAttachmentChips();
+		}
 		followBottom = true;
 		SetBusy(value: true);
 		operation = new CancellationTokenSource();
 		Agent agent = new Agent(engine, memories, semantic, personalities);
+		agent.Companion = companion;
+		string? toldAbout = null;
+		if (session.IsCompanion && session.PersonaId.Length > 0)
+		{
+			(agent.ExtraInnerState, toldAbout) = MoodInnerState(session.PersonaId);
+		}
+		if (settings.Pictures.Enabled)
+		{
+			agent.MakePicture = (string arguments, Turn pictureTurn, CancellationToken pictureCt) => MakePictureForTurnAsync(session, pictureTurn, arguments, pictureCt);
+		}
+		if (settings.Video.Enabled)
+		{
+			agent.MakeVideo = (string arguments, Turn videoTurn, CancellationToken videoCt) => MakeVideoForTurnAsync(session, videoTurn, arguments, videoCt);
+		}
 		agent.ApproveWeb = (string action) => Task.FromResult(AquilaDialog.Confirm(this, "Allow web lookup?", action + "\n\nThis search or address will be sent over the internet.", "Allow", "Don't allow"));
+		agent.LocationChanged += delegate
+		{
+			base.Dispatcher.InvokeAsync(ShowLocation);
+		};
+		agent.Reacted += delegate(string emoji)
+		{
+			base.Dispatcher.InvokeAsync(delegate
+			{
+				if (current == session && userViews.TryGetValue(turn.Id, out MessageView? view))
+				{
+					view.SetReaction(emoji, session.Speaker);
+				}
+			});
+		};
 		agent.AnswerStarted += delegate
 		{
 			SetAvatarState("thinking", turn.Id);
 		};
-		gestures?.Reset();
+		if (gestures != null)
+		{
+			// In her chats only what she visibly does picks a gesture; elsewhere the reply's sentences do.
+			gestures.ActionsOnly = session.IsCompanion;
+			gestures.Reset();
+		}
 		agent.Token += delegate(string text, bool reasoning)
 		{
 			dirtyRender = true;
@@ -1945,25 +2706,41 @@ public partial class MainWindow : AquilaWindow
 		try
 		{
 			await agent.RunAsync(settings, session, turn, operation.Token);
+			turn.AnsweredAt = DateTimeOffset.Now;
+			MarkRead();
 			gestures?.Flush();
 			SetAvatarState("idle");
 			store.SaveChat(session);
 			RenderLive(final: true);
+			RefreshNotices(session, turn);
+			if (replyViews.TryGetValue(turn.Id, out MessageView? finishedView))
+			{
+				AddReplyActions(finishedView, session, turn);
+			}
 			if (turn.Status == "complete")
 			{
 				if (!settings.Voice.Enabled && (DateTime.UtcNow - sendStarted >= TimeSpan.FromSeconds(4.0) || !base.IsActive))
 				{
 					UiSounds.Play(UiSound.Reply);
 				}
-				SpeakCompletedReply(session, turn);
+				_ = SpeakThenPlaySoundsAsync(session, turn);
 			}
-			if (settings.LearnMemories && turn.Status == "complete" && MemoryLearner.Eligible(turn.User))
+			if (session.IsCompanion && turn.Status == "complete")
+			{
+				RecordMood(session, turn, toldAbout);
+			}
+			if (session.IsCompanion && turn.Status == "complete" && agent.CompanionRuntime != null && agent.CompanionTurn != null)
+			{
+				await CompleteCompanionTurnAsync(session, turn, agent.CompanionRuntime, agent.CompanionTurn);
+			}
+			if (!session.IsCompanion && settings.LearnMemories && turn.Status == "complete" && MemoryLearner.Eligible(turn.User))
 			{
 				// Learn in the background on the engine's second slot, so the chat stays usable and its
 				// prompt cache is untouched. The next send waits for it only if it is still running.
 				pendingLearning = LearnInBackgroundAsync(session, turn);
 			}
 			MetricsText.Text = turn.Metrics;
+			RefreshContextMeter();
 			StatusText.Text = "Ready";
 			if (turn.Status == "limit")
 			{
@@ -1991,6 +2768,10 @@ public partial class MainWindow : AquilaWindow
 			live?.SetGenerating(false);
 			RenderLive(final: true);
 			store.SaveChat(session);
+			if (session == current)
+			{
+				ShowOutfit();
+			}
 			activeTurn = null;
 			live = null;
 			operation.Dispose();
@@ -2000,6 +2781,7 @@ public partial class MainWindow : AquilaWindow
 			ChatsList.Items.Refresh();
 			Composer.Focus();
 		}
+		await SendQueuedSpokenAsync();
 	}
 
 	private void RenderLive(bool final)
@@ -2022,9 +2804,10 @@ public partial class MainWindow : AquilaWindow
 		NewButton.IsEnabled = !value;
 		ChatsList.IsEnabled = !value;
 		SetupControls.IsEnabled = !value;
-		VoiceButton.IsEnabled = !value;
 		VoiceReplayButton.IsEnabled = !value;
-		MemoriesButton.IsEnabled = !value;
+		PictureMomentButton.IsEnabled = !value && !drawingMoment;
+		ScenesButton.IsEnabled = !value;
+		SetRailBusy(value);
 		RefreshContextControls();
 		CommandManager.InvalidateRequerySuggested();
 		AttachButton.IsEnabled = !value && !attaching;
@@ -2178,6 +2961,99 @@ public partial class MainWindow : AquilaWindow
 		}
 	}
 
+	private void Import_Click(object sender, RoutedEventArgs e)
+	{
+		MoreMenu.IsOpen = false;
+		if (busy || attaching)
+		{
+			Notice("Wait for the current reply to finish, then import.");
+			return;
+		}
+		OpenFileDialog dialog = new OpenFileDialog
+		{
+			Title = "Choose chats to import",
+			Filter = "Chats (*.json;*.jsonl;*.md;*.txt)|*.json;*.jsonl;*.md;*.txt|All files (*.*)|*.*",
+			Multiselect = true
+		};
+		if (dialog.ShowDialog(this) != true)
+		{
+			return;
+		}
+		List<ImportedChat> found = new List<ImportedChat>();
+		foreach (string file in dialog.FileNames)
+		{
+			try
+			{
+				found.AddRange(ChatImporter.Read(file));
+			}
+			catch (Exception ex) when (ex is InvalidDataException || ex is IOException || ex is UnauthorizedAccessException || ex is System.Text.Json.JsonException || ex is InvalidOperationException || ex is KeyNotFoundException)
+			{
+				AquilaDialog.Alert(this, "Couldn't import " + Path.GetFileName(file), ex.Message);
+				return;
+			}
+		}
+		List<AquilaLocal.Companion.PersonaEntry> personas = new List<AquilaLocal.Companion.PersonaEntry>();
+		try
+		{
+			personas = companion.Registry.Load().Personas.Where((AquilaLocal.Companion.PersonaEntry p) => companion.IsSetUp(p.Id)).ToList();
+		}
+		catch (AquilaLocal.Companion.PersonaConfigException ex)
+		{
+			Notice("Companions couldn't be listed, so the chats will be imported as regular chats: " + ex.Message);
+		}
+		int messages = found.Sum((ImportedChat c) => c.Messages.Count);
+		string summary = (found.Count == 1)
+			? ("Found “" + found[0].Title.Truncate(80) + "” (" + found[0].Format + ", " + messages.ToString("N0") + " messages).")
+			: ("Found " + found.Count.ToString("N0") + " conversations with " + messages.ToString("N0") + " messages in all. Each becomes its own chat.");
+		ImportChatWindow ask = new ImportChatWindow(summary, personas) { Owner = this };
+		if (ask.ShowDialog() != true)
+		{
+			return;
+		}
+		AquilaLocal.Companion.PersonaEntry? persona = ask.Persona;
+		ChatSession? first = null;
+		try
+		{
+			foreach (ImportedChat chat in found.AsEnumerable().Reverse())
+			{
+				ChatSession session = new ChatSession
+				{
+					Title = (chat.Title.Length > 0 ? chat.Title : "Imported chat").Truncate(80),
+					Renamed = true,
+					PersonaId = persona?.Id ?? "",
+					PersonaName = persona?.Name ?? ""
+				};
+				foreach ((string user, string answer, DateTimeOffset? at) in ChatImporter.Pair(chat.Messages))
+				{
+					session.Turns.Add(new Turn
+					{
+						User = user,
+						Answer = answer,
+						Unprompted = user.Length == 0,
+						Status = (answer.Length > 0) ? "complete" : "interrupted",
+						Created = at ?? DateTimeOffset.Now
+					});
+				}
+				if (session.Turns.Count == 0)
+				{
+					continue;
+				}
+				store.SaveChat(session);
+				chats.Insert(0, session);
+				first = session;
+			}
+		}
+		catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+		{
+			Notice("Importing stopped: " + ex.Message);
+		}
+		if (first != null)
+		{
+			ChatsList.SelectedItem = first;
+			UiSounds.Play(UiSound.Ready);
+		}
+	}
+
 	private void Export_Click(object sender, RoutedEventArgs e)
 	{
 		if (current == null || current.Turns.Count == 0)
@@ -2246,7 +3122,20 @@ public partial class MainWindow : AquilaWindow
 
 	private void Memories_Click(object sender, RoutedEventArgs e)
 	{
-		if (busy || !ReadSettings())
+		OpenMemories(null);
+	}
+
+	private void OpenMemories(string? selectId)
+	{
+		if (busy)
+		{
+			if (selectId != null)
+			{
+				Notice("Wait for the reply to finish, then open the memory.");
+			}
+			return;
+		}
+		if (!ReadSettings())
 		{
 			return;
 		}
@@ -2269,11 +3158,36 @@ public partial class MainWindow : AquilaWindow
 			}
 		});
 		memoryWindow.Owner = this;
+		if (selectId != null)
+		{
+			memoryWindow.Loaded += delegate
+			{
+				memoryWindow.Select(selectId);
+			};
+		}
 		memoryWindow.ShowDialog();
+	}
+
+	/// <summary>The whole notice (the box shows at most 1,800 characters); the copy button copies all of it.</summary>
+	private string noticeFull = "";
+
+	private void CopyNotice_Click(object sender, RoutedEventArgs e)
+	{
+		try
+		{
+			Clipboard.SetText(noticeFull.Length > 0 ? noticeFull : NoticeText.Text);
+			CopyNoticeButton.ToolTip = "Copied";
+		}
+		catch (System.Runtime.InteropServices.COMException)
+		{
+			CopyNoticeButton.ToolTip = "Couldn't copy; try again";
+		}
 	}
 
 	private void Notice(string text)
 	{
+		noticeFull = text;
+		CopyNoticeButton.ToolTip = "Copy this message";
 		NoticeText.Text = text.Truncate(1800);
 		NoticeBox.Visibility = Visibility.Visible;
 	}
@@ -2313,10 +3227,13 @@ public partial class MainWindow : AquilaWindow
 			e.Cancel = true;
 			ReadSettings();
 			featuresClosing = true;
+			StopLiving();
 			monitorCancellation.Cancel();
 			renderTimer.Stop();
 			engine.Dispose();
 			semantic.Dispose();
+			companion.Dispose();
+			DisposeListening();
 			await speech.DisposeAsync();
 			await avatar.DisposeAsync();
 			if (avatarPopout != null)

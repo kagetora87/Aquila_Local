@@ -43,6 +43,19 @@ public sealed class GestureMatcher : IDisposable
 
 	public event Action<string>? Fired;
 
+	/// <summary>
+	/// Persona chats: only what she visibly does (&lt;action&gt;…&lt;/action&gt;) picks a gesture, never her speech or
+	/// private thoughts. Talking about fishing isn't going fishing.
+	/// </summary>
+	public bool ActionsOnly { get; set; }
+
+	/// <summary>At most this many gestures per reply, so several don't flash past one after another.</summary>
+	public int MaxPerReply { get; set; } = 1;
+
+	private int firedThisReply;
+
+	private bool insideAction;
+
 	public GestureMatcher(string modelDirectory)
 	{
 		this.modelDirectory = modelDirectory;
@@ -53,6 +66,9 @@ public sealed class GestureMatcher : IDisposable
 
 	/// <summary>Score for a sentence that literally uses the gesture's name ("eating").</summary>
 	private const double NameWordScore = 0.75;
+
+	/// <summary>Score for one word in common with a longer name or description: only plays when "very expressive".</summary>
+	private const double PartialWordScore = 0.4;
 
 	/// <summary>Score for a sentence that uses a word from "when should it play" ("breakfast").</summary>
 	private const double DescriptionWordScore = 0.6;
@@ -101,12 +117,19 @@ public sealed class GestureMatcher : IDisposable
 		lock (gate)
 		{
 			pending.Clear();
+			firedThisReply = 0;
+			insideAction = false;
 		}
 	}
 
 	/// <summary>Feed streamed reply text; finished sentences are checked in the background.</summary>
 	public void Feed(string text)
 	{
+		if (ActionsOnly)
+		{
+			FeedActions(text);
+			return;
+		}
 		List<string> list = new List<string>();
 		lock (gate)
 		{
@@ -137,9 +160,65 @@ public sealed class GestureMatcher : IDisposable
 		}
 	}
 
+	/// <summary>Collects the text of each finished &lt;action&gt;…&lt;/action&gt; and checks it as one piece.</summary>
+	private void FeedActions(string text)
+	{
+		List<string> found = new List<string>();
+		lock (gate)
+		{
+			pending.Append(text);
+			while (true)
+			{
+				string all = pending.ToString();
+				if (!insideAction)
+				{
+					int open = all.IndexOf("<action>", StringComparison.OrdinalIgnoreCase);
+					if (open < 0)
+					{
+						// Keep a possible half-written tag at the end, drop the rest.
+						int lt = all.LastIndexOf('<');
+						pending.Remove(0, (lt >= 0 && all.Length - lt < 8) ? lt : all.Length);
+						break;
+					}
+					pending.Remove(0, open + "<action>".Length);
+					insideAction = true;
+					continue;
+				}
+				int close = all.IndexOf("</action>", StringComparison.OrdinalIgnoreCase);
+				if (close < 0)
+				{
+					break;
+				}
+				string action = all.Substring(0, close).Trim();
+				if (action.Length >= 3)
+				{
+					found.Add(action);
+				}
+				pending.Remove(0, close + "</action>".Length);
+				insideAction = false;
+			}
+		}
+		foreach (string action in found)
+		{
+			Task.Run(delegate
+			{
+				Check(action);
+			});
+		}
+	}
+
 	/// <summary>Call when the reply ends so a final sentence without trailing space is checked too.</summary>
 	public void Flush()
 	{
+		if (ActionsOnly)
+		{
+			lock (gate)
+			{
+				pending.Clear();
+				insideAction = false;
+			}
+			return;
+		}
 		string text;
 		lock (gate)
 		{
@@ -166,6 +245,11 @@ public sealed class GestureMatcher : IDisposable
 				{
 					return;
 				}
+				if (firedThisReply >= MaxPerReply)
+				{
+					return;
+				}
+				firedThisReply++;
 				lastFired[match.Name] = DateTime.UtcNow;
 			}
 			this.Fired?.Invoke(match.Name);
@@ -197,13 +281,25 @@ public sealed class GestureMatcher : IDisposable
 					num = Math.Max(num, EmbeddingModel.Similarity(array, vector));
 				}
 			}
-			if (item.NameStems.Any(words.Contains))
+			// Literal words only count when they say the same thing: "reading a book at a library" isn't
+			// meant by any sentence that happens to contain "book", and one shared word like "playing" means little.
+			int nameHits = item.NameStems.Count(words.Contains);
+			if (nameHits > 0 && (nameHits == item.NameStems.Length || nameHits >= 2))
 			{
 				num = Math.Max(num, NameWordScore);
 			}
-			else if (item.DescriptionStems.Any(words.Contains))
+			else if (nameHits > 0)
+			{
+				num = Math.Max(num, PartialWordScore);
+			}
+			int descriptionHits = item.DescriptionStems.Count(words.Contains);
+			if (descriptionHits >= 2 || (descriptionHits == 1 && item.DescriptionStems.Length == 1))
 			{
 				num = Math.Max(num, DescriptionWordScore);
+			}
+			else if (descriptionHits == 1)
+			{
+				num = Math.Max(num, PartialWordScore);
 			}
 			if (match == null || num > match.Score)
 			{
@@ -266,7 +362,8 @@ public sealed class GestureMatcher : IDisposable
 		"like", "about", "them", "they", "then", "there", "here", "really", "very", "much",
 		"want", "would", "could", "should", "time", "thing", "things", "one", "all", "out",
 		"get", "got", "make", "made", "know", "think", "good", "great", "well", "now", "how",
-		"who", "why", "where", "which", "its", "it's", "our", "ours", "his", "her", "him", "she"
+		"who", "why", "where", "which", "its", "it's", "our", "ours", "his", "her", "him", "she",
+		"going", "doing", "look", "looking", "take", "taking", "into", "onto", "over", "around", "little", "bit"
 	};
 
 	public void Dispose()

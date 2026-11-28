@@ -23,11 +23,15 @@
     <Resource Include="Sounds\*.wav" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\companion\Aquila.Companion\Aquila.Companion.csproj" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Emoji.Wpf" Version="0.3.4" />
     <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.31.1" />
     <PackageReference Include="NAudio.Core" Version="2.2.1" />
     <PackageReference Include="NAudio.WinMM" Version="2.2.1" />
     <PackageReference Include="PdfPig" Version="0.1.16" />
+    <PackageReference Include="PDFsharp-MigraDoc" Version="6.1.1" />
     <PackageReference Include="System.Speech" Version="8.0.0" />
   </ItemGroup>
 </Project>

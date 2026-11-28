@@ -64,27 +64,28 @@ public static class Attachments
 		}
 		if (flag)
 		{
-			if (array.Length > 4194304)
+			if (array.Length > 50331648)
 			{
-				throw new ArgumentException("Images must be no larger than 4 MB.");
+				throw new ArgumentException("Pictures must be no larger than 48 MB.");
 			}
 			using MemoryStream bitmapStream = new MemoryStream(array);
-			BitmapFrame bitmapFrame = BitmapDecoder.Create(bitmapStream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.Default).Frames[0];
-			if (bitmapFrame.PixelWidth > 4096 || bitmapFrame.PixelHeight > 4096)
+			BitmapFrame bitmapFrame = BitmapDecoder.Create(bitmapStream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad).Frames[0];
+			BitmapSource picture = PrepareForVision(bitmapFrame);
+			byte[] encoded = Encode(picture, png: true);
+			string mime = "image/png";
+			if (encoded.Length > 3145728)
 			{
-				throw new ArgumentException("Images must be at most 4096 pixels on each side.");
+				// Photos compress far better as JPEG; text-heavy screenshots usually stay PNG.
+				encoded = Encode(picture, png: false);
+				mime = "image/jpeg";
 			}
-			PngBitmapEncoder pngBitmapEncoder = new PngBitmapEncoder();
-			pngBitmapEncoder.Frames.Add(BitmapFrame.Create(bitmapFrame));
-			using MemoryStream memoryStream = new MemoryStream();
-			pngBitmapEncoder.Save(memoryStream);
-			if (memoryStream.Length > 8388608)
+			if (encoded.Length > 8388608)
 			{
 				throw new ArgumentException("Decoded image is too large. Save a smaller image and attach it again.");
 			}
 			attachment.Kind = "image";
-			attachment.MimeType = "image/png";
-			attachment.Base64 = Convert.ToBase64String(memoryStream.ToArray());
+			attachment.MimeType = mime;
+			attachment.Base64 = Convert.ToBase64String(encoded);
 			return attachment;
 		}
 		if (text == ".pdf")
@@ -178,10 +179,56 @@ public static class Attachments
 		return attachment;
 	}
 
-	public static JsonObject UserMessage(Turn turn)
+	/// <summary>Longest side pictures are resized to: small ones are enlarged (the vision model misreads small
+	/// text), big phone photos are shrunk (the engine reads at most about 1,000 picture tokens anyway).</summary>
+	public const int VisionMinSide = 1024;
+
+	public const int VisionMaxSide = 1600;
+
+	/// <summary>Turns phone photos upright (EXIF orientation) and scales the picture to the size the vision model reads best.</summary>
+	public static BitmapSource PrepareForVision(BitmapFrame frame)
+	{
+		BitmapSource source = frame;
+		try
+		{
+			if (frame.Metadata is BitmapMetadata metadata && metadata.ContainsQuery("System.Photo.Orientation") && metadata.GetQuery("System.Photo.Orientation") is ushort orientation)
+			{
+				double angle = orientation switch { 3 => 180.0, 6 => 90.0, 8 => 270.0, _ => 0.0 };
+				if (angle != 0.0)
+				{
+					source = new TransformedBitmap(source, new System.Windows.Media.RotateTransform(angle));
+				}
+			}
+		}
+		catch (Exception ex) when (ex is NotSupportedException || ex is InvalidOperationException || ex is ArgumentException)
+		{
+		}
+		int longest = Math.Max(source.PixelWidth, source.PixelHeight);
+		int target = Math.Clamp(longest, VisionMinSide, VisionMaxSide);
+		if (longest > 0 && target != longest)
+		{
+			double scale = (double)target / longest;
+			source = new TransformedBitmap(source, new System.Windows.Media.ScaleTransform(scale, scale));
+		}
+		source.Freeze();
+		return source;
+	}
+
+	private static byte[] Encode(BitmapSource picture, bool png)
+	{
+		BitmapEncoder encoder = png ? new PngBitmapEncoder() : new JpegBitmapEncoder { QualityLevel = 90 };
+		encoder.Frames.Add(BitmapFrame.Create(picture));
+		using MemoryStream stream = new MemoryStream();
+		encoder.Save(stream);
+		return stream.ToArray();
+	}
+
+	/// <param name="withContext">False for earlier messages in a persona chat: the memories recalled back then
+	/// would otherwise pile up in the history and pull her back into old scenes.</param>
+	public static JsonObject UserMessage(Turn turn, bool withContext = true)
 	{
 		StringBuilder stringBuilder = new StringBuilder();
-		if (!string.IsNullOrEmpty(turn.Context))
+		if (withContext && !string.IsNullOrEmpty(turn.Context))
 		{
 			stringBuilder.Append(turn.Context).Append("\n\n");
 		}
@@ -219,7 +266,7 @@ public static class Attachments
 			jsonArray.Add(new JsonObject
 			{
 				["type"] = "text",
-				["text"] = "Attached image: " + item2.Name
+				["text"] = item2.FromProfile ? item2.Name : ("Attached image: " + item2.Name)
 			});
 			jsonArray.Add(new JsonObject
 			{
@@ -236,6 +283,7 @@ public static class Attachments
 
 	public static string VisibleText(Turn turn)
 	{
-		return turn.User + ((turn.Attachments.Count == 0) ? "" : ("\n\nAttached: " + string.Join(" · ", turn.Attachments.Select((Attachment a) => a.Name))));
+		List<Attachment> shown = turn.Attachments.Where((Attachment a) => !a.FromProfile).ToList();
+		return turn.User + ((shown.Count == 0) ? "" : ("\n\nAttached: " + string.Join(" · ", shown.Select((Attachment a) => a.Name))));
 	}
 }

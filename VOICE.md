@@ -28,6 +28,22 @@ Auto prefers CPU for Kitten when approximately 6 GiB RAM is free, and can choose
 
 By default, speech unloads after playback. Keep-loaded reserves its memory to reduce later loading delays. Stop voice, changing voice settings, changing conversations and exiting unload it. If an active utterance is interrupted by a new message, its worker is also unloaded. The app never silently switches the chosen voice to a Windows voice after an expressive-voice failure. Text replies remain available when audio fails. Replay is an explicit action and works even when automatic speaking is disabled.
 
+## Saving a reply as audio
+
+The speaker button next to Copy on a finished reply renders it to one 16-bit .wav file (same voice,
+moods and pacing as playback, with a short pause between parts) without playing it. Anything she is
+saying is stopped first.
+
+## Microphone input
+
+Listening needs whisper.cpp's `whisper-server.exe` and one `ggml-*.bin` model in a `whisper` folder next
+to Aquila (the largest model there is used). Aquila starts the server on 127.0.0.1 on a random port, inside
+a job object so it closes with Aquila, and records 16 kHz mono from the chosen microphone. Speech is found
+with an adaptive-noise-floor detector (20 ms frames, 300 ms pre-roll), partial transcripts refresh about
+every 0.9 s, and a pause of the chosen length ends and sends the utterance. While she speaks the microphone
+is ignored, unless "talking interrupts her" is on, in which case only clearly louder speech counts and stops
+her (use headphones).
+
 ## Architecture and privacy
 
 `Agent` adds delivery instructions to the existing request only for automatic mood. `VoiceCueDecoder` hides reserved cues while streaming. `MainWindow.Voice` starts speech only after a complete reply. `SpeechService` owns cancellation, a bounded audio queue, temporary WAVs, playback and level frames. `SpeechProcess` owns an isolated Python worker through private JSON-lines pipes and a kill-on-close Windows Job. `SpeechWorker.py` loads only pinned bundled files using local-files-only/offline flags; socket connections are disabled inside that process. It has no HTTP listener or runtime downloader. Python, PyTorch and model weights are shipped inside `speech/`; users need no separately installed Python, LM Studio or voice application.

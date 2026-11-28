@@ -27,6 +27,23 @@ public sealed class MessageView : Border
 
 	private readonly StackPanel bodyHost = new StackPanel();
 
+	/// <summary>Attached pictures in the user's bubble, or pictures drawn for a reply under it.</summary>
+	private readonly WrapPanel pictures = new WrapPanel { Visibility = Visibility.Collapsed, Margin = new Thickness(0.0, 0.0, 0.0, 6.0) };
+
+	/// <summary>Small clickable notices under a reply's header, such as "New memory created".</summary>
+	private readonly WrapPanel notices = new WrapPanel { Visibility = Visibility.Collapsed, Margin = new Thickness(0.0, 0.0, 0.0, 8.0) };
+
+	/// <summary>The persona's emoji reaction to this (user) message, overlapping the bubble's lower edge.</summary>
+	private readonly Border reaction = new Border
+	{
+		Visibility = Visibility.Collapsed,
+		HorizontalAlignment = HorizontalAlignment.Right,
+		Margin = new Thickness(0.0, -10.0, 14.0, 0.0),
+		Padding = new Thickness(7.0, 1.0, 7.0, 2.0),
+		CornerRadius = new CornerRadius(11.0),
+		BorderThickness = new Thickness(1.0)
+	};
+
 	private readonly System.Windows.Controls.TextBox? thoughts;
 
 	private readonly Expander? thoughtsExpander;
@@ -52,10 +69,13 @@ public sealed class MessageView : Border
 	/// <summary>Show "Details" (tool activity) on every reply, not just when something happened.</summary>
 	public bool ShowTechnicalDetails { get; set; }
 
+	/// <summary>Whether the personas' thoughts (blue) are shown. Your own thoughts are always shown.</summary>
+	public static bool ShowPersonaThoughts { get; set; } = true;
+
 	/// <summary>The prose pieces of the message, in order (for tests and copy handling).</summary>
 	public IEnumerable<Emoji.Wpf.RichTextBox> ProseBoxes => bodyHost.Children.OfType<Emoji.Wpf.RichTextBox>();
 
-	public MessageView(string role, bool animate = false)
+	public MessageView(string role, bool animate = false, ImageSource? avatar = null)
 	{
 		user = role == "You";
 		base.Background = Brushes.Transparent;
@@ -88,7 +108,7 @@ public sealed class MessageView : Border
 				Background = Ui.Brush("Surface.2"),
 				CornerRadius = new CornerRadius(16.0, 16.0, 4.0, 16.0),
 				Padding = new Thickness(14.0, 10.0, 14.0, 10.0),
-				Child = bodyHost
+				Child = new StackPanel { Children = { pictures, bodyHost } }
 			};
 			// The copy button sits beside the bubble on hover, so it reserves no space below it.
 			actions.HorizontalAlignment = HorizontalAlignment.Right;
@@ -103,7 +123,9 @@ public sealed class MessageView : Border
 			DockPanel.SetDock(actions, Dock.Left);
 			dock.Children.Add(actions);
 			dock.Children.Add(border);
-			base.Child = dock;
+			reaction.Background = Ui.Brush("Surface.3");
+			reaction.BorderBrush = Ui.Brush("Surface.1");
+			base.Child = new StackPanel { Children = { dock, reaction } };
 		}
 		else
 		{
@@ -111,10 +133,16 @@ public sealed class MessageView : Border
 			StackPanel stackPanel3 = new StackPanel
 			{
 				Orientation = Orientation.Horizontal,
-				Height = 28.0,
+				Height = 56.0,
 				Margin = new Thickness(0.0, 0.0, 0.0, 6.0)
 			};
-			Border element = new Border
+			UIElement element = (avatar != null) ? new Ellipse
+			{
+				Width = 56.0,
+				Height = 56.0,
+				VerticalAlignment = VerticalAlignment.Center,
+				Fill = new ImageBrush(avatar) { Stretch = Stretch.UniformToFill }
+			} : new Border
 			{
 				Width = 24.0,
 				Height = 24.0,
@@ -123,7 +151,7 @@ public sealed class MessageView : Border
 				VerticalAlignment = VerticalAlignment.Center,
 				Child = new TextBlock
 				{
-					Text = "A",
+					Text = (role.Length > 0) ? role.Substring(0, 1).ToUpperInvariant() : "A",
 					FontSize = 13.0,
 					FontWeight = FontWeights.SemiBold,
 					Foreground = Ui.Brush("Accent"),
@@ -134,7 +162,7 @@ public sealed class MessageView : Border
 			stackPanel3.Children.Add(element);
 			stackPanel3.Children.Add(new TextBlock
 			{
-				Text = "Aquila",
+				Text = role,
 				FontSize = 13.0,
 				FontWeight = FontWeights.SemiBold,
 				Foreground = Ui.Brush("Text.Primary"),
@@ -165,6 +193,7 @@ public sealed class MessageView : Border
 				Margin = new Thickness(0.0, 0.0, 0.0, 8.0)
 			};
 			stackPanel2.Children.Add(thoughtsExpander);
+			stackPanel2.Children.Add(notices);
 			waiting = new StackPanel
 			{
 				Orientation = Orientation.Horizontal,
@@ -185,6 +214,15 @@ public sealed class MessageView : Border
 			}
 			stackPanel2.Children.Add(waiting);
 			stackPanel2.Children.Add(bodyHost);
+			// Pictures and clips she made for this reply, under her words.
+			pictures.Margin = new Thickness(0.0, 8.0, 0.0, 2.0);
+			stackPanel2.Children.Add(pictures);
+			// Your reaction to her reply, under her words.
+			reaction.HorizontalAlignment = HorizontalAlignment.Left;
+			reaction.Margin = new Thickness(0.0, 4.0, 0.0, 2.0);
+			reaction.Background = Ui.Brush("Surface.3");
+			reaction.BorderBrush = Ui.Brush("Surface.1");
+			stackPanel2.Children.Add(reaction);
 			actions.Opacity = 0.7;
 			stackPanel2.Children.Add(actions);
 			activity = PlainBox(12.0, "Text.Secondary");
@@ -223,6 +261,206 @@ public sealed class MessageView : Border
 				Motion.RiseIn(this);
 			};
 		}
+	}
+
+	/// <summary>Adds an extra button next to Copy (once per name), such as "Save as audio".</summary>
+	public void AddAction(string glyph, string tooltip, Action click)
+	{
+		if (actions.Children.OfType<Button>().Any((Button b) => b.Tag as string == tooltip))
+		{
+			return;
+		}
+		Button button = Ui.IconButton(glyph, tooltip, delegate
+		{
+			click();
+		});
+		button.Tag = tooltip;
+		button.Width = 28.0;
+		button.Height = 28.0;
+		button.FontSize = 14.0;
+		actions.Children.Add(button);
+	}
+
+	/// <summary>Shows (or, with an empty string, hides) the persona's emoji reaction to this message.</summary>
+	public void SetReaction(string emoji, string who)
+	{
+		if (string.IsNullOrEmpty(emoji))
+		{
+			reaction.Visibility = Visibility.Collapsed;
+			return;
+		}
+		reaction.Child = new Emoji.Wpf.TextBlock { Text = emoji, FontSize = 15.0 };
+		reaction.ToolTip = who + " reacted " + emoji;
+		reaction.Visibility = Visibility.Visible;
+	}
+
+	/// <summary>Shows the attached pictures as thumbnails; clicking one opens it larger.</summary>
+	private string shownPictureFiles = "";
+
+	/// <summary>Pictures drawn for a reply (files). Click one to open it full size in Windows' picture viewer.</summary>
+	public void ShowPictureFiles(IReadOnlyList<string> files)
+	{
+		string key = string.Join("|", files);
+		if (key == shownPictureFiles)
+		{
+			return;
+		}
+		shownPictureFiles = key;
+		pictures.Children.Clear();
+		foreach (string file in files)
+		{
+			// A video is shown as its first still (saved beside it as .png) with a play mark; clicking plays it.
+			bool video = IsVideo(file);
+			string still = video ? System.IO.Path.ChangeExtension(file, ".png") : file;
+			System.Windows.Media.Imaging.BitmapImage image;
+			try
+			{
+				image = new System.Windows.Media.Imaging.BitmapImage();
+				image.BeginInit();
+				image.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+				image.DecodePixelWidth = 640;
+				image.UriSource = new Uri(still, UriKind.Absolute);
+				image.EndInit();
+				image.Freeze();
+			}
+			catch (Exception ex) when (ex is System.IO.IOException || ex is NotSupportedException || ex is UriFormatException || ex is UnauthorizedAccessException || ex is ArgumentException)
+			{
+				pictures.Children.Add(new TextBlock { Text = "Picture missing: " + System.IO.Path.GetFileName(file), Foreground = Ui.Brush("Text.Tertiary"), Margin = new Thickness(0, 0, 6, 6) });
+				continue;
+			}
+			System.Windows.Controls.Image thumb = new System.Windows.Controls.Image { Source = image, Stretch = Stretch.Uniform, MaxWidth = 420.0, MaxHeight = 520.0, Cursor = Cursors.Hand, ToolTip = (video ? "Play the video · " : "Open full size · ") + System.IO.Path.GetFileName(file) };
+			RenderOptions.SetBitmapScalingMode(thumb, BitmapScalingMode.HighQuality);
+			string path = file;
+			thumb.MouseLeftButtonUp += delegate
+			{
+				try
+				{
+					System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = path, UseShellExecute = true });
+				}
+				catch (Exception ex) when (ex is System.ComponentModel.Win32Exception || ex is InvalidOperationException || ex is System.IO.IOException)
+				{
+				}
+			};
+			UIElement content = thumb;
+			if (video)
+			{
+				Grid g = new Grid();
+				g.Children.Add(thumb);
+				Border play = new Border
+				{
+					Width = 56.0,
+					Height = 56.0,
+					CornerRadius = new CornerRadius(28.0),
+					Background = new SolidColorBrush(Color.FromArgb(170, 0, 0, 0)),
+					HorizontalAlignment = HorizontalAlignment.Center,
+					VerticalAlignment = VerticalAlignment.Center,
+					IsHitTestVisible = false,
+					Child = new TextBlock { Text = "\u25B6", FontSize = 24.0, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4.0, 0.0, 0.0, 0.0) }
+				};
+				g.Children.Add(play);
+				content = g;
+			}
+			pictures.Children.Add(new Border
+			{
+				CornerRadius = new CornerRadius(10.0),
+				ClipToBounds = true,
+				Margin = new Thickness(0.0, 0.0, 6.0, 6.0),
+				Child = content
+			});
+		}
+		pictures.Visibility = (pictures.Children.Count > 0) ? Visibility.Visible : Visibility.Collapsed;
+	}
+
+	public static bool IsVideo(string file)
+	{
+		string ext = System.IO.Path.GetExtension(file).ToLowerInvariant();
+		return ext == ".webm" || ext == ".avi" || ext == ".mp4";
+	}
+
+	public void ShowPictures(IEnumerable<Attachment> attachments)
+	{
+		pictures.Children.Clear();
+		foreach (Attachment a in attachments.Where((Attachment x) => x.Kind == "image" && x.Base64.Length > 0 && !x.FromProfile))
+		{
+			System.Windows.Media.Imaging.BitmapImage image;
+			try
+			{
+				image = Decode(a.Base64, 560);
+			}
+			catch (Exception ex) when (ex is FormatException || ex is NotSupportedException || ex is System.IO.IOException)
+			{
+				continue;
+			}
+			System.Windows.Controls.Image thumb = new System.Windows.Controls.Image { Source = image, Stretch = Stretch.Uniform, MaxWidth = 320.0, MaxHeight = 260.0, Cursor = Cursors.Hand, ToolTip = a.Name };
+			RenderOptions.SetBitmapScalingMode(thumb, BitmapScalingMode.HighQuality);
+			string base64 = a.Base64;
+			string name = a.Name;
+			thumb.MouseLeftButtonUp += delegate
+			{
+				ShowLarge(name, base64);
+			};
+			pictures.Children.Add(new Border
+			{
+				CornerRadius = new CornerRadius(10.0),
+				ClipToBounds = true,
+				Margin = new Thickness(0.0, 0.0, 6.0, 6.0),
+				Child = thumb
+			});
+		}
+		pictures.Visibility = (pictures.Children.Count > 0) ? Visibility.Visible : Visibility.Collapsed;
+	}
+
+	private static System.Windows.Media.Imaging.BitmapImage Decode(string base64, int width)
+	{
+		System.Windows.Media.Imaging.BitmapImage image = new System.Windows.Media.Imaging.BitmapImage();
+		image.BeginInit();
+		image.StreamSource = new System.IO.MemoryStream(Convert.FromBase64String(base64));
+		image.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+		if (width > 0)
+		{
+			image.DecodePixelWidth = width;
+		}
+		image.EndInit();
+		image.Freeze();
+		return image;
+	}
+
+	private void ShowLarge(string name, string base64)
+	{
+		try
+		{
+			AquilaWindow viewer = new AquilaWindow
+			{
+				Title = name,
+				Width = 1000.0,
+				Height = 800.0,
+				CloseOnEscape = true,
+				WindowStartupLocation = WindowStartupLocation.CenterOwner,
+				Owner = Window.GetWindow(this),
+				Content = new System.Windows.Controls.Image { Source = Decode(base64, 0), Stretch = Stretch.Uniform, Margin = new Thickness(12.0) }
+			};
+			viewer.Show();
+		}
+		catch (Exception ex) when (ex is FormatException || ex is NotSupportedException || ex is InvalidOperationException)
+		{
+		}
+	}
+
+	/// <summary>Replaces the clickable notices under the reply header (empty hides them).</summary>
+	public void SetNotices(IEnumerable<(string Text, Action Open)> items)
+	{
+		notices.Children.Clear();
+		foreach ((string label, Action open) in items)
+		{
+			Button chip = Ui.Button(Ui.IconLabel("\uE734", label), "Btn.Chip", delegate
+			{
+				open();
+			});
+			chip.Margin = new Thickness(0.0, 0.0, 6.0, 0.0);
+			chip.ToolTip = "Open it";
+			notices.Children.Add(chip);
+		}
+		notices.Visibility = (notices.Children.Count > 0) ? Visibility.Visible : Visibility.Collapsed;
 	}
 
 	private void RefreshActions()
@@ -345,6 +583,18 @@ public sealed class MessageView : Border
 	public void Update(string content, string reasoning = "", IEnumerable<string>? logs = null, string status = "", bool renderMarkdown = true, string? copyText = null)
 	{
 		text = copyText ?? content;
+		if (!user)
+		{
+			content = AquilaLocal.Companion.Sounds.SoundCues.ForDisplay(AquilaLocal.Companion.Living.MoodMarkup.Strip(content));
+		}
+		if (AquilaLocal.Companion.ThoughtMarkup.HasMarkup(content))
+		{
+			if (!user && !ShowPersonaThoughts)
+			{
+				content = AquilaLocal.Companion.ThoughtMarkup.StripThoughts(content);
+			}
+			content = AquilaLocal.Companion.ThoughtMarkup.BalancePerLine(content);
+		}
 		if (user || !renderMarkdown)
 		{
 			Emoji.Wpf.RichTextBox richTextBox = ProseBoxes.FirstOrDefault() ?? AddProse();

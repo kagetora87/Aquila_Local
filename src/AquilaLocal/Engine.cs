@@ -104,6 +104,11 @@ public sealed class Engine : IDisposable
 
 	private readonly string logPath;
 
+	/// <summary>Where the conversation's working memory is saved while the engine is paused for a picture.</summary>
+	private readonly string slotFolder;
+
+	private const string ParkedSlotFile = "parked-conversation.bin";
+
 	private readonly object logLock = new object();
 
 	private readonly Queue<string> tail = new Queue<string>();
@@ -205,6 +210,7 @@ public sealed class Engine : IDisposable
 	public Engine(string dataRoot)
 	{
 		logPath = Path.Combine(dataRoot, "logs", "engine.log");
+		slotFolder = Path.Combine(dataRoot, "engine-cache");
 	}
 
 	public async Task StartAsync(Settings settings, CancellationToken token)
@@ -297,6 +303,8 @@ public sealed class Engine : IDisposable
 		Port = ((IPEndPoint)tcpListener.LocalEndpoint).Port;
 		tcpListener.Stop();
 		alias = "aquila-" + Guid.NewGuid().ToString("N");
+		// llama-server refuses to start ("not a directory") if --slot-save-path doesn't exist yet.
+		Directory.CreateDirectory(slotFolder);
 		string text = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
 		ProcessStartInfo start = new ProcessStartInfo(executable)
 		{
@@ -331,9 +339,15 @@ public sealed class Engine : IDisposable
 			"--batch-size",
 			inferenceLaunch.Batch.ToString(),
 			"--ubatch-size",
-			inferenceLaunch.MicroBatch.ToString(),
+			// With a vision projector, 1024: Gemma 4 reads an image in one micro-batch, so llama.cpp caps
+			// image tokens at this size, and 512 would halve the 1024 that --image-max-tokens asks for
+			// (measured on the laptop: +0.4 GB, chat speed unchanged).
+			(settings.ProjectorPath.Length > 0 && inferenceLaunch.Batch >= 1024 ? 1024 : inferenceLaunch.MicroBatch).ToString(),
 			"--no-webui",
-			"--no-slots",
+			// Lets the conversation's working memory be saved to disk and loaded back when the engine is
+			// paused for the best-quality picture model, so the chat isn't re-read afterwards.
+			"--slot-save-path",
+			slotFolder,
 			"--jinja",
 			"--reasoning-format",
 			"deepseek",
@@ -589,6 +603,64 @@ public sealed class Engine : IDisposable
 		}
 		using HttpResponseMessage countResponse = await PostAsync("v1/chat/completions/input_tokens", jsonObject, stream: false, token);
 		return JsonNode.Parse(await countResponse.Content.ReadAsStringAsync(token))?["input_tokens"]?.GetValue<int>() ?? throw new IOException("Engine returned no token count.");
+	}
+
+	/// <summary>
+	/// Pauses the engine to free graphics memory: saves the conversation's working memory to disk (if it can),
+	/// then unloads the model. Returns whether the working memory was saved.
+	/// </summary>
+	public async Task<bool> ParkAsync(CancellationToken token)
+	{
+		bool saved = false;
+		if (Ready)
+		{
+			try
+			{
+				Directory.CreateDirectory(slotFolder);
+				string file = Path.Combine(slotFolder, ParkedSlotFile);
+				if (File.Exists(file))
+				{
+					File.Delete(file);
+				}
+				using HttpResponseMessage response = await PostAsync("slots/0?action=save", new JsonObject { ["filename"] = ParkedSlotFile }, stream: false, token);
+				saved = File.Exists(file);
+			}
+			catch (Exception ex) when (ex is IOException || ex is HttpRequestException || ex is UnauthorizedAccessException)
+			{
+				this.Status?.Invoke("Couldn't save the chat's working memory (" + ex.Message.Truncate(120) + "); it will be re-read after the picture.");
+			}
+		}
+		Stop();
+		return saved;
+	}
+
+	/// <summary>Loads the model again after a pause and restores the conversation's working memory if it was saved.</summary>
+	public async Task ResumeAsync(Settings settings, bool restore, CancellationToken token)
+	{
+		await StartAsync(settings, token);
+		string file = Path.Combine(slotFolder, ParkedSlotFile);
+		if (!restore || !File.Exists(file))
+		{
+			return;
+		}
+		try
+		{
+			using HttpResponseMessage response = await PostAsync("slots/0?action=restore", new JsonObject { ["filename"] = ParkedSlotFile }, stream: false, token);
+		}
+		catch (Exception ex) when (ex is IOException || ex is HttpRequestException)
+		{
+			this.Status?.Invoke("Couldn't restore the chat's working memory (" + ex.Message.Truncate(120) + "); the next reply re-reads the chat.");
+		}
+		finally
+		{
+			try
+			{
+				File.Delete(file);
+			}
+			catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+			{
+			}
+		}
 	}
 
 	public void Stop()

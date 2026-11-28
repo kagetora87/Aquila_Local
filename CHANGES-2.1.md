@@ -26,6 +26,10 @@ Windows exe on every push.
 - The avatar is now made from your own pictures. Each animation is a folder of pictures in
   `Data\avatar` (e.g. `idle`, `talking`, `thinking`, `listening`, `waving hello`, `eating`).
   Pictures play in file-name order.
+- An animation can be a video clip instead of pictures (MP4, WebM, MOV, WMV, AVI). Choose or drop
+  one clip on an animation; it plays muted, loops or plays once like pictures, and the Speed slider
+  sets its playback speed. MP4 (H.264) plays on every PC; WebM needs Windows' Web Media Extensions.
+  If a clip can't be played, the avatar says which one and why, and falls back to the other animations.
 - Folders whose names start with idle / talk / think / listen are used automatically for those
   moments. Any other folder is a gesture: it plays once when what Aquila says matches its name
   (or its "When should it play?" text). Matching uses the small meaning model already used for

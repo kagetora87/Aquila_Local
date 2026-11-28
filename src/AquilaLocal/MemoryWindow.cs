@@ -325,6 +325,17 @@ public sealed class MemoryWindow : AquilaWindow
 		return button;
 	}
 
+	/// <summary>Opens on one memory (from a chat's "New memory" notice), even if it belongs to another project.</summary>
+	public void Select(string id)
+	{
+		all.IsChecked = true;
+		Refresh(id);
+		if (entries.SelectedItem != null)
+		{
+			entries.ScrollIntoView(entries.SelectedItem);
+		}
+	}
+
 	private void Refresh(string? selectId = null)
 	{
 		try

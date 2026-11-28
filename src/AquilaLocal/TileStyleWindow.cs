@@ -1,0 +1,377 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using AquilaLocal.Companion;
+using AquilaLocal.Companion.Pictures;
+
+namespace AquilaLocal;
+
+/// <summary>
+/// "Picture style" for the small choice pictures (Generate presets and Create Companion): who's in them and how
+/// they're drawn, with a Test that draws one sample before you save.
+/// </summary>
+public sealed class TileStyleWindow : AquilaWindow
+{
+	private readonly PresetLibrary library;
+
+	private readonly Func<string, string, IReadOnlyList<string>, string, CancellationToken, Task> draw;
+
+	/// <summary>The engines offered for the small pictures (best quality is too slow for sixty of them).</summary>
+	private static readonly string[] Engines = { PictureModels.Fast, PictureModels.Anime };
+
+	private readonly ComboBox engineBox;
+
+	private readonly WrapPanel refsPanel = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
+
+	private readonly TextBox woman;
+
+	private readonly TextBox man;
+
+	private readonly TextBox art;
+
+	private readonly TextBox clothes;
+
+	private readonly ComboBox sample;
+
+	private readonly Image preview = new Image { Stretch = Stretch.Uniform };
+
+	private readonly Border previewBox;
+
+	private readonly TextBlock status = new TextBlock { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 0) };
+
+	private readonly Button test;
+
+	private readonly Button save;
+
+	private CancellationTokenSource? testing;
+
+	private readonly List<(string Label, Func<TileStyle, (string Prompt, IReadOnlyList<string> Refs)> Job)> samples = new();
+
+	/// <summary>True once a new style was saved (the small pictures will be offered again).</summary>
+	public bool Saved { get; private set; }
+
+	/// <param name="draw">Draws a prompt (with reference pictures) to a file with the given picture model (throws if it can't).</param>
+	public TileStyleWindow(PresetLibrary library, Func<string, string, IReadOnlyList<string>, string, CancellationToken, Task> draw)
+	{
+		this.library = library;
+		this.draw = draw;
+		base.Title = "Aquila · Picture style";
+		base.Width = 860;
+		base.Height = 720;
+		base.MinWidth = 720;
+		base.MinHeight = 560;
+		base.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+		base.Height = Math.Min(base.Height, SystemParameters.WorkArea.Height - 30.0);
+		CloseOnEscape = true;
+		TileStyle current = library.Style;
+
+		Grid layout = new Grid();
+		layout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+		layout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(300) });
+
+		StackPanel form = new StackPanel { Margin = new Thickness(0, 0, 20, 0) };
+		woman = Box(current.Woman);
+		form.Children.Add(Ui.Field("The woman in the pictures", woman, "Used for every preset except the men's outfits, and for the women in Create Companion. For example: \"a young adult woman with long hair and a gentle smile\".", 0));
+		man = Box(current.Man);
+		form.Children.Add(Ui.Field("The man in the pictures", man, "Used for the men's outfits and the men in Create Companion."));
+		clothes = Box(current.Clothes);
+		form.Children.Add(Ui.Field("What they wear", clothes, "In the action pictures and Create Companion's pictures. For example: \"a white lab coat open over black lace lingerie\". (Outfit presets show their own outfit.) Keep clothing here, not in the descriptions above, so the two don't fight."));
+		engineBox = new ComboBox { ItemsSource = Engines.Select(PictureModels.Label).ToList(), SelectedIndex = Math.Max(0, Array.IndexOf(Engines, current.Engine)), Width = 320, HorizontalAlignment = HorizontalAlignment.Left };
+		form.Children.Add(Ui.Field("Picture engine", engineBox, "Anime draws anime only, without censoring bodies, but can't use the reference pictures below. Fast follows reference pictures and any art style."));
+		art = Box(current.Art);
+		form.Children.Add(Ui.Field("Art style", art, "How they're drawn. For example: \"anime illustration, clean line art, soft cel shading\"."));
+		WrapPanel styles = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
+		foreach ((string label, string text) in CreatorOptions.ArtStyles)
+		{
+			string words = text;
+			Button chip = Ui.Button(label, "Btn.Secondary", delegate { art.Text = words; });
+			chip.Margin = new Thickness(0, 0, 6, 6);
+			chip.Padding = new Thickness(10, 4, 10, 4);
+			styles.Children.Add(chip);
+		}
+		form.Children.Add(styles);
+		form.Children.Add(Ui.Field("Reference pictures (optional)", refsPanel, "Up to 4 pictures of the person you want in the action and outfit pictures, so they look the same in every one (not used for scenes or the men's outfits). Changing them doesn't redraw anything by itself: use Make all again below, or the small button on a card.", 14));
+		ShowReferences();
+		Button reset = Ui.Button("Back to the starting style", "Btn.Link", delegate
+		{
+			woman.Text = TileStyle.DefaultWoman;
+			man.Text = TileStyle.DefaultMan;
+			art.Text = TileStyle.DefaultArt;
+			clothes.Text = TileStyle.DefaultClothes;
+			engineBox.SelectedIndex = 0;
+		});
+		reset.HorizontalAlignment = HorizontalAlignment.Left;
+		reset.Margin = new Thickness(0, 10, 0, 0);
+		form.Children.Add(reset);
+		Button redo = Ui.Button(Ui.IconLabel("\uE72C", "Make all the small pictures again"), "Btn.Secondary", delegate { RedoAll(); });
+		redo.ToolTip = "Throws away the current small pictures (in the saved style) so they can be drawn fresh";
+		redo.HorizontalAlignment = HorizontalAlignment.Left;
+		redo.Margin = new Thickness(0, 14, 0, 0);
+		form.Children.Add(redo);
+				TextBlock note = Ui.Text("Saving a new style makes all the small pictures again: the Generate screen and Create Companion each offer a button for it (about 10 minutes each). Your companions' own pictures aren't affected.", "Type.Caption");
+		note.Margin = new Thickness(0, 14, 0, 0);
+		note.TextWrapping = TextWrapping.Wrap;
+		form.Children.Add(note);
+		layout.Children.Add(new ScrollViewer { Content = form, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled });
+
+		// Right: try it on one picture.
+		StackPanel side = new StackPanel();
+		side.Children.Add(Ui.Text("Try it", "Type.Label"));
+		foreach (GenPreset p in PresetLibrary.BuiltIn)
+		{
+			GenPreset preset = p;
+			samples.Add((PresetKinds.Label(p.Kind) + ": " + p.Name, s =>
+			{
+				IReadOnlyList<string> refs = library.TileReferences(preset);
+				return (PicturePrompt.WithReferences(PresetLibrary.TilePrompt(preset, s), refs.Count), refs);
+			}));
+		}
+		foreach (CreatorOption o in CreatorOptions.All)
+		{
+			CreatorOption option = o;
+			string g = o.For.Length > 0 ? o.For : Genders.Female;
+			samples.Add(("Create: " + o.Label + (o.Kind == CreatorKinds.Ethnicity ? " (woman)" : ""), s => (CreatorOptions.TilePrompt(option, g, s), (IReadOnlyList<string>)Array.Empty<string>())));
+		}
+		sample = new ComboBox { ItemsSource = samples.Select(x => x.Label).ToList(), SelectedIndex = 0, Margin = new Thickness(0, 6, 0, 0), MaxDropDownHeight = 360 };
+		side.Children.Add(sample);
+		test = Ui.Button(Ui.IconLabel("", "Test"), "Btn.Secondary", delegate { _ = TestAsync(); });
+		test.HorizontalAlignment = HorizontalAlignment.Left;
+		test.Margin = new Thickness(0, 10, 0, 0);
+		side.Children.Add(test);
+		previewBox = new Border
+		{
+			Width = 300,
+			Height = 375,
+			Margin = new Thickness(0, 12, 0, 0),
+			CornerRadius = new CornerRadius(10),
+			Background = Ui.Brush("Surface.1"),
+			ClipToBounds = true,
+			Child = new TextBlock { Text = "Press Test to draw this one with the words on the left (about 15 seconds). Nothing is saved until you press Save.", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(18), VerticalAlignment = VerticalAlignment.Center, TextAlignment = TextAlignment.Center, Foreground = Ui.Brush("Text.Secondary") }
+		};
+		side.Children.Add(previewBox);
+		side.Children.Add(status);
+		Grid.SetColumn(side, 1);
+		layout.Children.Add(side);
+
+		save = Ui.Button("Save", "Btn.Primary", delegate { Save(); });
+		Button cancel = Ui.Button("Cancel", "Btn.Secondary", delegate { Close(); });
+		base.Content = Ui.DialogScaffold("Picture style", "Who appears in the small choice pictures and how they're drawn.", layout, null, cancel, save);
+		base.Closing += delegate { testing?.Cancel(); };
+	}
+
+	/// <summary>The style's reference pictures, each with a remove button, then Add a picture….</summary>
+	private void ShowReferences()
+	{
+		refsPanel.Children.Clear();
+		List<string> refs;
+		try
+		{
+			refs = library.StyleReferences();
+		}
+		catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+		{
+			Show(ex.Message, bad: true);
+			refs = new List<string>();
+		}
+		foreach (string file in refs)
+		{
+			string f = file;
+			Grid cell = new Grid { Width = 72, Height = 90, Margin = new Thickness(0, 0, 8, 8) };
+			Border pic = new Border { CornerRadius = new CornerRadius(8), Background = Ui.Brush("Surface.1"), ToolTip = Path.GetFileName(f) };
+			try
+			{
+				BitmapImage image = new BitmapImage();
+				image.BeginInit();
+				image.CacheOption = BitmapCacheOption.OnLoad;
+				image.StreamSource = new MemoryStream(File.ReadAllBytes(f));
+				image.DecodePixelWidth = 160;
+				image.EndInit();
+				image.Freeze();
+				pic.Background = new ImageBrush(image) { Stretch = Stretch.UniformToFill };
+			}
+			catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is NotSupportedException || ex is ArgumentException || ex is FileFormatException)
+			{
+			}
+			cell.Children.Add(pic);
+			Button remove = new Button { Style = Ui.Style("Btn.Icon"), Content = Ui.Icon("\uE711", 10), Width = 22, Height = 22, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 4, 4, 0), Background = new SolidColorBrush(Color.FromArgb(0xCC, 0x0B, 0x12, 0x19)), Foreground = Brushes.White, ToolTip = "Remove this reference" };
+			Ui.SetRadius(remove, new CornerRadius(11));
+			remove.Click += delegate
+			{
+				try
+				{
+					library.RemoveStyleReference(f);
+				}
+				catch (Exception ex) when (ex is PersonaConfigException || ex is IOException || ex is UnauthorizedAccessException)
+				{
+					Show(ex.Message, bad: true);
+				}
+				ShowReferences();
+			};
+			cell.Children.Add(remove);
+			refsPanel.Children.Add(cell);
+		}
+		if (refs.Count < PresetLibrary.MaxStyleReferences)
+		{
+			Button add = Ui.Button(Ui.IconLabel("\uE710", "Add a picture…"), "Btn.Secondary", delegate
+			{
+				Microsoft.Win32.OpenFileDialog pick = new Microsoft.Win32.OpenFileDialog { Filter = "Pictures (*.png;*.jpg;*.jpeg;*.webp)|*.png;*.jpg;*.jpeg;*.webp", Title = "Choose a picture of the person" };
+				if (pick.ShowDialog(this) != true)
+				{
+					return;
+				}
+				try
+				{
+					library.AddStyleReference(pick.FileName);
+					Show("Added. Press Test to see it in use.", bad: false);
+				}
+				catch (Exception ex) when (ex is PersonaConfigException || ex is IOException || ex is UnauthorizedAccessException)
+				{
+					Show(ex.Message, bad: true);
+				}
+				ShowReferences();
+			});
+			add.VerticalAlignment = VerticalAlignment.Top;
+			refsPanel.Children.Add(add);
+		}
+	}
+
+	private static TextBox Box(string text)
+	{
+		return new TextBox { Text = text, MaxLength = TileStyle.MaxChars, AcceptsReturn = false, TextWrapping = TextWrapping.Wrap, MinHeight = 56, VerticalContentAlignment = VerticalAlignment.Top };
+	}
+
+	private TileStyle Edited()
+	{
+		TileStyle s = new TileStyle { Woman = woman.Text, Man = man.Text, Art = art.Text, Clothes = clothes.Text, Engine = Engines[Math.Max(0, engineBox.SelectedIndex)] };
+		s.Validate();
+		return s;
+	}
+
+	private void Show(string text, bool bad)
+	{
+		status.Text = text;
+		status.Foreground = Ui.Brush(bad ? "Danger" : "Text.Secondary");
+	}
+
+	private async Task TestAsync()
+	{
+		if (testing != null)
+		{
+			testing.Cancel();
+			return;
+		}
+		TileStyle s;
+		try
+		{
+			s = Edited();
+		}
+		catch (PersonaConfigException ex)
+		{
+			Show(ex.Message, bad: true);
+			return;
+		}
+		(string prompt, IReadOnlyList<string> refs) = samples[Math.Max(0, sample.SelectedIndex)].Job(s);
+		string path = Path.Combine(library.Root, "style-test.png");
+		testing = new CancellationTokenSource();
+		test.Content = Ui.IconLabel("", "Stop");
+		save.IsEnabled = false;
+		Show("Drawing…", bad: false);
+		try
+		{
+			Directory.CreateDirectory(library.Root);
+			await draw(s.Engine, prompt, refs, path, testing.Token);
+			BitmapImage image = new BitmapImage();
+			image.BeginInit();
+			image.CacheOption = BitmapCacheOption.OnLoad;
+			image.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
+			image.UriSource = new Uri(path);
+			image.DecodePixelWidth = 600;
+			image.EndInit();
+			image.Freeze();
+			preview.Source = image;
+			previewBox.Child = preview;
+			previewBox.Background = new SolidColorBrush(Color.FromRgb(0x0B, 0x0F, 0x14));
+			Show("This is how it comes out. Change the words and test again, or Save.", bad: false);
+		}
+		catch (OperationCanceledException)
+		{
+			Show("Stopped.", bad: false);
+		}
+		catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is InvalidOperationException || ex is HttpRequestException || ex is PersonaConfigException || ex is NotSupportedException)
+		{
+			Show("The test picture couldn't be made: " + ex.Message, bad: true);
+		}
+		finally
+		{
+			testing = null;
+			if (IsLoaded)
+			{
+				test.Content = Ui.IconLabel("", "Test");
+				save.IsEnabled = true;
+			}
+		}
+	}
+
+	/// <summary>Removes the saved style's small pictures, so the Generate screen and Create Companion offer to make them again.</summary>
+	private void RedoAll()
+	{
+		if (testing != null)
+		{
+			return;
+		}
+		if (!AquilaDialog.Confirm(this, "Make all the small pictures again?", "The current ones are removed now. The Generate screen and Create Companion then each offer a button to draw them fresh in the saved style (about 10 minutes each). Unsaved changes to the words above aren't used: press Save for those instead.", "Remove them"))
+		{
+			return;
+		}
+		try
+		{
+			string folder = Path.Combine(library.TilesFolder, library.Style.Folder);
+			if (Directory.Exists(folder))
+			{
+				foreach (string file in Directory.GetFiles(folder, "*.png"))
+				{
+					File.Delete(file);
+				}
+			}
+			Saved = true;
+			DialogResult = true;
+		}
+		catch (Exception ex) when (ex is PersonaConfigException || ex is IOException || ex is UnauthorizedAccessException)
+		{
+			Show(ex.Message, bad: true);
+		}
+	}
+
+	private void Save()
+	{
+		try
+		{
+			TileStyle s = Edited();
+			TileStyle old = library.Style;
+			if (s.Woman == old.Woman && s.Man == old.Man && s.Art == old.Art && s.Clothes == old.Clothes && s.Engine == old.Engine)
+			{
+				Close();
+				return;
+			}
+			if (!AquilaDialog.Confirm(this, "Use this style?", "All the small choice pictures will be made again in the new style. The Generate screen and Create Companion each offer a button for it.", "Use it"))
+			{
+				return;
+			}
+			library.SaveStyle(s);
+			Saved = true;
+			DialogResult = true;
+		}
+		catch (Exception ex) when (ex is PersonaConfigException || ex is IOException || ex is UnauthorizedAccessException)
+		{
+			Show(ex.Message, bad: true);
+		}
+	}
+}

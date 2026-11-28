@@ -40,13 +40,15 @@ public partial class MainWindow
 		};
 		RefreshShell();
 		UpdateSendEnabled();
+		InitializeReceipts();
 	}
 
-	/// <summary>On short windows the avatar shrinks so the chat list keeps room for several rows.</summary>
+	/// <summary>The avatar fills its pane's width at a portrait shape, but never taller than the window allows.</summary>
 	private void FitSidebar()
 	{
-		double height = base.ActualHeight;
-		AvatarSlot.Height = (height < 720.0) ? 96.0 : ((height < 800.0) ? 120.0 : 184.0);
+		double width = (AvatarColumn.ActualWidth > 0.0) ? AvatarColumn.ActualWidth : AvatarColumn.Width.Value;
+		double tallest = Math.Max(120.0, base.ActualHeight - 300.0);
+		AvatarSlot.Height = Math.Clamp((width - 40.0) * 1.35, 120.0, tallest);
 	}
 
 	/// <summary>"Qwen3.8-27B-Turbo-…-IQ4_XS" becomes "Qwen3.8-27B": the name up to the size.</summary>
@@ -67,6 +69,19 @@ public partial class MainWindow
 			result = result.Substring(0, 17).TrimEnd('-', '.') + "…";
 		}
 		return result;
+	}
+
+	/// <summary>Writes "prefix" + state into a label, with the state in bright green when it's switched on.</summary>
+	internal static void ShowOnLabel(System.Windows.Controls.TextBlock label, string prefix, string? onWord, string offText)
+	{
+		label.Inlines.Clear();
+		if (onWord == null)
+		{
+			label.Text = prefix + offText;
+			return;
+		}
+		label.Inlines.Add(new System.Windows.Documents.Run(prefix));
+		label.Inlines.Add(new System.Windows.Documents.Run(onWord) { Foreground = Ui.Brush("On"), FontWeight = FontWeights.SemiBold });
 	}
 
 	private void ApplyUiSoundSettings()
@@ -94,7 +109,7 @@ public partial class MainWindow
 		{
 			dotState = dot;
 			Motion.StopPulse(StatusDot);
-			StatusDot.Fill = Ui.Brush((dot == "off") ? "Text.Tertiary" : "Accent");
+			StatusDot.Fill = Ui.Brush((dot == "off") ? "Text.Tertiary" : "On");
 			if (dot == "busy")
 			{
 				Motion.Pulse(StatusDot, 0.3, TimeSpan.FromMilliseconds(1200.0));
@@ -108,7 +123,7 @@ public partial class MainWindow
 		ModelChipText.Text = (model.Length == 0) ? "Choose a model" : ShortModelName(model);
 		ModelChip.ToolTip = (model.Length == 0) ? "Choose the model Aquila uses" : (settings.ModelPath + "\nClick to change model settings.");
 		WebChip.Visibility = (settings.WebMode == "Off") ? Visibility.Collapsed : Visibility.Visible;
-		WebChipText.Text = (settings.WebMode == "Automatic") ? "Web: on" : "Web: ask first";
+		ShowOnLabel(WebChipText, "Web: ", (settings.WebMode == "Automatic") ? "on" : null, "ask first");
 		Welcome.Visibility = empty ? Visibility.Visible : Visibility.Collapsed;
 		WelcomeNoModel.Visibility = ready ? Visibility.Collapsed : Visibility.Visible;
 		WelcomeReady.Visibility = ready ? Visibility.Visible : Visibility.Collapsed;
@@ -393,5 +408,9 @@ public partial class MainWindow
 		view.SetGenerating(generating);
 		view.SetMeta(brush, tooltip);
 		view.Update(VoiceDelivery.Display(turn, settings.Voice.RevealTags), turn.Reasoning, turn.Activity, text, renderMarkdown: true, turn.Answer);
+		if (turn.Pictures.Count > 0)
+		{
+			view.ShowPictureFiles(turn.Pictures);
+		}
 	}
 }
