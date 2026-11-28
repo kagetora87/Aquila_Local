@@ -86,13 +86,13 @@ public static class PrimeApplier
         List<string> before = config.Drives.Select(d => d.Name).ToList();
         Shape(config.Drives, c.Drives, setInitial: false);
         config.ValidateShape();
-        if (config.Drives.Count != before.Count)
+        if (!config.Drives.Select(d => d.Name).OrderBy(n => n).SequenceEqual(before.OrderBy(n => n)))
         {
             done.AddRange(store.ReshapeDrives(config, new Dictionary<string, string>(), now));
         }
         Dictionary<string, DriveValue> now_ = store.ReadDrives(config.Drives.Select(d => d.Name));
         var changes = new List<DriveChange>();
-        foreach (DriveSuggestion s in c.Drives.Where(s => s.New == null && before.Contains(s.Name)))
+        foreach (DriveSuggestion s in c.Drives.Where(s => s.New == null && !s.Remove && config.Drives.Any(d => d.Name == s.Name)))
         {
             DriveSpec spec = config.Drive(s.Name);
             double v = DriveEngine.Clamp(spec, s.Level);
@@ -130,10 +130,17 @@ public static class PrimeApplier
     private static List<float[]?> Vectors(PrimeChoice c, Func<string, float[]>? embed) =>
         c.Recall.Select(p => embed?.Invoke(VectorMemory.TextOf(p.User, p.Reply))).ToList();
 
-    /// <summary>Starting levels and weights for drives she has; new drives added (at most eight in all).</summary>
+    /// <summary>Drives taken away first, then starting levels and weights for drives she has, then new drives added (at most eight in all).</summary>
     private static void Shape(List<DriveSpec> drives, IEnumerable<DriveSuggestion> kept, bool setInitial)
     {
-        foreach (DriveSuggestion s in kept)
+        foreach (DriveSuggestion s in kept.Where(s => s.Remove))
+        {
+            if (drives.Count > 1)
+            {
+                drives.RemoveAll(x => x.Name == s.Name);
+            }
+        }
+        foreach (DriveSuggestion s in kept.Where(s => !s.Remove))
         {
             DriveSpec? d = drives.FirstOrDefault(x => x.Name == s.Name);
             if (d != null)

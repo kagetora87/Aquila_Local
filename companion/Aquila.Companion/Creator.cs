@@ -74,6 +74,29 @@ public static class CreatorOptions
 
     public static readonly IReadOnlyList<string> HairColours = new[] { "Black", "Dark brown", "Brown", "Light brown", "Blonde", "Platinum", "Red", "Auburn", "Grey", "White", "Pink", "Blue", "Purple" };
 
+    /// <summary>Chest size choices (women), and the words for pictures.</summary>
+    public static readonly IReadOnlyList<(string Label, string Text)> Busts = new[]
+    {
+        ("Small", "small breasts"), ("Medium", "medium breasts"), ("Large", "large breasts"), ("Very large", "very large breasts")
+    };
+
+    /// <summary>Behind choices (everyone), and the words for pictures.</summary>
+    public static readonly IReadOnlyList<(string Label, string Text)> Butts = new[]
+    {
+        ("Small", "a small butt"), ("Average", "an average butt"), ("Round", "a round, shapely butt"), ("Large", "a large, full butt")
+    };
+
+    /// <summary>Places for the portrait's background: the label, and the words for the picture.</summary>
+    public static readonly IReadOnlyList<(string Label, string Text)> Backgrounds = new[]
+    {
+        ("Plain studio", "a plain soft studio backdrop"), ("Bedroom", "a cosy bedroom with warm lamplight"), ("Café", "a sunny café by the window"),
+        ("Park", "a green park on a sunny day"), ("Beach", "a beach at golden hour"), ("City at night", "a city street at night with soft neon lights"),
+        ("Library", "a quiet library with wooden shelves"), ("Garden", "a flower garden in soft daylight"), ("Office", "a bright modern office")
+    };
+
+    /// <summary>The key a hair pick has when you describe the style yourself.</summary>
+    public const string CustomHair = "custom";
+
     public static readonly IReadOnlyList<string> EyeColours = new[] { "Brown", "Dark brown", "Hazel", "Amber", "Green", "Grey-green", "Blue", "Grey", "Violet" };
 
     /// <summary>Art styles: the label, and the words for the "art style" trait every picture keeps.</summary>
@@ -144,6 +167,18 @@ public sealed class CompanionDraft
     public string Hair { get; set; } = "";
     public string HairColour { get; set; } = "";
     public string Body { get; set; } = "";
+
+    /// <summary>Optional, women only: a label from <see cref="CreatorOptions.Busts"/>.</summary>
+    public string Bust { get; set; } = "";
+
+    /// <summary>Optional: a label from <see cref="CreatorOptions.Butts"/>.</summary>
+    public string Butt { get; set; } = "";
+
+    /// <summary>Your own hair style, used when <see cref="Hair"/> is <see cref="CreatorOptions.CustomHair"/>.</summary>
+    public string HairCustom { get; set; } = "";
+
+    /// <summary>Where the portrait is set: a label from <see cref="CreatorOptions.Backgrounds"/> or your own words ("" plain studio).</summary>
+    public string Background { get; set; } = "";
 
     public string Name { get; set; } = "";
     public int Age { get; set; } = 25;
@@ -252,6 +287,10 @@ public sealed class CompanionDraft
         {
             case CreatorKinds.Gender:
                 Gender = key;
+                if (Genders.IsMale(key))
+                {
+                    Bust = "";
+                }
                 if (Option(CreatorKinds.Hair)?.Fits(key) == false)
                 {
                     Hair = "";
@@ -286,7 +325,12 @@ public sealed class CompanionDraft
                 if (Option(CreatorKinds.Ethnicity) == null) missing.Add("Choose an ethnicity.");
                 break;
             case 3:
-                if (Option(CreatorKinds.Hair) == null || Option(CreatorKinds.Hair)!.Fits(Gender) == false) missing.Add("Choose a hair style.");
+                if (IsCustomHair)
+                {
+                    if (HairCustom.Trim().Length == 0) missing.Add("Describe the hair style, or pick one of the pictures.");
+                    else if (HairCustom.Trim().Length > MaxShortChars) missing.Add($"Keep the hair style under {MaxShortChars} characters.");
+                }
+                else if (Option(CreatorKinds.Hair) == null || Option(CreatorKinds.Hair)!.Fits(Gender) == false) missing.Add("Choose a hair style.");
                 if (HairColour.Trim().Length == 0) missing.Add("Choose a hair colour.");
                 break;
             case 4:
@@ -314,6 +358,42 @@ public sealed class CompanionDraft
     /// <summary>Everything still needed, all steps.</summary>
     public List<string> MissingAll() => Enumerable.Range(1, 5).SelectMany(Missing).ToList();
 
+    public bool IsCustomHair => Hair == CreatorOptions.CustomHair;
+
+    /// <summary>The hair style in words: your own, or the picked one's.</summary>
+    public string HairText => IsCustomHair ? System.Text.RegularExpressions.Regex.Replace(HairCustom.Trim(), @"\s+", " ") : Option(CreatorKinds.Hair)?.Text ?? "hair";
+
+    /// <summary>The hair style's name for the summary.</summary>
+    public string HairLabel => IsCustomHair ? HairCustom.Trim() : Option(CreatorKinds.Hair)?.Label ?? "";
+
+    /// <summary>Build, then chest and behind when chosen: "a curvy build, large breasts, a round, shapely butt".</summary>
+    public string BodyText
+    {
+        get
+        {
+            List<string> parts = new() { Option(CreatorKinds.Body)?.Text ?? "" };
+            if (!Genders.IsMale(Gender) && CreatorOptions.Busts.FirstOrDefault(b => b.Label == Bust).Text is string bust)
+            {
+                parts.Add(bust);
+            }
+            if (CreatorOptions.Butts.FirstOrDefault(b => b.Label == Butt).Text is string butt)
+            {
+                parts.Add(butt);
+            }
+            return string.Join(", ", parts.Where(x => x.Length > 0));
+        }
+    }
+
+    /// <summary>The portrait's background in words.</summary>
+    public string BackgroundText
+    {
+        get
+        {
+            string b = System.Text.RegularExpressions.Regex.Replace(Background ?? "", @"\s+", " ").Trim();
+            return b.Length == 0 ? CreatorOptions.Backgrounds[0].Text : CreatorOptions.Backgrounds.FirstOrDefault(x => x.Label == b).Text ?? b;
+        }
+    }
+
     public string ArtStyleText => CreatorOptions.ArtStyles.FirstOrDefault(a => a.Label == ArtStyle).Text ?? CreatorOptions.ArtStyles[0].Text;
 
     public AppearanceSeed Appearance()
@@ -324,8 +404,8 @@ public sealed class CompanionDraft
             new() { Name = "art style", Text = ArtStyleText },
             new() { Name = "face", Text = $"{Age}-year-old {ethnicity} {Word}, adult".Replace("  ", " ") },
             new() { Name = "eyes", Text = EyeColour.Trim().ToLowerInvariant() + " eyes" },
-            new() { Name = "hair", Text = (HairColour.Trim().ToLowerInvariant() + " " + (Option(CreatorKinds.Hair)?.Text ?? "hair")).Trim() },
-            new() { Name = "body", Text = Option(CreatorKinds.Body)?.Text ?? "" }
+            new() { Name = "hair", Text = (HairColour.Trim().ToLowerInvariant() + " " + HairText).Trim() },
+            new() { Name = "body", Text = BodyText }
         };
         if (Looks.Trim().Length > 0)
         {
@@ -344,7 +424,7 @@ public sealed class CompanionDraft
     {
         string looks = Pictures.SeedCaption.For(Name.Trim().Length > 0 ? Name.Trim() : "A new companion", Appearance(), withOutfit: true);
         string more = Regex.Replace(extra ?? "", @"\s+", " ").Trim();
-        string prompt = $"Portrait of an adult {Word}, head and shoulders, looking at the camera with a gentle natural expression. {looks}. {(more.Length > 0 ? more.TrimEnd('.') + ". " : "")}Style: {ArtStyleText}, soft flattering light, detailed.";
+        string prompt = $"Portrait of an adult {Word}, upper body from the waist up, looking at the camera with a gentle natural expression. {looks}. {(more.Length > 0 ? more.TrimEnd('.') + ". " : "")}Background: {BackgroundText}. Style: {ArtStyleText}, soft flattering light, detailed.";
         return prompt.Length > Pictures.PicturePrompt.MaxPromptChars ? prompt[..Pictures.PicturePrompt.MaxPromptChars] : prompt;
     }
 

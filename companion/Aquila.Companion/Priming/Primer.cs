@@ -46,6 +46,9 @@ public sealed class DriveSuggestion
 
     /// <summary>A whole new drive the conversation shows (null for one she already has).</summary>
     public DriveSpec? New { get; set; }
+
+    /// <summary>A suggestion to take away one of her drives, because it doesn't fit who she is.</summary>
+    public bool Remove { get; set; }
 }
 
 /// <summary>A moment or fact worth keeping in her long-term memory. Nothing is saved until the user keeps it.</summary>
@@ -82,7 +85,8 @@ public sealed class Primer(ITextGenerator generator)
     public const int DefaultMaxPartChars = 36_000;
 
     public const int MaxMemories = 40;
-    public const int MaxNewDrives = 2;
+    public const int MaxNewDrives = 3;
+    public const int MaxRemovedDrives = 3;
     public const int MaxSheetChars = 6000;
 
     public int MaxPartChars { get; init; } = DefaultMaxPartChars;
@@ -235,13 +239,15 @@ public sealed class Primer(ITextGenerator generator)
             + "Return JSON {\"name\":\"\",\"age\":0,\"occupation\":\"\",\"relationship\":\"\",\"tagline\":\"\",\"personality\":\"\","
             + "\"drives\":[{\"name\":\"\",\"level\":5,\"weight\":1,\"why\":\"\"}],"
             + "\"new_drives\":[{\"name\":\"\",\"kind\":\"need|level\",\"description\":\"\",\"cues\":[\"\"],\"level\":5,\"weight\":1,\"low\":\"\",\"mid\":\"\",\"high\":\"\",\"why\":\"\"}],"
+            + "\"remove_drives\":[{\"name\":\"\",\"why\":\"\"}],"
             + "\"memories\":[{\"layer\":\"facts|feelings|hooks\",\"text\":\"\",\"why\":\"\"}]}.\n"
             + $"personality: {name}'s personality sheet in the second person (\"You are…\"), 250 to 450 words of plain prose in three to five short paragraphs, no headings or lists. "
             + "Cover personality, how they talk (with their typical phrases and pet names), what they love and dislike, their history, quirks, and what the relationship with the user is like. Stay true to the notes; where the notes are silent, stay consistent rather than inventing big new facts. "
             + "If existing notes or an existing sheet are given, keep everything in them that the source doesn't contradict.\n"
             + "name, age (18 or older, or 0 if unknown), occupation, relationship (a few words, e.g. \"your girlfriend of two years\"): only from the notes, else empty. tagline: one or two lines for their profile card.\n"
             + "drives: for EACH of the companion's current drives listed below, where it should start (0-10) and how much it should matter (weight 0.5-2.5, 1 is normal), judged from how the companion behaves in the source, with a short reason. Keep a drive near its current values if the source says little about it.\n"
-            + $"new_drives: at most {MaxNewDrives}, only for a strong, recurring motive in the source that no current drive covers (for example jealousy or ambition). Name is one lowercase word. cues: 5 to 12 words or short phrases that show up in a reply that acts on it. low/mid/high: one short line each (under 100 characters), telling the companion how to act when it's low (<3.5), middle, or high (>=7). Usually leave this empty.\n"
+            + $"new_drives: at most {MaxNewDrives}, only for a strong, recurring motive in the source that no current drive covers (for example jealousy or ambition). Up to {MaxNewDrives} is fine when the source clearly shows several. Name is one lowercase word. cues: 5 to 12 words or short phrases that show up in a reply that acts on it. low/mid/high: one short line each (under 100 characters), telling the companion how to act when it's low (<3.5), middle, or high (>=7). Leave it empty when nothing is missing.\n"
+            + $"remove_drives: at most {MaxRemovedDrives} of the current drives that clearly don't fit this character (for example lust for a strictly platonic friend), with the reason. Usually empty; never all of them.\n"
             + $"memories: the {MaxMemories} or fewer most important long-term memories, from {name}'s point of view, one short sentence each, using names (call the user by their name), merged and without duplicates. "
             + "Prefer: names and people in the user's life, shared moments, inside jokes, promises and plans, turning points, things the user confided. why: a few words on why it matters. Leave out anything the companion already remembers (listed below).";
         var user = new StringBuilder();
@@ -307,6 +313,8 @@ public sealed class Primer(ITextGenerator generator)
         public List<DraftDrive>? Drives { get; set; }
         [JsonPropertyName("new_drives")]
         public List<DraftDrive>? NewDrives { get; set; }
+        [JsonPropertyName("remove_drives")]
+        public List<DraftDrive>? RemoveDrives { get; set; }
         public List<DraftMemory>? Memories { get; set; }
     }
 
@@ -348,6 +356,17 @@ public sealed class Primer(ITextGenerator generator)
         {
             p.Personality = p.Personality[..MaxSheetChars];
         }
+        var removed = new HashSet<string>();
+        foreach (DraftDrive dd in d.RemoveDrives ?? new())
+        {
+            DriveSpec? spec = r.Drives.FirstOrDefault(x => x.Name.Equals((dd.Name ?? "").Trim(), StringComparison.OrdinalIgnoreCase));
+            // Never all of them: at least one drive stays.
+            if (spec == null || removed.Count == MaxRemovedDrives || removed.Count + 1 >= r.Drives.Count || !removed.Add(spec.Name))
+            {
+                continue;
+            }
+            p.Drives.Add(new DriveSuggestion { Name = spec.Name, Remove = true, Level = spec.Initial ?? 0, Weight = spec.Weight ?? 0, Why = OneLine(dd.Why, 200) });
+        }
         foreach (DraftDrive dd in d.Drives ?? new())
         {
             DriveSpec? spec = r.Drives.FirstOrDefault(x => x.Name.Equals((dd.Name ?? "").Trim(), StringComparison.OrdinalIgnoreCase));
@@ -355,7 +374,7 @@ public sealed class Primer(ITextGenerator generator)
             {
                 continue;
             }
-            p.Drives.Add(new DriveSuggestion
+            p.Drives.Insert(p.Drives.Count(x => !x.Remove), new DriveSuggestion
             {
                 Name = spec.Name,
                 Level = Math.Round(Math.Clamp(dd.Level ?? spec.Initial ?? 5, spec.Floor, spec.Ceiling), 1),
@@ -367,7 +386,7 @@ public sealed class Primer(ITextGenerator generator)
         {
             string name = Regex.Replace((dd.Name ?? "").Trim().ToLowerInvariant(), "[^a-z0-9-]", "");
             if (!Companion.Drives.IsValidName(name) || r.Drives.Any(x => x.Name == name) || p.Drives.Any(x => x.Name == name)
-                || r.Drives.Count + p.Drives.Count(x => x.New != null) >= Companion.Drives.MaxDrives)
+                || r.Drives.Count - removed.Count + p.Drives.Count(x => x.New != null) >= Companion.Drives.MaxDrives)
             {
                 continue;
             }

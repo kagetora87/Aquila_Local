@@ -92,6 +92,7 @@ public sealed class PrimingTests
          "drives":[{"name":"Lust","level":14,"weight":2.2,"why":"flirts a lot"},{"name":"nope","level":3},{"name":"horizon","level":1,"weight":1.8}],
          "new_drives":[{"name":"Pride!","kind":"level","description":"Her standing.","cues":["proud","my work"],"level":6,"weight":1.1,"low":"Feel small.","mid":"Steady.","high":"Shine.","why":"recurring"},
                        {"name":"bad","cues":[],"low":"a","mid":"b","high":"c"}],
+         "remove_drives":[{"name":"loneliness","why":"never lonely"},{"name":"ghost"}],
          "memories":[{"layer":"facts","text":"Ru's sister Mina got a job in Osaka.","why":"family"},
                      {"layer":"weird","text":"Ru owes Sophia an umbrella."},
                      {"layer":"facts","text":"Takeru lives in Japan."},
@@ -118,6 +119,12 @@ public sealed class PrimingTests
         Assert.Equal(MemoryLayers.Facts, p.Memories[1].Layer);
 
         Assert.Equal(0, Primer.CleanJson("""{"age":16}""", r).Age); // companions are always adults
+
+        DriveSuggestion gone = p.Drives.Single(d => d.Remove);
+        Assert.Equal(Drives.Loneliness, gone.Name);
+        // Never every drive, and at most three.
+        string all = "{\"remove_drives\":[" + string.Join(",", Drives.All.Select(n => $"{{\"name\":\"{n}\"}}")) + "]}";
+        Assert.Equal(3, Primer.CleanJson(all, r).Drives.Count(d => d.Remove));
     }
 
     private sealed class ScriptedGenerator : ITextGenerator
@@ -206,6 +213,17 @@ public sealed class PrimingTests
         Assert.Equal(before + 1, store.MemoryHistory().Count);
         Assert.Equal(MemoryAuthors.Operator, store.MemoryHistory()[^1].Author);
         Assert.Contains(done, x => x.Contains("2 moments"));
+
+        // A removal and an addition together reshape her drives, logged.
+        PrimeChoice reshape = new()
+        {
+            Source = "x.txt",
+            Drives = { new DriveSuggestion { Name = Drives.Lust, Remove = true }, new DriveSuggestion { Name = "pride", Level = 6, Weight = 1, New = new DriveSpec { Name = "pride", Cues = { "proud" }, Guidance = new DriveGuidance { Low = "a", Mid = "b", High = "c" } } } }
+        };
+        List<string> moved = PrimeApplier.ToPersona(config, store, reshape, null, TestPersona.T0.AddHours(2));
+        Assert.DoesNotContain(config.Drives, d => d.Name == Drives.Lust);
+        Assert.Contains(moved, m => m.Contains("lust removed"));
+        Assert.Equal(6, store.ReadDrives(new[] { "pride" })["pride"].Value);
 
         // The old conversation is recallable but already folded, not counted as chat turns, and not "the last things said".
         Assert.Empty(store.UnfoldedExchanges());

@@ -5,7 +5,7 @@ namespace Aquila.Companion.Tests;
 
 public sealed class CreatorTests
 {
-    private static CompanionDraft Finished(string gender = Genders.Male)
+    internal static CompanionDraft Finished(string gender = Genders.Male)
     {
         CompanionDraft d = new();
         d.Choose(CreatorKinds.Gender, gender);
@@ -40,7 +40,7 @@ public sealed class CreatorTests
     [Fact]
     public void ChangingGenderClearsPicksThatNoLongerFit()
     {
-        CompanionDraft d = Finished(Genders.Female);
+        CompanionDraft d = CreatorTests.Finished(Genders.Female);
         Assert.NotEmpty(d.Hair);
         d.Choose(CreatorKinds.Gender, Genders.Male);
         Assert.Equal("", d.Hair);
@@ -172,5 +172,28 @@ public sealed class PronounTests
         AquilaLocal.Companion.Living.LivingPolicy policy = new();
         string? why = AquilaLocal.Companion.Living.LivingSchedule.WhyNoMessage(DateTimeOffset.Now, 14, 1.0, Array.Empty<DateTimeOffset>(), true, policy, Genders.Male);
         Assert.Equal("he's waiting for you to answer his last message", why);
+    }
+
+    [Fact]
+    public void BodyDetailsCustomHairAndBackgroundReachThePictures()
+    {
+        CompanionDraft d = CreatorTests.Finished(Genders.Female);
+        d.Bust = "Large";
+        d.Butt = "Round";
+        d.Choose(CreatorKinds.Hair, CreatorOptions.CustomHair);
+        Assert.Contains(d.Missing(3), m => m.Contains("Describe the hair"));
+        d.HairCustom = "long silver hair in a side braid";
+        Assert.Empty(d.Missing(3));
+        d.Background = "Beach";
+        AppearanceSeed a = d.Appearance();
+        Assert.Contains("large breasts", a.Traits.Single(t => t.Name == "body").Text);
+        Assert.Contains("round, shapely butt", a.Traits.Single(t => t.Name == "body").Text);
+        Assert.Contains("silver hair in a side braid", a.Traits.Single(t => t.Name == "hair").Text);
+        Assert.Contains("a beach at golden hour", d.PortraitPrompt());
+        d.Background = "a rooftop at sunset";
+        Assert.Contains("Background: a rooftop at sunset", d.PortraitPrompt());
+        // Switching to male drops the chest choice.
+        d.Choose(CreatorKinds.Gender, Genders.Male);
+        Assert.DoesNotContain("breasts", d.BodyText);
     }
 }

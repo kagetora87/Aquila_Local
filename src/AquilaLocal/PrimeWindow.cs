@@ -511,10 +511,12 @@ public sealed class PrimeWindow : AquilaWindow
 			{
 				DriveSpec? was = request.Drives.FirstOrDefault((DriveSpec x) => x.Name == d.Name);
 				StackPanel line = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
-				string what = was != null
+				string what = d.Remove
+					? "Remove the \u201C" + d.Name + "\u201D drive"
+					: was != null
 					? d.Name + ":  " + (existing ? "set to " : "starts at ") + d.Level.ToString("0.0") + (was.Initial is double i && !existing ? " (was " + i.ToString("0.0") + ")" : "") + ",  weight " + d.Weight.ToString("0.0") + " (was " + (was.Weight ?? 1).ToString("0.0") + ")"
 					: "New drive “" + d.Name + "”" + (d.New!.Description.Length > 0 ? " (" + d.New.Description.TrimEnd('.') + ")" : "") + ":  starts at " + d.Level.ToString("0.0") + ",  weight " + d.Weight.ToString("0.0");
-				CheckBox useDrive = new CheckBox { Content = what, IsChecked = was != null, FontWeight = FontWeights.SemiBold };
+				CheckBox useDrive = new CheckBox { Content = what, IsChecked = was != null && !d.Remove, FontWeight = FontWeights.SemiBold };
 				line.Children.Add(useDrive);
 				if (d.Why.Length > 0)
 				{
@@ -523,7 +525,15 @@ public sealed class PrimeWindow : AquilaWindow
 					why.TextWrapping = TextWrapping.Wrap;
 					line.Children.Add(why);
 				}
-				if (was == null)
+				if (d.Remove)
+				{
+					TextBlock extra = Ui.Text(W("Takes this drive away from {o}. Its history stays in the log. Leave it unticked to keep it."), "Type.Small");
+					extra.Margin = new Thickness(24, 2, 0, 0);
+					extra.TextWrapping = TextWrapping.Wrap;
+					extra.Foreground = Ui.Brush("Text.Tertiary");
+					line.Children.Add(extra);
+				}
+				else if (was == null)
 				{
 					TextBlock extra = Ui.Text("Adds a new drive (you can rename or remove it later in settings). Low: " + d.New!.Guidance.Low + "  Middle: " + d.New.Guidance.Mid + "  High: " + d.New.Guidance.High, "Type.Small");
 					extra.Margin = new Thickness(24, 2, 0, 0);

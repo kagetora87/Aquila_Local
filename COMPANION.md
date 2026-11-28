@@ -286,8 +286,9 @@ together, so any length fits the context window). It drafts:
 
 1. **The personality sheet**, in her voice, keeping what her current sheet or your notes already say unless the
    conversation shows otherwise.
-2. **Her drives**: where each one should start and how much it should matter, each with a reason. Rarely, a new
-   drive for a strong motive none of hers covers (off unless you tick it).
+2. **Her drives**: where each one should start and how much it should matter, each with a reason. It can also
+   suggest up to 3 new drives for strong motives none of hers covers, and up to 3 of hers to take away because
+   they don't fit (never all of them). New drives and removals are off unless you tick them.
 3. **Memories** (up to 40): names, shared moments, inside jokes, promises, plans. You press **Keep** or **Skip**
    on each one and can change its words. A counter shows how much of her 2,000-token pinned memory they'd use.
 4. **The conversation word for word** (optional): stored in her recall memory as "your past together, before

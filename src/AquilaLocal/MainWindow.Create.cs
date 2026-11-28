@@ -242,8 +242,8 @@ public partial class MainWindow
 			{
 				draft.Choose(kind, option.Key);
 				ShowCreateStatus("");
-				// A picture pick moves on by itself, except hair, which still needs a colour.
-				if (kind == CreatorKinds.Hair)
+				// A picture pick moves on by itself, except hair (still needs a colour) and body (chest and behind below).
+				if (kind == CreatorKinds.Hair || kind == CreatorKinds.Body)
 				{
 					ShowScreen(Screens.Create);
 				}
@@ -257,6 +257,38 @@ public partial class MainWindow
 		body.Children.Add(tiles);
 		if (kind == CreatorKinds.Hair)
 		{
+			// Or your own style, in words.
+			TextBox custom = new TextBox { Text = draft.HairCustom, MaxLength = CompanionDraft.MaxShortChars, Width = 460, HorizontalAlignment = HorizontalAlignment.Left };
+			Ui.SetPlaceholder(custom, "For example: long silver hair in a side braid with a ribbon");
+			if (draft.IsCustomHair)
+			{
+				custom.BorderBrush = Ui.Brush("Accent");
+				custom.BorderThickness = new Thickness(2);
+			}
+			custom.TextChanged += delegate
+			{
+				draft.HairCustom = custom.Text;
+				bool mine = custom.Text.Trim().Length > 0;
+				if (mine && !draft.IsCustomHair)
+				{
+					draft.Hair = CreatorOptions.CustomHair;
+					foreach (Button t in tiles.Children.OfType<Button>())
+					{
+						t.Opacity = 0.55;
+					}
+				}
+				custom.BorderBrush = Ui.Brush(mine ? "Accent" : "Stroke.Default");
+				custom.BorderThickness = new Thickness(mine ? 2 : 1);
+				ShowCreateStatus("");
+			};
+			if (draft.IsCustomHair)
+			{
+				foreach (Button t in tiles.Children.OfType<Button>())
+				{
+					t.Opacity = 0.55;
+				}
+			}
+			body.Children.Add(Ui.Field("Or describe your own style", custom, "Picking a picture above switches back to it.", 4));
 			body.Children.Add(Ui.Section("Hair colour"));
 			body.Children.Add(Chips(CreatorOptions.HairColours, draft.HairColour, delegate(string c)
 			{
@@ -264,6 +296,27 @@ public partial class MainWindow
 				ShowCreateStatus("");
 				ShowScreen(Screens.Create);
 			}));
+		}
+		if (kind == CreatorKinds.Body)
+		{
+			if (!Genders.IsMale(gender))
+			{
+				body.Children.Add(Ui.Section("Chest (optional)"));
+				body.Children.Add(Chips(CreatorOptions.Busts.Select(((string Label, string Text) b) => b.Label), draft.Bust, delegate(string c)
+				{
+					draft.Bust = draft.Bust == c ? "" : c;
+					ShowScreen(Screens.Create);
+				}));
+			}
+			body.Children.Add(Ui.Section("Behind (optional)"));
+			body.Children.Add(Chips(CreatorOptions.Butts.Select(((string Label, string Text) b) => b.Label), draft.Butt, delegate(string c)
+			{
+				draft.Butt = draft.Butt == c ? "" : c;
+				ShowScreen(Screens.Create);
+			}));
+			TextBlock tip = Ui.Text("Press a chosen one again to clear it. Then press Next.", "Type.Small");
+			tip.Margin = new Thickness(0, 4, 0, 0);
+			body.Children.Add(tip);
 		}
 		return new ScrollViewer { Content = body, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
 	}
@@ -603,8 +656,8 @@ public partial class MainWindow
 		}
 		sum.Children.Add(SummaryRow("Gender", draft.Option(CreatorKinds.Gender)?.Label ?? "", 1));
 		sum.Children.Add(SummaryRow("Ethnicity", draft.Option(CreatorKinds.Ethnicity)?.Label ?? "", 2));
-		sum.Children.Add(SummaryRow("Hair", draft.HairColour + ", " + (draft.Option(CreatorKinds.Hair)?.Label ?? "").ToLowerInvariant(), 3));
-		sum.Children.Add(SummaryRow("Body", draft.Option(CreatorKinds.Body)?.Label ?? "", 4));
+		sum.Children.Add(SummaryRow("Hair", draft.HairColour + ", " + draft.HairLabel.ToLowerInvariant(), 3));
+		sum.Children.Add(SummaryRow("Body", string.Join(", ", new[] { draft.Option(CreatorKinds.Body)?.Label ?? "", !Genders.IsMale(draft.Gender) && draft.Bust.Length > 0 ? draft.Bust.ToLowerInvariant() + " chest" : "", draft.Butt.Length > 0 ? draft.Butt.ToLowerInvariant() + " behind" : "" }.Where((string x) => x.Length > 0)), 4));
 		sum.Children.Add(SummaryRow("Eyes", draft.EyeColour, 5));
 		sum.Children.Add(SummaryRow("Always visible", draft.Feature.Trim(), 5));
 		sum.Children.Add(SummaryRow("Wearing", draft.Outfit.Trim().Length > 0 ? draft.Outfit.Trim() : draft.DefaultOutfit, 5));
@@ -640,6 +693,25 @@ public partial class MainWindow
 			redo.Children.Add(again);
 			right.Children.Add(redo);
 		}
+		// Where the portrait is set.
+		StackPanel place = new StackPanel { Margin = new Thickness(0, 0, 0, 10), Width = 420, HorizontalAlignment = HorizontalAlignment.Left };
+		place.Children.Add(Ui.Text("Background", "Type.Label"));
+		WrapPanel places = Chips(CreatorOptions.Backgrounds.Select(((string Label, string Text) b) => b.Label), draft.Background.Length > 0 ? draft.Background : CreatorOptions.Backgrounds[0].Label, delegate(string c)
+		{
+			draft.Background = c;
+			ShowScreen(Screens.Create);
+		});
+		places.Margin = new Thickness(0, 6, 0, 0);
+		place.Children.Add(places);
+		bool ownPlace = draft.Background.Length > 0 && !CreatorOptions.Backgrounds.Any(((string Label, string Text) b) => b.Label == draft.Background);
+		TextBox where = new TextBox { Text = ownPlace ? draft.Background : "", MaxLength = 200 };
+		Ui.SetPlaceholder(where, "Or your own place: a rooftop at sunset, a snowy cabin…");
+		where.TextChanged += delegate
+		{
+			draft.Background = where.Text.Trim();
+		};
+		place.Children.Add(where);
+		right.Children.Add(place);
 		Border frame = new Border { Width = 420, Height = 525, CornerRadius = new CornerRadius(14), BorderBrush = Ui.Brush("Stroke.Subtle"), BorderThickness = new Thickness(1), Background = Ui.Brush("Surface.1"), ClipToBounds = true };
 		ImageSource? portrait = has ? LoadPreview(draftPortrait) : null;
 		if (portrait != null)
