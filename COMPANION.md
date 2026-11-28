@@ -268,6 +268,38 @@ memory, the last things you said to each other and her recent thoughts (so she d
 - **Journal:** `Data\living\<persona>\journal.jsonl`, one line per thought, appended. A damaged line is reported
   by number, never skipped. The Living mode window shows it newest first and has "Have a thought now".
 
+## Start from a saved chat (priming)
+
+You can teach a companion from a conversation you had with an AI somewhere else, or from any document that
+describes them (a character sheet, notes, a story).
+
+- **While creating one:** Create a companion → step 5 → **Start from a saved chat…**
+- **For one who already exists:** Companions → **Teach from a saved chat…**
+
+Paste the text, or add files: text (.txt, .md), Word (.docx), PDF, saved web pages (.html), or chat exports
+(ChatGPT or Claude.ai `conversations.json`, SillyTavern `.jsonl`, Aquila chats). If it's a conversation, Aquila
+finds who is speaking ("Ru: …", "Sophia: …", or ChatGPT's copied "You said:" lines) and asks which one is you
+and which one becomes the companion.
+
+Your own chat model reads it on this computer, in parts if it's long (each part's notes first, then everything
+together, so any length fits the context window). It drafts:
+
+1. **The personality sheet**, in her voice, keeping what her current sheet or your notes already say unless the
+   conversation shows otherwise.
+2. **Her drives**: where each one should start and how much it should matter, each with a reason. It can also
+   suggest up to 3 new drives for strong motives none of hers covers, and up to 3 of hers to take away because
+   they don't fit (never all of them). New drives and removals are off unless you tick them.
+3. **Memories** (up to 40): names, shared moments, inside jokes, promises, plans. You press **Keep** or **Skip**
+   on each one and can change its words. A counter shows how much of her 2,000-token pinned memory they'd use.
+4. **The conversation word for word** (optional): stored in her recall memory as "your past together, before
+   this app", already folded, so moments come back when something reminds her, without being re-summarised or
+   shown as the last things said.
+
+Nothing is used until you press **Use this** (creating) or **Save to her** (existing, with a confirmation).
+For an existing companion, kept memories are new entries (author `operator`, reason "primed from <file>,
+approved by you"); nothing is replaced, and drive changes are logged like any other. Code:
+`companion/Aquila.Companion/Priming/` (SourceText, Primer, PrimeApplier) and `src/AquilaLocal/PrimeWindow.cs`.
+
 ## Fail loud
 
 If her state can't be read (file missing, damaged, belongs to another persona, a drive missing or impossible,

@@ -572,7 +572,8 @@ public sealed partial class PersonaStore
     {
         using SqliteConnection c = Connect();
         using SqliteCommand cmd = c.CreateCommand();
-        cmd.CommandText = "SELECT id,chat_id,turn_id,at,user_text,reply_text,folded,spoken FROM exchanges WHERE persona_id=$p ORDER BY id DESC LIMIT $l";
+        // Conversations remembered from before Aquila are recalled by meaning, never shown as "the last things said".
+        cmd.CommandText = "SELECT id,chat_id,turn_id,at,user_text,reply_text,folded,spoken FROM exchanges WHERE persona_id=$p AND chat_id NOT LIKE 'imported:%' ORDER BY id DESC LIMIT $l";
         cmd.Parameters.AddWithValue("$p", PersonaId);
         cmd.Parameters.AddWithValue("$l", count);
         List<Exchange> list = ReadExchanges(cmd);
