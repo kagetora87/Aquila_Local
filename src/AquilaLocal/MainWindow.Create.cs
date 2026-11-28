@@ -13,6 +13,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using AquilaLocal.Companion;
 using AquilaLocal.Companion.Pictures;
+using AquilaLocal.Companion.Priming;
 
 namespace AquilaLocal;
 
@@ -448,6 +449,7 @@ public partial class MainWindow
 
 		// Below: drives.
 		StackPanel all = new StackPanel();
+		all.Children.Add(PrimeBanner());
 		all.Children.Add(columns);
 		all.Children.Add(Ui.Section("Drives", 28));
 		TextBlock drivesHint = Ui.Text("What moves " + Genders.Object(draft.Gender) + ". Every companion starts with these five; change the numbers, rename them, or add your own, just like in Companions settings.", "Type.Small");
@@ -457,6 +459,68 @@ public partial class MainWindow
 		draftDriveEditor = new DriveEditor(draftDrives, false);
 		all.Children.Add(draftDriveEditor.View);
 		return new ScrollViewer { Content = new Border { Child = all, Padding = new Thickness(0, 0, 16, 16) }, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
+	}
+
+	/// <summary>The chat model and what it needs to read a saved chat (null while it isn't loaded).</summary>
+	internal PrimeKit? PrimeKitNow()
+	{
+		if (!engine.Ready)
+		{
+			return null;
+		}
+		string nickname = "";
+		try
+		{
+			nickname = companion.LoadAboutYou().Nickname.Trim();
+		}
+		catch (PersonaConfigException)
+		{
+		}
+		return new PrimeKit(new CompanionHost.EngineGenerator(engine, "Reading the saved chat"), Math.Min(settings.Context, engine.SlotContext ?? settings.Context), nickname);
+	}
+
+	/// <summary>Step 5's offer to fill everything in from a saved conversation or document, or what was filled in from one.</summary>
+	private FrameworkElement PrimeBanner()
+	{
+		Border banner = new Border { Background = Ui.Brush("Accent.Subtle"), BorderBrush = Ui.Brush("Accent.SubtleStroke"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(8), Padding = new Thickness(14, 10, 14, 10), Margin = new Thickness(0, 0, 0, 20) };
+		DockPanel row = new DockPanel();
+		Button start = Ui.Button(Ui.IconLabel(Ui.Glyph.Attach, draft.PrimedFrom.Length > 0 ? "Read another…" : "Start from a saved chat…"), "Btn.Secondary", delegate { PrimeDraft(); });
+		start.ToolTip = "Paste a conversation or add files; the chat model drafts the personality, drives and memories for you to review";
+		DockPanel.SetDock(start, Dock.Right);
+		row.Children.Add(start);
+		int memories = draft.PrimedMemory.Facts.Count + draft.PrimedMemory.Feelings.Count + draft.PrimedMemory.Hooks.Count;
+		string text = draft.PrimedFrom.Length > 0
+			? "Filled in from " + draft.PrimedFrom + ": " + (memories == 1 ? "1 memory" : memories + " memories") + " kept" + (draft.PrimedRecall.Count > 0 ? ", and the conversation will be remembered word for word" : "") + ". Change anything below."
+			: "Have a long conversation with an AI from somewhere else, or a character write-up? Aquila can read it and fill this page in for you, including memories of your past together.";
+		TextBlock t = Ui.Text(text, "Type.Small");
+		t.TextWrapping = TextWrapping.Wrap;
+		t.VerticalAlignment = VerticalAlignment.Center;
+		t.Margin = new Thickness(0, 0, 16, 0);
+		row.Children.Add(t);
+		banner.Child = row;
+		return banner;
+	}
+
+	private void PrimeDraft()
+	{
+		TakeDrives();
+		PrimeRequest request = new PrimeRequest
+		{
+			CompanionName = draft.Name.Trim(),
+			Gender = draft.Gender.Length > 0 ? draft.Gender : Genders.Female,
+			Drives = draft.Drives,
+			Notes = draft.Personality.Trim()
+		};
+		PrimeWindow window = new PrimeWindow(PrimeKitNow(), request, existing: false, memoryCap: new MemorySettings().SummaryTokenCap, memoryUsed: 0) { Owner = this };
+		if (window.ShowDialog() != true || window.Result == null)
+		{
+			return;
+		}
+		PrimeApplier.ToDraft(draft, window.Result);
+		draftDrives = null;
+		draftDriveEditor = null;
+		ShowCreateStatus("Filled in. Check the details, pick how " + Genders.Subject(draft.Gender) + " looks, and change anything you like.");
+		ShowScreen(Screens.Create);
 	}
 
 	/// <summary>Rebuilds the step in place, keeping the drive edits made so far.</summary>
@@ -693,7 +757,7 @@ public partial class MainWindow
 	}
 
 	/// <summary>Creates the companion: their persona file, their private memory, their portrait as profile and reference picture.</summary>
-	private void BringToLife()
+	private async void BringToLife()
 	{
 		if (generating || makingTiles || busy)
 		{
@@ -725,6 +789,27 @@ public partial class MainWindow
 		catch (Exception ex) when (ex is PersonaConfigException || ex is IOException || ex is UnauthorizedAccessException || ex is Microsoft.Data.Sqlite.SqliteException)
 		{
 			warnings.Add(config.Name + " was added but not set up yet (" + ex.Message + "). Open " + Genders.Possessive(config.Gender) + " settings and press Set up.");
+		}
+		if (draft.PrimedRecall.Count > 0 && companion.IsSetUp(id))
+		{
+			// The saved conversation they were primed with, word for word, so its moments can come back to them later.
+			PrimeChoice recall = new PrimeChoice { Source = draft.PrimedFrom, Recall = draft.PrimedRecall.ToList() };
+			ShowCreateStatus("Remembering the conversation…");
+			SetBusy(value: true);
+			try
+			{
+				PersonaStore store = companion.Registry.OpenStore(id);
+				await Task.Run(() => PrimeApplier.Remember(store, recall, companion.Embed, DateTimeOffset.Now));
+				companion.Forget(id);
+			}
+			catch (Exception ex)
+			{
+				warnings.Add("The saved conversation couldn't be remembered word for word (" + ex.Message + "). The memories you kept are saved.");
+			}
+			finally
+			{
+				SetBusy(value: false);
+			}
 		}
 		if (draftPortrait.Length > 0 && File.Exists(draftPortrait))
 		{

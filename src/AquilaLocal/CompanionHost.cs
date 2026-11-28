@@ -46,7 +46,7 @@ public sealed class CompanionHost : IDisposable
 	}
 
 	/// <summary>Runs the summary pass on the engine's second slot so the chat's prompt cache is untouched.</summary>
-	public sealed class EngineGenerator(Engine engine) : ITextGenerator
+	public sealed class EngineGenerator(Engine engine, string what = "The summary pass") : ITextGenerator
 	{
 		public async Task<string> GenerateJsonAsync(string system, string user, int maxTokens, CancellationToken ct)
 		{
@@ -67,10 +67,10 @@ public sealed class CompanionHost : IDisposable
 			};
 			using HttpResponseMessage response = await engine.PostAsync("v1/chat/completions", payload, stream: false, ct);
 			JsonNode? node = JsonNode.Parse(await response.Content.ReadAsStringAsync(ct));
-			JsonNode choice = node?["choices"]?.AsArray().FirstOrDefault() ?? throw new IOException("The summary pass returned no answer.");
+			JsonNode choice = node?["choices"]?.AsArray().FirstOrDefault() ?? throw new IOException(what + " returned no answer.");
 			if (choice["finish_reason"]?.GetValue<string>() != "stop")
 			{
-				throw new IOException("The summary pass ran out of room before finishing. The previous summary was kept.");
+				throw new IOException(what + (what == "The summary pass" ? " ran out of room before finishing. The previous summary was kept." : " ran out of room before finishing. Nothing was saved."));
 			}
 			return choice["message"]?["content"]?.GetValue<string>() ?? "";
 		}

@@ -140,6 +140,13 @@ public static class ContextInjector
                   .Append(" you thought to yourself (you never said this to them): \"").Append(Clip(r.Exchange.Reply, 500)).Append("\"\n");
                 continue;
             }
+            if (PersonaStore.IsImported(r.Exchange))
+            {
+                // From the conversation she was primed with: their shared past from before Aquila, with no reliable date.
+                sb.Append("- from your past together, before this app: they wrote: \"").Append(Clip(r.Exchange.User, 400))
+                  .Append("\" / you said: \"").Append(Clip(r.Exchange.Reply, 500)).Append("\"\n");
+                continue;
+            }
             sb.Append("- ").Append(when)
               .Append(r.Exchange.Spoken ? " you heard them say aloud: \"" : " they wrote: \"").Append(Clip(r.Exchange.User, 400)).Append("\" / you said: \"").Append(Clip(r.Exchange.Reply, 500)).Append("\"\n");
         }

@@ -2438,6 +2438,7 @@ public partial class MainWindow : AquilaWindow
 			started = true;
 			NewChat(id, name);
 		}, personaId, highlight, highlightWardrobe, speech.VoiceChoices);
+		window.PrimeKit = PrimeKitNow;
 		window.Owner = this;
 		window.ShowDialog();
 		if (!started && current != null && current.IsCompanion && !busy)

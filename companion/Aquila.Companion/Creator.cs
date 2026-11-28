@@ -160,6 +160,14 @@ public sealed class CompanionDraft
 
     public List<DriveSpec> Drives { get; set; } = DefaultDrives();
 
+    /// <summary>Long-term memories kept from a saved chat or document (Start from a saved chat). Empty when not primed.</summary>
+    public StateBlock PrimedMemory { get; set; } = new();
+
+    /// <summary>A saved conversation to remember word for word once they're brought to life, and its file name.</summary>
+    public List<(string User, string Reply)> PrimedRecall { get; set; } = new();
+
+    public string PrimedFrom { get; set; } = "";
+
     public string Word => Genders.IsMale(Gender) ? "man" : "woman";
 
     /// <summary>The usual starting outfit for a new companion.</summary>
@@ -388,12 +396,15 @@ public sealed class CompanionDraft
         {
             throw new PersonaConfigException("Not finished yet: " + string.Join(" ", missing));
         }
-        StateBlock summary = new()
-        {
-            Facts = new List<string> { "You've only just met them; almost everything about them is still new to you." },
-            Feelings = new List<string> { "Curious about them, and glad to be getting to know them." },
-            Hooks = new List<string> { "Find out who they are, what they love and what their days are like." }
-        };
+        // Primed from a saved chat: they already share a past, so the "just met" starting memory would be wrong.
+        StateBlock summary = !PrimedMemory.IsEmpty
+            ? new StateBlock { Facts = PrimedMemory.Facts.ToList(), Feelings = PrimedMemory.Feelings.ToList(), Hooks = PrimedMemory.Hooks.ToList() }
+            : new()
+            {
+                Facts = new List<string> { "You've only just met them; almost everything about them is still new to you." },
+                Feelings = new List<string> { "Curious about them, and glad to be getting to know them." },
+                Hooks = new List<string> { "Find out who they are, what they love and what their days are like." }
+            };
         if (Relationship.Trim().Length > 0)
         {
             summary.Facts.Add("How you know them: " + Relationship.Trim().TrimEnd('.') + ".");
@@ -406,7 +417,7 @@ public sealed class CompanionDraft
             Gender = Gender,
             Tagline = Tagline.Trim(),
             PersonalitySheet = Sheet(),
-            BaselineFrom = "Created in Aquila on " + madeOn,
+            BaselineFrom = "Created in Aquila on " + madeOn + (PrimedFrom.Length > 0 ? ", primed from " + PrimedFrom : ""),
             Drift = new DriftClause { Unlocked = false, Text = "You grow and change slowly through what you live and remember, but your core self stays recognisable." },
             Drives = Drives.Select(Clone).ToList(),
             Seed = new PersonaSeed { Summary = summary, Appearance = Appearance() }

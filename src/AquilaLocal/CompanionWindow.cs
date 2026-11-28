@@ -8,6 +8,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using AquilaLocal.Companion;
+using AquilaLocal.Companion.Priming;
 using Microsoft.Win32;
 
 namespace AquilaLocal;
@@ -36,6 +37,9 @@ public sealed class CompanionWindow : AquilaWindow
 
 	/// <summary>The voices she can be given (from the app's voice library).</summary>
 	private readonly Func<List<(string Key, string Label)>>? voices;
+
+	/// <summary>The chat model for "Teach from a saved chat" (null while it isn't loaded). Set by the main window.</summary>
+	public Func<PrimeKit?>? PrimeKit { get; set; }
 
 	public CompanionWindow(CompanionHost host, Action<string, string> startChat, string? focusPersona = null, IEnumerable<long>? highlightMemory = null, IEnumerable<long>? highlightWardrobe = null, Func<List<(string Key, string Label)>>? voices = null)
 	{
@@ -329,6 +333,13 @@ public sealed class CompanionWindow : AquilaWindow
 			import.Margin = new Thickness(0, 0, 8, 8);
 			row.Children.Add(import);
 		}
+		if (config != null && storeExists)
+		{
+			Button teach = Ui.Button(Ui.IconLabel(Ui.Glyph.Attach, "Teach from a saved chat…"), "Btn.Secondary", delegate { _ = TeachAsync(); });
+			teach.ToolTip = W("Paste a conversation or add files; the chat model suggests changes to {p} personality and drives, and memories to add. You choose what's kept.");
+			teach.Margin = new Thickness(0, 0, 8, 8);
+			row.Children.Add(teach);
+		}
 		Button folder = Ui.Button(W("Open {p} folder"), "Btn.Secondary", delegate
 		{
 			try
@@ -347,6 +358,68 @@ public sealed class CompanionWindow : AquilaWindow
 			row.Children.Add(ProfilePictureRow(config));
 		}
 		return row;
+	}
+
+	/// <summary>Primes her from a saved chat or document: you review the suggestions, and what you keep is saved and logged.</summary>
+	private async System.Threading.Tasks.Task TeachAsync()
+	{
+		string id = personaId;
+		PersonaConfig config;
+		PersonaStore store;
+		PrimeRequest request;
+		int used;
+		try
+		{
+			config = host.Registry.LoadConfig(id);
+			store = host.Registry.OpenStore(id);
+			// She's told where her drives are now, not where they started.
+			Dictionary<string, DriveValue> values = store.ReadDrives(config.Drives.Select((DriveSpec d) => d.Name));
+			List<DriveSpec> drives = System.Text.Json.JsonSerializer.Deserialize<List<DriveSpec>>(System.Text.Json.JsonSerializer.Serialize(config.Drives, PersonaConfig.Json), PersonaConfig.Json)!;
+			foreach (DriveSpec d in drives)
+			{
+				d.Initial = Math.Round(values[d.Name].Value, 1);
+			}
+			request = new PrimeRequest
+			{
+				CompanionName = config.Name,
+				Gender = config.Gender,
+				Drives = drives,
+				ExistingSheet = config.PersonalitySheet,
+				KnownMemories = store.ActiveMemory().Select((MemoryEntry e) => e.Text).ToList()
+			};
+			used = TokenEstimate.Of(store.ReadSummary().Render());
+		}
+		catch (Exception ex) when (ex is PersonaConfigException || ex is DriveStateUnavailableException || ex is IOException || ex is Microsoft.Data.Sqlite.SqliteException)
+		{
+			Problem(ex.Message);
+			return;
+		}
+		PrimeWindow window = new PrimeWindow(PrimeKit?.Invoke(), request, existing: true, memoryCap: config.Memory.SummaryTokenCap, memoryUsed: used) { Owner = this };
+		if (window.ShowDialog() != true || window.Result == null)
+		{
+			return;
+		}
+		PrimeChoice choice = window.Result;
+		Ok(choice.Recall.Count > 0 ? W("Saving, and remembering the conversation (this can take a moment)…") : "Saving…");
+		IsEnabled = false;
+		try
+		{
+			PersonaConfig edited = host.Registry.LoadConfig(id);
+			List<string> done = await System.Threading.Tasks.Task.Run(() => PrimeApplier.ToPersona(edited, store, choice, host.Embed, DateTimeOffset.Now));
+			edited.Save(host.ConfigPath(id));
+			host.Forget(id);
+			Ok(done.Count > 0 ? "Saved: " + string.Join(", ", done) + W(". {S} feels it from {p} next message.") : "Nothing needed changing.");
+		}
+		catch (Exception ex)
+		{
+			// Includes the embedding model failing while remembering the conversation (checked before anything is written).
+			Problem("Not saved: " + ex.Message);
+		}
+		finally
+		{
+			IsEnabled = true;
+		}
+		Build();
 	}
 
 	/// <summary>Her small round profile picture, shown beside her name in the chat and at the top of it.</summary>
