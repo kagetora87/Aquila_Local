@@ -385,7 +385,7 @@ public sealed class CompanionWindow : AquilaWindow
 				Gender = config.Gender,
 				Drives = drives,
 				ExistingSheet = config.PersonalitySheet,
-				KnownMemories = store.ActiveMemory().Select((MemoryEntry e) => e.Text).ToList()
+				KnownMemories = store.ActiveMemory().Select((AquilaLocal.Companion.MemoryEntry e) => e.Text).ToList()
 			};
 			used = TokenEstimate.Of(store.ReadSummary().Render());
 		}
