@@ -434,8 +434,13 @@ public sealed class Agent(Engine engine, MemoryStore? memories = null, SemanticM
 			{
 				jsonObject["tools"] = tools;
 				jsonObject["tool_choice"] = ((workspace != null && settings.RequireLookup && round == 0) ? "required" : "auto");
+				if (persona)
+				{
+					jsonObject["parallel_tool_calls"] = false;
+				}
 			}
 			SortedDictionary<int, ToolCall> calls = new SortedDictionary<int, ToolCall>();
+			bool overflowed = false;
 			StringBuilder content = new StringBuilder();
 			StringBuilder reasoning = new StringBuilder();
 			string finish = "";
@@ -529,9 +534,12 @@ public sealed class Agent(Engine engine, MemoryStore? memories = null, SemanticM
 					foreach (JsonNode item2 in jsonArray2)
 					{
 						int valueOrDefault = (item2?["index"]?.GetValue<int>()).GetValueOrDefault();
-						if (valueOrDefault < 0 || valueOrDefault > 23)
+						if (valueOrDefault < 0 || valueOrDefault >= maxCalls)
 						{
-							throw new IOException("Model requested too many tools in one response.");
+							// It's piling up tool calls (some models loop here). Keep the ones so far, stop the
+							// generation, and carry on: the repeats are answered from the first, then it must answer.
+							overflowed = true;
+							break;
 						}
 						if (!calls.TryGetValue(valueOrDefault, out ToolCall value2))
 						{
@@ -556,6 +564,13 @@ public sealed class Agent(Engine engine, MemoryStore? memories = null, SemanticM
 						{
 							throw new IOException("Model tool arguments exceeded the size limit.");
 						}
+					}
+					if (overflowed)
+					{
+						Log(turn, $"The model kept writing tool calls in one go; kept the first {calls.Count} and stopped it there.");
+						finish = "tool_calls";
+						ended = true;
+						break;
 					}
 				}
 			}
