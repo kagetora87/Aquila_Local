@@ -266,6 +266,14 @@ public sealed class PersonaConfig
     /// <summary>A line or two about them for their card in My Companions. Empty uses the start of the personality sheet.</summary>
     public string Tagline { get; set; } = "";
 
+    /// <summary>
+    /// How she pictures you, in a few sentences (her mental image of you: your looks, how you carry yourself). Used
+    /// when she draws or dreams you, and she knows it in chats. Empty: she goes by your About you profile.
+    /// </summary>
+    public string ImageOfYou { get; set; } = "";
+
+    public const int MaxImageOfYouChars = 800;
+
     public const int MinAge = 18;
     public const int MaxAge = 120;
     public const int MaxTaglineChars = 300;
@@ -335,6 +343,10 @@ public sealed class PersonaConfig
         if (Gender != Genders.Female && Gender != Genders.Male)
         {
             throw new PersonaConfigException($"{Name}'s gender must be \"{Genders.Female}\" or \"{Genders.Male}\".");
+        }
+        if (ImageOfYou.Length > MaxImageOfYouChars)
+        {
+            throw new PersonaConfigException($"How {Name} pictures you is {ImageOfYou.Length} characters; keep it under {MaxImageOfYouChars}.");
         }
         if (Tagline.Length > MaxTaglineChars)
         {

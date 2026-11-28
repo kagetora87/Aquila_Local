@@ -152,6 +152,24 @@ public sealed class Agent(Engine engine, MemoryStore? memories = null, SemanticM
 			{
 				turn.InnerState += "\n" + ExtraInnerState;
 			}
+			if (MakePicture != null && RetryNote.Length == 0)
+			{
+				// She'd never drawn a moment on her own: now and then she's reminded that she can.
+				int sincePicture = 0;
+				foreach (Turn t in earlier.AsEnumerable().Reverse())
+				{
+					if (t.Pictures.Count > 0)
+					{
+						break;
+					}
+					sincePicture++;
+				}
+				if (sincePicture >= PictureNudgeEvery && sincePicture % PictureNudgeEvery == 0)
+				{
+					turn.InnerState += "\n(You haven't drawn a picture in a while. If this moment is vivid, intimate, funny or somewhere new, it may be worth capturing with make_picture, on your own initiative. Only if it truly fits; otherwise ignore this.)";
+					Log(turn, session.PersonaName + " was reminded she can draw this moment if it fits.");
+				}
+			}
 			if (RetryNote.Length > 0)
 			{
 				turn.InnerState += "\n" + RetryNote;
@@ -784,6 +802,9 @@ public sealed class Agent(Engine engine, MemoryStore? memories = null, SemanticM
 		throw new IOException("The model kept asking for tools instead of answering. Try again (the button under the reply), or turn Thinking off.");
 	}
 
+	/// <summary>After this many replies without a picture, she's reminded she can draw the moment (then again every as many).</summary>
+	public const int PictureNudgeEvery = 12;
+
 	/// <summary>Tools that make sense once per reply.</summary>
 	private static readonly HashSet<string> OnceTools = new HashSet<string> { "react", "change_outfit", "change_location", "make_picture", "make_video" };
 
@@ -838,7 +859,7 @@ public sealed class Agent(Engine engine, MemoryStore? memories = null, SemanticM
 
 	private static readonly JsonNode MakeVideoDefinition = JsonNode.Parse("{\"type\":\"function\",\"function\":{\"name\":\"make_video\",\"description\":\"Make a short video clip (about 5 seconds, no sound) with the local video generator and show it in the chat: first a still is drawn, then it is animated. Use it only when they ask for a video or clip, or when movement really matters to the moment. It takes several minutes and pauses the chat while it runs, so use it rarely and never for every message.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"description\":{\"type\":\"string\",\"description\":\"What the first frame shows: who, what they wear, pose, expression, setting, lighting\"},\"motion\":{\"type\":\"string\",\"description\":\"What happens during the clip: the movement, gestures, expression changes and camera motion\"},\"includes_you\":{\"type\":\"boolean\",\"description\":\"True if you yourself are in the video\"}},\"required\":[\"description\",\"motion\"],\"additionalProperties\":false}}}")!;
 
-	private static readonly JsonNode MakePictureDefinition = JsonNode.Parse("{\"type\":\"function\",\"function\":{\"name\":\"make_picture\",\"description\":\"Draw a picture with the local image generator and show it in the chat. Use it when they ask for a picture, photo or selfie, or when showing something would really add to the moment (how you look right now, where you are, something you describe). Describe plainly what it should show; set includes_you when you are in it. It takes 15 to 60 seconds, so don't use it for every message.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"description\":{\"type\":\"string\",\"description\":\"What the picture shows: who, what they wear, pose, expression, setting, lighting\"},\"includes_you\":{\"type\":\"boolean\",\"description\":\"True if you yourself are in the picture\"},\"framing\":{\"type\":\"string\",\"enum\":[\"portrait\",\"half body\",\"full body\",\"scene\",\"landscape\"]}},\"required\":[\"description\"],\"additionalProperties\":false}}}")!;
+	private static readonly JsonNode MakePictureDefinition = JsonNode.Parse("{\"type\":\"function\",\"function\":{\"name\":\"make_picture\",\"description\":\"Draw a picture with the local image generator and show it in the chat. Use it when they ask for a picture, photo or selfie, or when showing something would really add to the moment (how you look right now, where you are, something you describe). Describe plainly what it should show; set includes_you when you are in it. Now and then, use it on your own, unasked, to capture a moment worth keeping (a first, a special place, a look, something funny or intimate). It takes 15 to 60 seconds, so not for every message.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"description\":{\"type\":\"string\",\"description\":\"What the picture shows: who, what they wear, pose, expression, setting, lighting\"},\"includes_you\":{\"type\":\"boolean\",\"description\":\"True if you yourself are in the picture\"},\"framing\":{\"type\":\"string\",\"enum\":[\"portrait\",\"half body\",\"full body\",\"scene\",\"landscape\"]}},\"required\":[\"description\"],\"additionalProperties\":false}}}")!;
 
 	/// <summary>Her read-write interface to her appearance card: she can log a wardrobe change, never touch her permanent traits.</summary>
 	private static readonly JsonNode ChangeOutfitDefinition = JsonNode.Parse("{\"type\":\"function\",\"function\":{\"name\":\"change_outfit\",\"description\":\"Change what you are wearing. It is logged in your wardrobe diary with the time and your reason, and your appearance card updates. Give only what changes; anything left out stays the same. Your permanent traits can't be changed.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"outfit\":{\"type\":\"string\",\"description\":\"What you are wearing now, e.g. 'oversized grey hoodie and bare feet'\"},\"color\":{\"type\":\"string\"},\"fabric\":{\"type\":\"string\"},\"condition\":{\"type\":\"string\",\"description\":\"e.g. neat, rumpled, rain-soaked\"},\"reason\":{\"type\":\"string\",\"description\":\"Why you are changing, in a few words\"}},\"required\":[\"reason\"],\"additionalProperties\":false}}}")!;

@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -546,6 +547,51 @@ public sealed class CompanionWindow : AquilaWindow
 		tagline.MaxLength = PersonaConfig.MaxTaglineChars;
 		panel.Children.Add(tagline);
 
+		panel.Children.Add(Label(W("How {s} pictures you (used when {s} draws or dreams you)")));
+		TextBox imageOfYou = Multiline(config.ImageOfYou, 70);
+		imageOfYou.MaxLength = PersonaConfig.MaxImageOfYouChars;
+		imageOfYou.ToolTip = W("{P} mental image of you: your looks and how you carry yourself. Empty: {s} goes by your About you profile.");
+		Button imagine = Ui.Button(W("Let {o} describe it"), "Btn.Secondary", null);
+		imagine.HorizontalAlignment = HorizontalAlignment.Left;
+		imagine.Margin = new Thickness(0, 6, 0, 0);
+		imagine.ToolTip = W("{S} writes how {s} pictures you, from what you've told {o} and what {s} remembers. You can edit it before saving.");
+		imagine.Click += async delegate
+		{
+			PrimeKit? kit = PrimeKit?.Invoke();
+			if (kit == null)
+			{
+				AquilaDialog.Alert(this, "Load the chat model first", "The chat model writes the description. Load it in the main window, then try again.");
+				return;
+			}
+			imagine.IsEnabled = false;
+			object before = imagine.Content;
+			imagine.Content = W("{S}'s imagining you…");
+			try
+			{
+				string memory = "";
+				try
+				{
+					memory = host.Open(personaId).Store.ReadSummary().Render();
+				}
+				catch (Exception ex) when (ex is IOException || ex is PersonaConfigException || ex is DriveStateUnavailableException || ex is UnauthorizedAccessException)
+				{
+				}
+				string json = await kit.Generator.GenerateJsonAsync(ImageOfYouPrompt.System(config.Name, config.Gender), ImageOfYouPrompt.User(sheet.Text, memory, host.LoadAboutYou().Render(), imageOfYou.Text), 500, CancellationToken.None);
+				imageOfYou.Text = ImageOfYouPrompt.Parse(json);
+			}
+			catch (Exception ex) when (ex is IOException || ex is PersonaConfigException || ex is System.Net.Http.HttpRequestException || ex is InvalidOperationException)
+			{
+				AquilaDialog.Alert(this, "Couldn't describe it", ex.Message);
+			}
+			finally
+			{
+				imagine.Content = before;
+				imagine.IsEnabled = true;
+			}
+		};
+		panel.Children.Add(imageOfYou);
+		panel.Children.Add(imagine);
+
 		panel.Children.Add(Label(W("{P} voice (when replies are spoken)")));
 		List<(string Key, string Label)> choices = new List<(string Key, string Label)> { ("", "Same as Aquila's voice (set in Voice…)") };
 		try
@@ -689,6 +735,7 @@ public sealed class CompanionWindow : AquilaWindow
 				}
 				edited.Gender = gender.SelectedIndex == 1 ? Genders.Male : Genders.Female;
 				edited.Tagline = tagline.Text.Trim();
+				edited.ImageOfYou = imageOfYou.Text.Trim();
 				string avatarKey = avatarChoices[Math.Max(0, avatarBox.SelectedIndex)].Key;
 				edited.Avatar = avatarKey == ChooseFolder ? edited.Avatar : avatarKey;
 				Dictionary<string, string> renamed = driveEditor.ApplyTo(edited);

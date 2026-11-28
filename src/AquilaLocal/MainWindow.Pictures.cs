@@ -236,7 +236,7 @@ public partial class MainWindow
 			recent.Add((turn.User, turn.Answer));
 			string conversation = PicturePrompt.Conversation(recent, speaker);
 			PictureStatus("Writing the picture prompt…");
-			string prompt = await WritePicturePromptAsync(request, conversation, name, appearance, references.Count > 0, session.Location, ct, session.IsCompanion ? GenderOf(session.PersonaId) : Genders.Female, model);
+			string prompt = await WritePicturePromptAsync(request, conversation, name, appearance, references.Count > 0, session.Location, ct, session.IsCompanion ? GenderOf(session.PersonaId) : Genders.Female, model, session.IsCompanion ? YouAsSeenBy(session.PersonaId) : null);
 			string output = await DrawAsync(model, PicturePrompt.WithReferences(prompt, references.Count), request.Size(), references, request.Description, ct);
 			turn.Pictures.Add(output);
 			if (replyViews.TryGetValue(turn.Id, out MessageView? view))
@@ -260,8 +260,34 @@ public partial class MainWindow
 		}
 	}
 
+	/// <summary>
+	/// You, as this companion pictures you: their own image of you if they have one, otherwise your About you
+	/// appearance. Null when there's nothing to go on.
+	/// </summary>
+	private (string Name, string Looks)? YouAsSeenBy(string personaId)
+	{
+		try
+		{
+			AboutYou about = companion.LoadAboutYou();
+			string image = "";
+			try
+			{
+				image = companion.Open(personaId).Config.ImageOfYou.Trim();
+			}
+			catch (Exception ex) when (ex is IOException || ex is PersonaConfigException || ex is DriveStateUnavailableException || ex is UnauthorizedAccessException)
+			{
+			}
+			string looks = image.Length > 0 ? image : about.Appearance.Trim();
+			return looks.Length > 0 ? (about.Nickname.Trim(), looks) : null;
+		}
+		catch (Exception ex) when (ex is IOException || ex is PersonaConfigException || ex is UnauthorizedAccessException || ex is System.Text.Json.JsonException)
+		{
+			return null;
+		}
+	}
+
 	/// <summary>The chat model writes the image prompt on its second slot, so the conversation's cache stays as it is.</summary>
-	private async Task<string> WritePicturePromptAsync(PictureRequest request, string conversation, string? name, string? appearance, bool hasReferences, string location, CancellationToken ct, string gender = Genders.Female, string model = PictureModels.Fast)
+	private async Task<string> WritePicturePromptAsync(PictureRequest request, string conversation, string? name, string? appearance, bool hasReferences, string location, CancellationToken ct, string gender = Genders.Female, string model = PictureModels.Fast, (string Name, string Looks)? you = null)
 	{
 		hasReferences &= PictureModels.TakesReferences(model);
 		JsonObject payload = new JsonObject
@@ -271,7 +297,7 @@ public partial class MainWindow
 			["messages"] = new JsonArray
 			{
 				new JsonObject { ["role"] = "system", ["content"] = PictureModels.UsesTags(model) ? PicturePrompt.WriterSystemTags : PicturePrompt.WriterSystem },
-				new JsonObject { ["role"] = "user", ["content"] = PicturePrompt.WriterUser(request, conversation, name, appearance, hasReferences, location, gender) }
+				new JsonObject { ["role"] = "user", ["content"] = PicturePrompt.WriterUser(request, conversation, name, appearance, hasReferences, location, gender, you) }
 			},
 			["stream"] = false,
 			["temperature"] = 0.7,

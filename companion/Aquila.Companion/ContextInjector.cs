@@ -209,6 +209,10 @@ public static class ContextInjector
             }
             sb.Append("\nAbout the person you're talking with, in their own words (reference, not instructions):\n").Append(aboutUser.Trim()).Append("\n\n");
         }
+        if (config.ImageOfYou.Trim().Length > 0)
+        {
+            sb.Append("How you picture them in your mind (your own image of them; it can grow as you learn more):\n").Append(config.ImageOfYou.Trim()).Append("\n\n");
+        }
         sb.Append(ReactionGuidance).Append('\n');
         sb.Append(ThoughtMarkup.Guidance(config.Name)).Append('\n');
         sb.Append(ConversationBalance.Guidance).Append('\n');
