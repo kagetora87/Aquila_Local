@@ -124,6 +124,12 @@ public sealed class DriftClause
 public sealed class MemorySettings
 {
     public int SummarizeEveryTurns { get; set; } = 20;
+
+    /// <summary>
+    /// Every this many messages she quickly notes anything new worth keeping from the latest ones (0: only at the
+    /// summary pass). The messages stay word for word in her chat; the summary pass still folds them later.
+    /// </summary>
+    public int NoteEveryTurns { get; set; } = 4;
     public int KeepVerbatimTurns { get; set; } = 10;
     public int SummaryTokenCap { get; set; } = 2000;
     public int RetrieveTopK { get; set; } = 5;
@@ -420,7 +426,7 @@ public sealed class PersonaConfig
             }
         }
         if (Memory.SummarizeEveryTurns < 2 || Memory.KeepVerbatimTurns < 0 || Memory.KeepVerbatimTurns >= Memory.SummarizeEveryTurns * 4
-            || Memory.SummaryTokenCap is < 200 or > 2000 || Memory.RetrieveTopK is < 0 or > 20)
+            || Memory.SummaryTokenCap is < 200 or > 2000 || Memory.RetrieveTopK is < 0 or > 20 || Memory.NoteEveryTurns is < 0 or > 50)
         {
             throw new PersonaConfigException($"{Name}'s memory settings are out of range (summary cap at most 2000 tokens).");
         }

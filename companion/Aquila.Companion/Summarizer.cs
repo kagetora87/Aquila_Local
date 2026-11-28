@@ -27,6 +27,46 @@ public sealed class Summarizer(PersonaConfig config, PersonaStore store, ITextGe
 
     public bool IsDue => store.TurnsSinceSummary >= config.Memory.SummarizeEveryTurns;
 
+    /// <summary>Enough messages since her last note-taking (or summary) for a quick look at the latest ones.</summary>
+    public bool NotesDue => config.Memory.NoteEveryTurns > 0 && ToNote().Count >= config.Memory.NoteEveryTurns;
+
+    private List<Exchange> ToNote()
+    {
+        long through = store.NotedThrough;
+        return store.UnfoldedExchanges().Where(e => e.Id > through && !e.ChatId.StartsWith("imported:", StringComparison.Ordinal)).ToList();
+    }
+
+    /// <summary>
+    /// The quick pass: from the messages since she last took notes, she adds what's new and worth keeping
+    /// (facts, feelings, hooks) and corrects what changed. Nothing is folded: they stay word for word in her chat.
+    /// </summary>
+    public async Task<SummaryResult?> NoteAsync(DateTimeOffset now, CancellationToken ct)
+    {
+        List<Exchange> batch = ToNote();
+        if (batch.Count == 0)
+        {
+            return null;
+        }
+        // The newest ones that fit, if a lot built up (for example with notes switched off for a while).
+        int chars = 0, from = batch.Count;
+        while (from > 0)
+        {
+            Exchange e = batch[from - 1];
+            int size = Math.Min(e.User.Length, 1500) + Math.Min(e.Reply.Length, 2000) + 60;
+            if (from < batch.Count && chars + size > MaxSourceChars)
+            {
+                break;
+            }
+            chars += size;
+            from--;
+        }
+        batch = batch.Skip(from).ToList();
+        (List<(string, string)> adds, List<(long, string, string)> fixes) = await FoldAsync(store.ActiveMemory(), batch, ct);
+        List<long> ids = store.ApplyNotesPass(adds, fixes, batch[^1].Id, now);
+        StateBlock block = store.ReadSummary().CappedTo(config.Memory.SummaryTokenCap);
+        return new SummaryResult(0, TokenEstimate.Of(block.Render()), block, adds.Count, fixes.Count, ids);
+    }
+
     public async Task<SummaryResult?> RunAsync(DateTimeOffset now, CancellationToken ct)
     {
         List<Exchange> unfolded = store.UnfoldedExchanges();

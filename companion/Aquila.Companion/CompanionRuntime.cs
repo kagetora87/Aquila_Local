@@ -15,7 +15,8 @@ public sealed record PreparedTurn(
     AppearanceCard Appearance);
 
 /// <param name="SelfChanges">Wardrobe changes she made herself during this turn (also handed to the satisfaction loop).</param>
-public sealed record CompletedTurn(LoopResult Loop, long ExchangeId, bool SummaryDue, IReadOnlyList<WardrobeEntry> SelfChanges);
+/// <param name="NotesDue">Not time for the summary pass yet, but enough new messages for a quick note-taking pass.</param>
+public sealed record CompletedTurn(LoopResult Loop, long ExchangeId, bool SummaryDue, IReadOnlyList<WardrobeEntry> SelfChanges, bool NotesDue = false);
 
 /// <summary>
 /// The persona-agnostic pipeline for one persona: tick drives, apply message events, build her context,
@@ -188,8 +189,19 @@ public sealed class CompanionRuntime
         LoopResult result = loop.Run(new TurnObservation(userText, reply, prepared.TopDrive, similarity, mine), now);
         // She remembers what you said and did, never what you only thought.
         long id = Memory.Add(chatId, turnId, now, ThoughtMarkup.StripThoughts(userText), Sounds.SoundCues.Strip(reply), spoken);
-        return new CompletedTurn(result, id, Store.TurnsSinceSummary >= Config.Memory.SummarizeEveryTurns, mine);
+        bool summaryDue = Store.TurnsSinceSummary >= Config.Memory.SummarizeEveryTurns;
+        bool notesDue = !summaryDue && new Summarizer(Config, Store, NoGenerator.Instance).NotesDue;
+        return new CompletedTurn(result, id, summaryDue, mine, notesDue);
     }
 
     public Summarizer Summarizer(ITextGenerator generator) => new(Config, Store, generator);
+}
+
+/// <summary>Stands in where only a summarizer's bookkeeping is needed, never its model.</summary>
+internal sealed class NoGenerator : ITextGenerator
+{
+    public static readonly NoGenerator Instance = new();
+
+    public Task<string> GenerateJsonAsync(string system, string user, int maxTokens, CancellationToken ct) =>
+        throw new InvalidOperationException("No model is connected here.");
 }

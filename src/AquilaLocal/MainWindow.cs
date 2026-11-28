@@ -1947,8 +1947,17 @@ public partial class MainWindow : AquilaWindow
 		}
 	}
 
+	private const string TryAgainTip = "Try this reply again";
+
 	private void AddReplyActions(MessageView view, ChatSession session, Turn turn)
 	{
+		if (turn.Status != "generating" && session.Turns.LastOrDefault() == turn)
+		{
+			view.AddAction("\uE72C", TryAgainTip, delegate
+			{
+				_ = TryAgainAsync(session, turn);
+			});
+		}
 		if (session.IsCompanion && turn.Status == "complete" && !string.IsNullOrWhiteSpace(turn.Answer))
 		{
 			view.AddAction("\uE76E", "React with an emoji", delegate
@@ -1963,6 +1972,62 @@ public partial class MainWindow : AquilaWindow
 				_ = SaveReplyAudioAsync(session, turn);
 			});
 		}
+	}
+
+	/// <summary>
+	/// Try again: the latest reply is set aside and written afresh. The model is told what went wrong last time
+	/// (the error, that it ran out of room, or the reply they didn't want) so it doesn't do the same again. In her
+	/// chats, the set-aside reply is withdrawn from her memory too (kept in the file, with the reason).
+	/// </summary>
+	private async Task TryAgainAsync(ChatSession session, Turn turn)
+	{
+		if (busy || current != session)
+		{
+			return;
+		}
+		if (session.Turns.LastOrDefault() != turn)
+		{
+			Notice("Only the latest reply can be tried again.");
+			return;
+		}
+		string error = turn.Activity.LastOrDefault((string a) => a.StartsWith("Error: ", StringComparison.Ordinal))?.Substring("Error: ".Length) ?? "";
+		string who = session.IsCompanion ? "your" : "the";
+		string note = turn.Status switch
+		{
+			"error" => "[Trying again: " + who + " last try at this reply failed (" + error.Truncate(300) + ")."
+				+ ((error.Contains("tool", StringComparison.OrdinalIgnoreCase) || turn.Activity.Count((string a) => a.StartsWith("Skipped", StringComparison.Ordinal)) > 0)
+					? " It got stuck using tools. This time use one tool at most, or none, and answer in words."
+					: " Keep it simpler this time.") + "]",
+			"limit" => "[Trying again: " + who + " last try ran out of room before it finished. Keep this reply shorter, and don't think for long before answering.]",
+			"cancelled" => "[Trying again: " + who + " last try was stopped partway. Write a fresh reply.]"
+				+ ((turn.Answer.Trim().Length > 0) ? " It began: \"" + turn.Answer.Trim().Truncate(400) + "\"" : ""),
+			_ => "[They asked for this reply again. " + (session.IsCompanion ? "Your" : "The") + " previous try was: \"" + turn.Answer.Trim().Truncate(1200) + "\" Write a different reply that doesn't repeat it: other words, and a different direction if that one missed.]"
+		};
+		if (session.IsCompanion && session.PersonaId.Length > 0)
+		{
+			try
+			{
+				AquilaLocal.Companion.CompanionRuntime runtime = companion.Open(session.PersonaId);
+				runtime.Store.WithdrawExchange(turn.Id, "they asked her to try this reply again", DateTimeOffset.Now);
+			}
+			catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is InvalidOperationException || ex is AquilaLocal.Companion.PersonaConfigException || ex is AquilaLocal.Companion.DriveStateUnavailableException || ex is Microsoft.Data.Sqlite.SqliteException)
+			{
+				Notice("Couldn't set the earlier reply aside in " + session.PersonaName + "'s memory, so nothing was changed: " + ex.Message);
+				return;
+			}
+		}
+		session.Turns.Remove(turn);
+		if (userViews.Remove(turn.Id, out MessageView? mine))
+		{
+			Messages.Children.Remove(mine);
+		}
+		if (replyViews.Remove(turn.Id, out MessageView? theirs))
+		{
+			Messages.Children.Remove(theirs);
+		}
+		store.SaveChat(session);
+		bool quiet = turn.Unprompted && turn.Cue.Contains("\"Picture this moment\"", StringComparison.Ordinal);
+		await SendAsync(turn.Unprompted ? turn.Cue : null, turn.Unprompted ? turn.Attachments.FirstOrDefault() : null, again: turn, retryNote: note, quiet: quiet);
 	}
 
 	/// <summary>Saves one reply as a WAV file in the voice she speaks with, so it can be played or sent elsewhere.</summary>
@@ -2383,6 +2448,10 @@ public partial class MainWindow : AquilaWindow
 			{
 				pendingCompanion = SummarizeCompanionAsync(session, turn, runtime);
 			}
+			else if (done.NotesDue)
+			{
+				pendingCompanion = SummarizeCompanionAsync(session, turn, runtime, notesOnly: true);
+			}
 		}
 		catch (Exception ex)
 		{
@@ -2393,12 +2462,21 @@ public partial class MainWindow : AquilaWindow
 		}
 	}
 
-	private async Task SummarizeCompanionAsync(ChatSession session, Turn turn, AquilaLocal.Companion.CompanionRuntime runtime)
+	/// <param name="notesOnly">The quick pass every few messages: she notes what's new, nothing is folded.</param>
+	private async Task SummarizeCompanionAsync(ChatSession session, Turn turn, AquilaLocal.Companion.CompanionRuntime runtime, bool notesOnly = false)
 	{
 		try
 		{
-			AquilaLocal.Companion.SummaryResult result = await CompanionHost.SummarizerFor(runtime, engine, Math.Min(settings.Context, engine.SlotContext ?? settings.Context)).RunAsync(DateTimeOffset.Now, monitorCancellation.Token);
-			if (result != null)
+			AquilaLocal.Companion.Summarizer summarizer = CompanionHost.SummarizerFor(runtime, engine, Math.Min(settings.Context, engine.SlotContext ?? settings.Context));
+			AquilaLocal.Companion.SummaryResult result = notesOnly ? await summarizer.NoteAsync(DateTimeOffset.Now, monitorCancellation.Token) : await summarizer.RunAsync(DateTimeOffset.Now, monitorCancellation.Token);
+			if (result != null && notesOnly)
+			{
+				int n = result.Added + result.Corrected;
+				turn.Activity.Add(session.PersonaName + ": " + (n == 0 ? "looked over the last few messages; nothing new to remember." : n == 1 ? "noted 1 thing to remember from the last few messages." : $"noted {n} things to remember from the last few messages."));
+				turn.CompanionMemoryIds = result.NewEntryIds.ToList();
+				RefreshNotices(session, turn);
+			}
+			else if (result != null)
 			{
 				turn.Activity.Add($"{session.PersonaName}: folded {result.FoldedExchanges} older exchange(s) into her long-term memory (about {result.Tokens:N0} tokens).");
 				turn.CompanionMemoryIds = result.NewEntryIds.ToList();
@@ -2576,7 +2654,9 @@ public partial class MainWindow : AquilaWindow
 
 	/// <summary>Sends what's in the message box; with a cue, she speaks first instead (no message from you),
 	/// told only why (a new chat opening, a picture you had her draw).</summary>
-	private async Task SendAsync(string? cue = null, Attachment? cuePicture = null)
+	/// <param name="again">The reply being tried again: its message is sent once more, with <paramref name="retryNote"/>.</param>
+	/// <param name="quiet">Her reaction to a picture: no new pictures, videos or web lookups in it.</param>
+	private async Task SendAsync(string? cue = null, Attachment? cuePicture = null, Turn? again = null, string retryNote = "", bool quiet = false)
 	{
 		bool cued = cue != null;
 		if (pendingSpeechResume is { IsCompleted: false })
@@ -2597,7 +2677,7 @@ public partial class MainWindow : AquilaWindow
 			pendingCompanion = null;
 			await summarizing;
 		}
-		if (busy || attaching || (!cued && string.IsNullOrWhiteSpace(Composer.Text) && pendingAttachments.Count == 0) || current == null || (cued && !current.IsCompanion) || !ReadSettings())
+		if (busy || attaching || (!cued && again == null && string.IsNullOrWhiteSpace(Composer.Text) && pendingAttachments.Count == 0) || current == null || (cued && !current.IsCompanion) || !ReadSettings())
 		{
 			return;
 		}
@@ -2611,7 +2691,7 @@ public partial class MainWindow : AquilaWindow
 			Notice("This message is too long. Please use a smaller excerpt.");
 			return;
 		}
-		if (!cued && current.IsCompanion && AquilaLocal.Companion.PersonaTuning.IsCommand(Composer.Text))
+		if (!cued && again == null && current.IsCompanion && AquilaLocal.Companion.PersonaTuning.IsCommand(Composer.Text))
 		{
 			// /tune is handled here and never sent to the model.
 			try
@@ -2636,7 +2716,7 @@ public partial class MainWindow : AquilaWindow
 		ChatSession session = current;
 		// What she's told about her last message: your reaction to it and, with read receipts, when you read it.
 		Turn? previous = session.Turns.LastOrDefault((Turn t) => t.Status == "complete");
-		string aboutLast = (!cued && session.IsCompanion && previous != null)
+		string aboutLast = (again != null) ? again.Cue : (!cued && session.IsCompanion && previous != null)
 			? AquilaLocal.Companion.ReadReceipts.NextMessageNote(previous.UserReaction, previous.AnsweredAt, previous.ReadAt, DateTimeOffset.Now, settings.ReadReceipts)
 			: "";
 		Turn turn = cued ? new Turn
@@ -2646,6 +2726,14 @@ public partial class MainWindow : AquilaWindow
 			Unprompted = true,
 			Attachments = (cuePicture != null) ? new List<Attachment> { cuePicture } : new List<Attachment>(),
 			Status = "generating"
+		} : (again != null) ? new Turn
+		{
+			User = again.User,
+			Cue = aboutLast,
+			Attachments = again.Attachments.ToList(),
+			Status = "generating",
+			Spoken = again.Spoken,
+			FollowUp = again.FollowUp
 		} : new Turn
 		{
 			User = (string.IsNullOrWhiteSpace(Composer.Text) ? "Please review the attached files." : AquilaLocal.Companion.EmojiShortcodes.ReplaceAll(Composer.Text.Trim())),
@@ -2654,9 +2742,15 @@ public partial class MainWindow : AquilaWindow
 			Status = "generating",
 			Spoken = pendingSpoken
 		};
-		if (!cued)
+		if (!cued && again == null)
 		{
 			pendingSpoken = false;
+		}
+		// Only the newest reply can be tried again.
+		Turn? before = session.Turns.LastOrDefault();
+		if (before != null && replyViews.TryGetValue(before.Id, out MessageView? beforeView))
+		{
+			beforeView.RemoveAction(TryAgainTip);
 		}
 		if (!cued && !session.Renamed && session.Turns.All((Turn t) => t.Unprompted))
 		{
@@ -2687,7 +2781,7 @@ public partial class MainWindow : AquilaWindow
 		UiSounds.Play(UiSound.Send);
 		sendStarted = DateTime.UtcNow;
 		activeTurn = turn;
-		if (!cued)
+		if (!cued && again == null)
 		{
 			Composer.Clear();
 			pendingAttachments.Clear();
@@ -2698,16 +2792,18 @@ public partial class MainWindow : AquilaWindow
 		operation = new CancellationTokenSource();
 		Agent agent = new Agent(engine, memories, semantic, personalities);
 		agent.Companion = companion;
+		agent.RetryNote = retryNote;
+		agent.AllowWeb = !quiet;
 		string? toldAbout = null;
 		if (session.IsCompanion && session.PersonaId.Length > 0)
 		{
 			(agent.ExtraInnerState, toldAbout) = MoodInnerState(session.PersonaId);
 		}
-		if (settings.Pictures.Enabled)
+		if (settings.Pictures.Enabled && !quiet)
 		{
 			agent.MakePicture = (string arguments, Turn pictureTurn, CancellationToken pictureCt) => MakePictureForTurnAsync(session, pictureTurn, arguments, pictureCt);
 		}
-		if (settings.Video.Enabled)
+		if (settings.Video.Enabled && !quiet)
 		{
 			agent.MakeVideo = (string arguments, Turn videoTurn, CancellationToken videoCt) => MakeVideoForTurnAsync(session, videoTurn, arguments, videoCt);
 		}
@@ -2821,6 +2917,10 @@ public partial class MainWindow : AquilaWindow
 			live?.SetGenerating(false);
 			RenderLive(final: true);
 			store.SaveChat(session);
+			if (replyViews.TryGetValue(turn.Id, out MessageView? endedView))
+			{
+				AddReplyActions(endedView, session, turn);
+			}
 			if (session == current)
 			{
 				ShowOutfit();

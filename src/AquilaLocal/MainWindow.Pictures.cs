@@ -66,13 +66,23 @@ public partial class MainWindow
 		{
 			ask.IsOpen = false;
 		});
+		string her = (current.IsCompanion ? Genders.Object(GenderOf(current.PersonaId)) : "them");
+		System.Windows.Controls.Button secret = Ui.Button("Just for me", "Btn.Secondary", delegate
+		{
+			ask.IsOpen = false;
+			_ = PictureMomentAsync(tell: false);
+		});
+		secret.ToolTip = current.PersonaName + " won't know you took it: the picture is only shown to you, and " + her + " isn't told.";
+		secret.Margin = new Thickness(8, 0, 0, 0);
 		System.Windows.Controls.Button yes = Ui.Button("Yes", "Btn.Primary", delegate
 		{
 			ask.IsOpen = false;
 			_ = PictureMomentAsync();
 		});
+		yes.ToolTip = current.PersonaName + " sees the picture and reacts to it.";
 		yes.Margin = new Thickness(8, 0, 0, 0);
 		buttons.Children.Add(no);
+		buttons.Children.Add(secret);
 		buttons.Children.Add(yes);
 		panel.Children.Add(buttons);
 		ask.Child = new System.Windows.Controls.Border { Style = Ui.Style("Popup.Surface"), Padding = new Thickness(14, 12, 14, 12), Child = panel };
@@ -83,7 +93,8 @@ public partial class MainWindow
 		ask.IsOpen = true;
 	}
 
-	private async Task PictureMomentAsync()
+	/// <param name="tell">False: "Just for me". The picture is shown to you only; she isn't told and doesn't react.</param>
+	private async Task PictureMomentAsync(bool tell = true)
 	{
 		if (pendingSpeechResume is { IsCompleted: false })
 		{
@@ -135,7 +146,11 @@ public partial class MainWindow
 			drawingMoment = false;
 			SetBusy(value: false);
 		}
-		if (drawn.HasValue && current == session)
+		if (drawn.HasValue && !tell)
+		{
+			Notice("Picture saved just for you. " + session.PersonaName + " doesn't know you took it.");
+		}
+		if (drawn.HasValue && tell && current == session)
 		{
 			await ReactToMomentAsync(session, drawn.Value.File, drawn.Value.Result);
 		}
@@ -168,7 +183,7 @@ public partial class MainWindow
 		string cue = "[No message from them. They just pressed \"Picture this moment\", asking you to picture what the two of you are doing right now, and you drew it. It's shown in the chat under your last message."
 			+ ((what.Length > 0) ? (" Your picture shows: " + what.Trim()) : "")
 			+ " React to it now, in your own voice and in the moment: how you feel about it, what you notice or like, or what it makes you want to do. Keep it short. Don't describe the picture back to them or mention prompts or tools.]";
-		await SendAsync(cue, picture);
+		await SendAsync(cue, picture, quiet: true);
 	}
 
 	/// <summary>The make_picture tool: returns what the model is told (never throws for an ordinary failure).</summary>
