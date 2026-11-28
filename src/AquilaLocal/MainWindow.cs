@@ -2862,7 +2862,7 @@ public partial class MainWindow : AquilaWindow
 				if (engine.Ready && Today.Load(session.PersonaId, DateTimeOffset.Now) == null)
 				{
 					using CancellationTokenSource dayCts = new CancellationTokenSource(TimeSpan.FromSeconds(40));
-					StatusText.Text = session.PersonaName + " is starting " + Genders.Possessive(GenderOf(session.PersonaId)) + " day…";
+					StatusText.Text = session.PersonaName + " is starting " + AquilaLocal.Companion.Genders.Possessive(GenderOf(session.PersonaId)) + " day…";
 					await EnsureTodayAsync(session.PersonaId, dayCts.Token);
 				}
 			}
