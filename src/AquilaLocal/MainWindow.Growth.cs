@@ -177,8 +177,9 @@ public partial class MainWindow
 				Notice(string.Join(" and ", who) + (who.Count == 1 ? " has" : " have") + " changed a little since you last looked. Click the … on " + (who.Count == 1 ? "the" : "a") + " companion card, then How they've changed, to look it over.");
 			}
 		}
-		catch (Exception ex) when (ex is PersonaConfigException || ex is IOException || ex is UnauthorizedAccessException)
+		catch (Exception)
 		{
+			// Only a reminder: it must never stop Aquila from opening.
 		}
 	}
 

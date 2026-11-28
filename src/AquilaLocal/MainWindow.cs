@@ -2172,7 +2172,6 @@ public partial class MainWindow : AquilaWindow
 		}
 		MarkupBar.Attach(Composer);
 		StartLiving();
-		NoticeUnseenGrowth();
 		SidebarColumn.Width = new GridLength(Math.Clamp(settings.SidebarWidth, SidebarColumn.MinWidth, SidebarColumn.MaxWidth));
 		AvatarColumn.Width = new GridLength(Math.Clamp(settings.AvatarWidth, AvatarColumn.MinWidth, AvatarColumn.MaxWidth));
 		FitSidebar();
@@ -2196,6 +2195,7 @@ public partial class MainWindow : AquilaWindow
 		semantic = new SemanticMemory(memories, store.Root);
 		personalities = new PersonalityStore(store.Root);
 		companion = new CompanionHost(store.Root);
+		base.Loaded += delegate { NoticeUnseenGrowth(); };
 		engine = new Engine(store.Root);
 		speech = new SpeechService(store.Root, speechAssets);
 		avatar = new AvatarHost(store.Root);
