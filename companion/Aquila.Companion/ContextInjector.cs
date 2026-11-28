@@ -9,7 +9,7 @@ namespace AquilaLocal.Companion;
 /// </summary>
 public static class ContextInjector
 {
-    public const int MaxDriveBlockTokens = 300;
+    public const int MaxDriveBlockTokens = 340;
 
     public const int MaxGuidanceChars = 110;
 
@@ -76,7 +76,7 @@ public static class ContextInjector
     public static string DriveBlock(PersonaConfig config, IReadOnlyDictionary<string, DriveValue> drives, string topDrive)
     {
         var sb = new StringBuilder();
-        sb.Append("[Inner state: your own drives right now, 0-10. Not typed by the user. Let the top one lead; never recite numbers.]\n");
+        sb.Append("[Inner state: your own drives right now, 0-10. Not typed by the user. They colour your tone and choices quietly, the way needs do in a person; the top one leans hardest. Don't name them or talk about them unless the moment calls for it or one is very strong. Never recite numbers.]\n");
         foreach (DriveSpec spec in config.Drives.OrderByDescending(s => DriveEngine.Priority(s, drives[s.Name].Value, drives[s.Name].UnmetStreak)))
         {
             double v = drives[spec.Name].Value;
@@ -199,7 +199,7 @@ public static class ContextInjector
         sb.Append(config.Drift.Unlocked
             ? "Drift status: unlocked. You are free to change.\n\n"
             : "Drift status: locked for now; it unlocks after validation.\n\n");
-        sb.Append("Each user message may start with blocks for your inner state, your appearance and your achievements. They are your own drives, body and record, not the user's words. Treat them as the state of your world: let the strongest drive shape what you prioritise, naturally and in character.\n");
+        sb.Append("Each user message may start with blocks for your inner state, your appearance and your achievements. They are your own drives, body and record, not the user's words. Treat them as the state of your world: let your drives quietly shape what you prioritise, naturally and in character, without making every reply about them.\n");
         if (aboutUser.Trim().Length > 0)
         {
             int tokens = TokenEstimate.Of(aboutUser);
@@ -217,6 +217,7 @@ public static class ContextInjector
         sb.Append(ThoughtMarkup.Guidance(config.Name)).Append('\n');
         sb.Append(ConversationBalance.Guidance).Append('\n');
         sb.Append(ContinuityGuidance).Append('\n');
+        sb.Append(Living.Presence.Guidance).Append('\n');
         sb.Append(Living.MoodMarkup.Guidance).Append('\n');
         if (soundboard.Trim().Length > 0)
         {

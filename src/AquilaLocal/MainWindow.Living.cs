@@ -388,6 +388,11 @@ public partial class MainWindow
 				drives[change.Drive] = drives[change.Drive] with { Value = change.New };
 			}
 			string top = DriveEngine.TopDrive(config, drives);
+			if (!night)
+			{
+				// Her day is planned with her first waking thought, so it's ready when you write.
+				await EnsureTodayAsync(personaId, ct);
+			}
 			List<JournalEntry> history = Journal.Read(personaId);
 			DateTimeOffset lastTalk = runtime.Store.LastInteraction;
 			MoodState? moodNow = companion.Moods.Current(personaId);

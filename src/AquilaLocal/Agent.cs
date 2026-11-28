@@ -658,6 +658,7 @@ public sealed class Agent(Engine engine, MemoryStore? memories = null, SemanticM
 						turn.Mood = mood.Word;
 						turn.MoodStrength = mood.Strength;
 						turn.MoodWhy = mood.Why;
+						(turn.About, turn.Reading) = AquilaLocal.Companion.Living.MoodMarkup.Extra(turn.Answer);
 						Log(turn, session.PersonaName + " is feeling " + mood.Word + " (" + mood.Strength.ToString("0") + "/10)" + (mood.Why.Length > 0 ? ": " + mood.Why : ""));
 					}
 					turn.Answer = AquilaLocal.Companion.Living.MoodMarkup.Strip(turn.Answer);

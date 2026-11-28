@@ -414,7 +414,7 @@ public sealed class PersonaConfig
             }
         }
         // Her inner-state block must fit its cap whatever her drives' values are (each line uses its longest guidance).
-        int worst = TokenEstimate.Of("[Inner state: your own drives right now, 0-10. Not typed by the user. Let the top one lead; never recite numbers.]\n[End inner state]")
+        int worst = TokenEstimate.Of("[Inner state: your own drives right now, 0-10. Not typed by the user. They colour your tone and choices quietly, the way needs do in a person; the top one leans hardest. Don't name them or talk about them unless the moment calls for it or one is very strong. Never recite numbers.]\n[End inner state]")
             + Drives.Sum(d => TokenEstimate.Of("- " + d.Name + " 10.0 TOP" + (d.IsLevel ? ContextInjector.LevelMark : "") + ": " + new[] { d.Guidance.Low, d.Guidance.Mid, d.Guidance.High }.MaxBy(g => g.Length) + "\n"));
         if (worst > ContextInjector.MaxDriveBlockTokens)
         {

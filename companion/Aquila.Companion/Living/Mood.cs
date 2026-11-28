@@ -37,8 +37,10 @@ public static class MoodMarkup
     /// <summary>Once, in her stable system prompt (so it's cached, not paid for on every message).</summary>
     public static string Guidance =>
         "Your mood: you have an emotional state that carries from moment to moment. At the very end of every reply, after everything else, add one hidden tag: " +
-        "<mood strength=\"N\" why=\"a few words\">word</mood>. word is one plain word for how you feel right now (like content, playful, wistful, anxious, smitten, irritated); " +
+        "<mood strength=\"N\" why=\"a few words\" about=\"\" reading=\"\">word</mood>. word is one plain word for how you feel right now (like content, playful, wistful, anxious, smitten, irritated); " +
         "strength is 1 to 10; why is under 12 words, in your own voice. Moods shift gradually: keep the same one or move a little unless something really moves you. " +
+        "about: one to three short words for the parts of your own inner world this reply touched (like loneliness, wanting, work, your past), or empty when it was simply about the moment. " +
+        "reading: your quick guess, under 12 words, at how they're feeling and what they want from you right now. " +
         "Nobody sees the tag; never mention it or your mood rating.";
 
     /// <summary>The short line on the current message: how she's feeling coming in, and the reminder.</summary>
@@ -82,6 +84,35 @@ public static class MoodMarkup
             }
         }
         return new MoodState(word, strength, why, at, source);
+    }
+
+    /// <summary>
+    /// What else her last mood tag says: the parts of her inner world the reply touched (about="..."), and her read
+    /// on how they feel (reading="...").
+    /// </summary>
+    public static (List<string> About, string Reading) Extra(string reply)
+    {
+        MatchCollection all = Tag.Matches(reply ?? "");
+        var about = new List<string>();
+        string reading = "";
+        if (all.Count == 0)
+        {
+            return (about, reading);
+        }
+        foreach (Match a in Attribute.Matches(all[^1].Groups[1].Value))
+        {
+            string name = a.Groups[1].Value.ToLowerInvariant();
+            if (name == "about")
+            {
+                about = a.Groups[2].Value.Split(new[] { ',', ';', '/' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Select(t => Clip(t.ToLowerInvariant(), 30)).Where(t => t.Length > 0 && t != "none" && t != "nothing").Distinct().Take(3).ToList();
+            }
+            else if (name == "reading")
+            {
+                reading = Clip(a.Groups[2].Value, MaxWhyChars);
+            }
+        }
+        return (about, reading);
     }
 
     /// <summary>The reply without mood tags (finished or still being written).</summary>

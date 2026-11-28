@@ -2856,7 +2856,19 @@ public partial class MainWindow : AquilaWindow
 		string? toldAbout = null;
 		if (session.IsCompanion && session.PersonaId.Length > 0)
 		{
-			(agent.ExtraInnerState, toldAbout) = MoodInnerState(session.PersonaId);
+			try
+			{
+				if (engine.Ready && Today.Load(session.PersonaId, DateTimeOffset.Now) == null)
+				{
+					using CancellationTokenSource dayCts = new CancellationTokenSource(TimeSpan.FromSeconds(40));
+					StatusText.Text = session.PersonaName + " is starting " + Genders.Possessive(GenderOf(session.PersonaId)) + " day…";
+					await EnsureTodayAsync(session.PersonaId, dayCts.Token);
+				}
+			}
+			catch (OperationCanceledException)
+			{
+			}
+			(agent.ExtraInnerState, toldAbout) = MoodInnerState(session.PersonaId, session, turn);
 		}
 		if (settings.Pictures.Enabled && !quiet)
 		{
