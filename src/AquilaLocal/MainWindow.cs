@@ -2172,6 +2172,7 @@ public partial class MainWindow : AquilaWindow
 		}
 		MarkupBar.Attach(Composer);
 		StartLiving();
+		NoticeUnseenGrowth();
 		SidebarColumn.Width = new GridLength(Math.Clamp(settings.SidebarWidth, SidebarColumn.MinWidth, SidebarColumn.MaxWidth));
 		AvatarColumn.Width = new GridLength(Math.Clamp(settings.AvatarWidth, AvatarColumn.MinWidth, AvatarColumn.MaxWidth));
 		FitSidebar();

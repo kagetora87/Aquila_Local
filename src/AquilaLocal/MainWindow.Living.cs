@@ -164,6 +164,11 @@ public partial class MainWindow
 			{
 				return;
 			}
+			// Once a night, while she sleeps, she goes over the day; about once a week she grows a little from it.
+			if (night && !LivingBusy && engine.Ready && await SleepWorkAsync(personas, now))
+			{
+				return;
+			}
 			PersonaEntry next = personas.OrderBy((PersonaEntry p) => LivingSchedule.NextThought(LastThoughtOf(p.Id), livingStarted, policy, JitterOf(p.Id), night)).First();
 			DateTimeOffset due = LivingSchedule.NextThought(LastThoughtOf(next.Id), livingStarted, policy, JitterOf(next.Id), night);
 			// A dream that stayed with her comes first: once she's awake and allowed to, she tells you about it.
@@ -600,7 +605,7 @@ public partial class MainWindow
 	}
 
 	/// <summary>One JSON answer from the chat model's second slot (the conversation's cache on slot 0 is untouched).</summary>
-	private async Task<string> AskInnerLifeAsync(string system, string user, CancellationToken ct)
+	private async Task<string> AskInnerLifeAsync(string system, string user, CancellationToken ct, int maxTokens = 700, double temperature = 0.95)
 	{
 		JsonObject payload = new JsonObject
 		{
@@ -612,9 +617,9 @@ public partial class MainWindow
 				new JsonObject { ["role"] = "user", ["content"] = user }
 			},
 			["stream"] = false,
-			["temperature"] = 0.95,
+			["temperature"] = temperature,
 			["top_p"] = 0.95,
-			["max_tokens"] = 700,
+			["max_tokens"] = maxTokens,
 			["chat_template_kwargs"] = new JsonObject { ["enable_thinking"] = false },
 			["response_format"] = new JsonObject { ["type"] = "json_object" }
 		};

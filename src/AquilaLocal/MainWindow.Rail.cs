@@ -822,6 +822,16 @@ public partial class MainWindow
 		ContextMenu menu = new ContextMenu { PlacementTarget = anchor, Placement = PlacementMode.Bottom };
 		menu.Items.Add(MenuEntry("\uE736", "Dream journal", "What " + name + " has dreamed and thought while you were away", true, delegate { OpenJournal(personaId, name); }));
 		menu.Items.Add(MenuEntry("\uE8B9", "Pictures and videos", "My Media, showing only " + name, true, delegate { ShowMediaFor(personaId); }));
+		int grown = 0;
+		try
+		{
+			grown = Growths.Unseen(personaId);
+		}
+		catch (PersonaConfigException)
+		{
+		}
+		string how = "How " + name + " has changed";
+		menu.Items.Add(MenuEntry("\uE81C", grown > 0 ? how + " (" + grown + " new)" : how, "Changes " + name + " made to " + Genders.Possessive(GenderOf(personaId)) + " own personality as " + Genders.Words("{s}", GenderOf(personaId)) + " grew: look them over, edit or undo them", setUp, delegate { OpenGrowth(personaId, name); }));
 		menu.Items.Add(new Separator());
 		bool lives = settings.Living.PersonaIds.Count == 0 || settings.Living.PersonaIds.Contains(personaId);
 		MenuItem living = MenuEntry("\uE945", "Lives while you're away", lives ? name + " thinks and dreams on " + Genders.Possessive(GenderOf(personaId)) + " own (click to stop)" : "Let " + name + " think and dream on " + Genders.Possessive(GenderOf(personaId)) + " own", setUp, delegate { SetLives(personaId, !lives); });

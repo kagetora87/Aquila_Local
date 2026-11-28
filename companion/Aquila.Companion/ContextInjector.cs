@@ -121,6 +121,16 @@ public static class ContextInjector
     /// <summary>Recalled moments sit right beside the new message, where models pay most attention. Without a clear
     /// "this is over" they read as the present, and she jumps back into an old scene; so each one says how long ago
     /// it was, and the block says the conversation has moved on.</summary>
+    /// <summary>A loosely related past moment that drifted up, offered as a possible "that reminds me…".</summary>
+    public static string AssociationBlock(Recalled loose, DateTimeOffset? now = null)
+    {
+        Exchange e = loose.Exchange;
+        string what = Living.InnerLife.IsThought(e)
+            ? "something you once thought to yourself: \"" + Clip(e.Reply, 300) + "\""
+            : "a moment between you: they said \"" + Clip(e.User, 200) + "\" and you said \"" + Clip(e.Reply, 240) + "\"";
+        return "A loose association drifted up (" + When(e.At, now) + ", " + what + "). If it genuinely connects to what's happening, you might bring it up the way people do (\"that reminds me…\"); if not, let it go.";
+    }
+
     public static string RecalledBlock(IReadOnlyList<Recalled> recalled, DateTimeOffset? now = null)
     {
         if (recalled.Count == 0)

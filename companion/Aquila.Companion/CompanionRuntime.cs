@@ -64,7 +64,7 @@ public sealed class CompanionRuntime
         PersonaStore store = registry.OpenStore(personaId);
         store.ReadDrives(config.Drives.Select(d => d.Name));
         store.ReadAppearance();
-        return new CompanionRuntime(config, store, embedder, scorer ?? new HeuristicScorer());
+        return new CompanionRuntime(config, store, embedder, scorer ?? new HeuristicScorer()) { Chance = Random.Shared };
     }
 
     public static CompanionRuntime ForTests(PersonaConfig config, PersonaStore store, IEmbedder embedder) =>
@@ -113,8 +113,21 @@ public sealed class CompanionRuntime
         (InjectedContext context, string top, card) = Assemble();
         // Only moments that are really about the same thing come to mind (0.2 let nearly anything in).
         List<Recalled> recalled = Memory.Search(q, Config.Memory.RetrieveTopK, verbatimTurnIds, RecallAbove);
+        string recalledText = ContextInjector.RecalledBlock(recalled, now);
+        // Now and then a looser association drifts up, the way one thing reminds a person of another.
+        if (Chance != null && Chance.NextDouble() < AssociationChance)
+        {
+            Recalled? loose = Memory.Search(q, 8, verbatimTurnIds, AssociateAbove)
+                .Where(r => r.Similarity < RecallAbove && now - r.Exchange.At > TimeSpan.FromDays(1) && recalled.All(x => x.Exchange.Id != r.Exchange.Id))
+                .OrderBy(_ => Chance.Next()).FirstOrDefault();
+            if (loose != null)
+            {
+                string assoc = ContextInjector.AssociationBlock(loose, now);
+                recalledText = recalledText.Length > 0 ? recalledText + "\n" + assoc : assoc;
+            }
+        }
         return new PreparedTurn(Config.Id, context.SystemPrompt, context.InnerState,
-            ContextInjector.RecalledBlock(recalled, now), top, events, changes, recalled, context, card);
+            recalledText, top, events, changes, recalled, context, card);
     }
 
     /// <summary>
@@ -171,6 +184,14 @@ public sealed class CompanionRuntime
     /// <param name="spoken">True when the user said this aloud (it reached her as a transcript), so she can later tell hearing from reading.</param>
     /// <summary>How close (cosine, MiniLM) a past moment must be to the new message to be recalled.</summary>
     public const double RecallAbove = 0.38;
+
+    /// <summary>How often a loose association is offered ("that reminds me…"), and how loose it may be.</summary>
+    public const double AssociationChance = 0.25;
+
+    public const double AssociateAbove = 0.25;
+
+    /// <summary>Chance for associations: null (tests) offers none; the app's Open passes Random.Shared.</summary>
+    public Random? Chance { get; init; }
 
     public CompletedTurn Complete(PreparedTurn prepared, string chatId, string turnId, string userText, string reply, DateTimeOffset now, bool spoken = false)
     {
